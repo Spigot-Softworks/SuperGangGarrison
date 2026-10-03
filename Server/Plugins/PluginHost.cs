@@ -572,12 +572,12 @@ internal sealed class PluginHost
             TryRegisterGameplaySlotItem,
             _registerServerVoteKind,
             _startServerVote,
-            (playerId, velocityX, velocityY) => _worldGetter().TryApplyGameplayImpulse(playerId, velocityX, velocityY),
+            (playerId, velocityX, velocityY) => _worldGetter().Abilities.TryApplyGameplayImpulse(playerId, velocityX, velocityY),
             (ownerId, playerId, cooldownKey, ticks) => TrySetGameplayAbilityCooldown(ownerId, playerId, cooldownKey, ticks),
-            (targetPlayerId, amount, attackerPlayerId, weaponSpriteName) => _worldGetter().TryApplyGameplayDamage(targetPlayerId, amount, attackerPlayerId, weaponSpriteName),
-            (playerId, amount) => _worldGetter().TryApplyGameplayHealing(playerId, amount),
-            (playerId, statusEffectId, ticks, value) => _worldGetter().TryApplyGameplayStatusEffect(playerId, statusEffectId, ticks, value),
-            (GameplayProjectileSpawnRequest request, out int projectileId) => _worldGetter().TrySpawnGameplayProjectile(request, out projectileId),
+            (targetPlayerId, amount, attackerPlayerId, weaponSpriteName) => _worldGetter().Abilities.TryApplyGameplayDamage(targetPlayerId, amount, attackerPlayerId, weaponSpriteName),
+            (playerId, amount) => _worldGetter().Abilities.TryApplyGameplayHealing(playerId, amount),
+            (playerId, statusEffectId, ticks, value) => _worldGetter().Abilities.TryApplyGameplayStatusEffect(playerId, statusEffectId, ticks, value),
+            (GameplayProjectileSpawnRequest request, out int projectileId) => _worldGetter().Abilities.TrySpawnGameplayProjectile(request, out projectileId),
             _commandRegistry,
             _log);
     }
@@ -732,7 +732,7 @@ internal sealed class PluginHost
             return false;
         }
 
-        return _worldGetter().TryGetNetworkPlayer(slot, out var player)
+        return _worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             && setter(player, ownerId, normalizedStateKey, value);
     }
 
@@ -744,7 +744,7 @@ internal sealed class PluginHost
             return false;
         }
 
-        return _worldGetter().TryGetNetworkPlayer(slot, out var player)
+        return _worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             && player.ClearReplicatedState(ownerId, normalizedStateKey);
     }
 
@@ -756,7 +756,7 @@ internal sealed class PluginHost
             return false;
         }
 
-        return _worldGetter().TrySetGameplayAbilityCooldown(playerId, ownerId, normalizedCooldownKey, ticks);
+        return _worldGetter().Abilities.TrySetGameplayAbilityCooldown(playerId, ownerId, normalizedCooldownKey, ticks);
     }
 
     private bool TryRegisterGameplayAbility(string pluginId, GameplayAbilityRegistration registration, out string errorMessage)

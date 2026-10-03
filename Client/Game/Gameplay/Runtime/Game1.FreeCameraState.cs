@@ -187,8 +187,8 @@ public partial class Game1
     private void UpdateSpectatorIntelCamera(float deltaSeconds)
     {
         var targetIntel = _spectatorCameraMode == SpectatorCameraMode.RedIntel
-            ? _world.RedIntel
-            : _world.BlueIntel;
+            ? _world.ObjectiveRules.RedIntel
+            : _world.ObjectiveRules.BlueIntel;
         var carrierTeam = targetIntel.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
         foreach (var player in EnumerateRemotePlayersForView())
         {

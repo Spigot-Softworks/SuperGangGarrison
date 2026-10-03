@@ -16,7 +16,7 @@ public sealed class BotBrainMartyrTargetingTests
         bot.TeleportTo(100f, 100f);
         var protectedTarget = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 220f, 100f);
         var protector = AddPlayer(world, 3, PlayerClass.Medic, PlayerTeam.Blue, 300f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
         protector.SetMedicHealingTarget(protectedTarget);
         RefreshMedicLinks(world);
 
@@ -56,7 +56,7 @@ public sealed class BotBrainMartyrTargetingTests
         bot.TeleportTo(100f, 100f);
         var protectedTarget = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 350f, 100f);
         var protector = AddPlayer(world, 3, PlayerClass.Medic, PlayerTeam.Blue, 600f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
         protector.SetMedicHealingTarget(protectedTarget);
         RefreshMedicLinks(world);
         Assert.True(protectedTarget.LastToDieMedicMartyrProtectedLinkActive);
@@ -75,7 +75,7 @@ public sealed class BotBrainMartyrTargetingTests
         bot.TeleportTo(100f, 100f);
         var protectedTarget = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 250f, 100f);
         var protector = AddPlayer(world, 3, PlayerClass.Medic, PlayerTeam.Blue, 250f, 200f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
         protector.SetMedicHealingTarget(protectedTarget);
         RefreshMedicLinks(world);
         Assert.True(protectedTarget.LastToDieMedicMartyrProtectedLinkActive);
@@ -122,12 +122,12 @@ public sealed class BotBrainMartyrTargetingTests
             floorY: 600f,
             solids: solids,
             importedFromSource: false));
-        world.PrepareLocalPlayerJoin();
-        Assert.True(world.TrySetNetworkPlayerTeam(
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
-        world.CompleteLocalPlayerJoin(PlayerClass.Pyro);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Pyro);
         return world;
     }
 
@@ -139,10 +139,10 @@ public sealed class BotBrainMartyrTargetingTests
         float x,
         float y)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
     }

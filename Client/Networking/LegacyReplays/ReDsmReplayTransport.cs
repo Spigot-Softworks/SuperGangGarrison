@@ -317,7 +317,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                         throw new InvalidDataException("Translated replay emitted a snapshot before the welcome message.");
                     }
 
-                    if (!world.ApplySnapshot(snapshot, welcome.PlayerSlot))
+                    if (!world.SnapshotApply.ApplySnapshot(snapshot, welcome.PlayerSlot))
                     {
                         throw new InvalidDataException($"Translated snapshot frame {snapshot.Frame} was rejected by SimulationWorld.");
                     }

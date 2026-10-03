@@ -223,7 +223,7 @@ internal sealed class PlayerStatsService : IDisposable
             }
 
             QueueCounterDelta(client, roundEndedEvent.Frame, "rounds_played", 1);
-            var team = _world.GetNetworkPlayerConfiguredTeam(client.Slot);
+            var team = _world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(client.Slot);
             QueueCounterDelta(
                 client,
                 roundEndedEvent.Frame,
@@ -407,7 +407,7 @@ internal sealed class PlayerStatsService : IDisposable
         {
             var identity = GetObservationIdentity(client);
             activeIdentities.Add(identity);
-            if (!_world.TryGetNetworkPlayer(client.Slot, out var player))
+            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var player))
             {
                 _pendingDamageByClient.Remove(identity);
                 continue;
@@ -497,10 +497,10 @@ internal sealed class PlayerStatsService : IDisposable
             && client.IsAuthorized
             && client.HasAttachedGameplayAccount
             && !ServerHelpers.IsSpectatorSlot(client.Slot)
-            && !_world.IsNetworkPlayerAwaitingJoin(client.Slot)
+            && !_world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot)
             && !_world.MatchState.IsEnded
-            && !_world.CompetitiveObjectivesLocked
-            && !_world.VipWarmupActive;
+            && !_world.ReadyUp.CompetitiveObjectivesLocked
+            && !_world.VipRules.VipWarmupActive;
     }
 
     private bool IsRoundResultEligible(ClientSession client)
@@ -508,8 +508,8 @@ internal sealed class PlayerStatsService : IDisposable
         return client.IsAuthorized
             && client.HasAttachedGameplayAccount
             && !ServerHelpers.IsSpectatorSlot(client.Slot)
-            && !_world.IsNetworkPlayerAwaitingJoin(client.Slot)
-            && !_world.VipWarmupActive;
+            && !_world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot)
+            && !_world.VipRules.VipWarmupActive;
     }
 
     private ClientSession? FindClientByPlayerId(int playerId)
@@ -521,7 +521,7 @@ internal sealed class PlayerStatsService : IDisposable
 
         foreach (var client in _clientsBySlot.Values)
         {
-            if (_world.TryGetNetworkPlayer(client.Slot, out var player) && player.Id == playerId)
+            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var player) && player.Id == playerId)
             {
                 return client;
             }

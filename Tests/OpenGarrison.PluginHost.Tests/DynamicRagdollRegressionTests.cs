@@ -67,8 +67,8 @@ public sealed class DynamicRagdollRegressionTests
     {
         var game = CreateGame(Level());
         var world = (SimulationWorld)typeof(Game1).GetField("_world", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(game)!;
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
         var pose = Body(true);
         Invoke(game, "TryCaptureElkondoRagdollWeapon", pose, world.LocalPlayer);
         Assert.Empty(pose.WeaponSpriteName);

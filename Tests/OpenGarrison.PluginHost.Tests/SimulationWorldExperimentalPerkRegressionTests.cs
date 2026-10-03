@@ -50,10 +50,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             EnableGhostPhaseOnKill: true,
             KillInvincibilityDurationSeconds: 1f));
 
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(2, out var victim));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var victim));
         victim.ForceSetHealth(1);
 
         world.PlayerDeaths.KillPlayer(victim,
@@ -80,8 +80,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
 
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
-        world.SetLocalInput(new PlayerInputSnapshot(
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             false,
             false,
             false,
@@ -105,7 +105,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
 
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         PressFireSecondary(world);
 
         Assert.Single(world.Sentries);
@@ -117,7 +117,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
 
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         PressFireSecondary(world);
         var sentry = Assert.Single(world.Sentries);
         Assert.False(sentry.IsBuilt);
@@ -160,7 +160,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateNetworkSoldier(world, 2);
         PlaceTeammateInPyroAirblastRange(world, teammate);
         Assert.False(world.ExperimentalGameplaySettings.EnableFriendlyAirblastKnockback);
@@ -177,7 +177,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings(EnableFriendlyAirburstKnockback: false));
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateNetworkSoldier(world, 2);
         PlaceTeammateInPyroAirblastRange(world, teammate);
         Assert.False(world.ExperimentalGameplaySettings.EnableFriendlyAirburstKnockback);
@@ -201,7 +201,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings(EnableFriendlyAirblastKnockback: true));
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateNetworkSoldier(world, 2);
         teammate.TeleportTo(world.LocalPlayer.X + 64f, world.LocalPlayer.Y);
         teammate.SetSpawnRoomState(false);
@@ -222,7 +222,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateNetworkSoldier(world, 2);
         PlaceTeammateInPyroAirblastRange(world, teammate);
         var fuelBefore = world.LocalPlayer.PyroPrimaryFuelScaled;
@@ -242,7 +242,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateNetworkSoldier(world, 2);
         teammate.TeleportTo(world.LocalPlayer.X + 64f, world.LocalPlayer.Y);
         teammate.SetSpawnRoomState(false);
@@ -274,7 +274,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
 
         PressUseAbilitySpaceAndFirePrimary(world, world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
 
@@ -469,7 +469,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.Empty(world.Needles);
         Assert.False(world.LocalPlayer.IsMedicHealing);
-        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        var abilityEvent = Assert.Single(world.Abilities.DrainPendingGameplayAbilityEvents());
         Assert.False(abilityEvent.Handled);
         Assert.True(abilityEvent.ConsumedInput);
         Assert.Equal("ability.medic-uber", abilityEvent.ItemId);
@@ -488,7 +488,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         teammate.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
         teammate.SetSpawnRoomState(false);
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -510,7 +510,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.Empty(world.Needles);
         Assert.False(world.LocalPlayer.IsMedicHealing);
-        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        var abilityEvent = Assert.Single(world.Abilities.DrainPendingGameplayAbilityEvents());
         Assert.False(abilityEvent.Handled);
         Assert.True(abilityEvent.ConsumedInput);
         Assert.Equal("ability.medic-uber", abilityEvent.ItemId);
@@ -522,7 +522,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
         var healthBefore = enemy.Health;
@@ -548,7 +548,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateRedNetworkScout(world, 2);
         SetOpenCombatLevel(world);
         world.TeleportLocalPlayer(100f, 100f);
@@ -575,7 +575,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateRedNetworkScout(world, 2);
         SetOpenCombatLevel(world);
         world.TeleportLocalPlayer(100f, 100f);
@@ -585,7 +585,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         world.LocalPlayer.FillMedicUberCharge();
         Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -605,7 +605,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.LocalPlayer.IsMedicUbering);
         Assert.True(world.LocalPlayer.IsMedicHealing);
         Assert.Equal(teammate.Id, world.LocalPlayer.MedicHealTargetId);
-        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        var abilityEvent = Assert.Single(world.Abilities.DrainPendingGameplayAbilityEvents());
         Assert.True(abilityEvent.Handled);
         Assert.Equal("ability.medic-uber", abilityEvent.ItemId);
         Assert.Equal(BuiltInGameplayBehaviorIds.MedicUber, abilityEvent.ExecutorId);
@@ -616,7 +616,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateRedNetworkScout(world, 2);
         var enemy = CreateBlueNetworkScout(world, 3);
         SetOpenCombatLevel(world);
@@ -629,7 +629,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var enemyHealthBefore = enemy.Health;
         Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -657,7 +657,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateRedNetworkScout(world, 2);
         var enemy = CreateBlueNetworkScout(world, 3);
         MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
@@ -665,7 +665,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         teammate.SetSpawnRoomState(false);
         Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -756,7 +756,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         MoveKritzBeamTestPlayersToOpenCombatLevel(world, enemy);
         PressUseAbilitySpace(world, enemy.X, enemy.Y);
@@ -975,7 +975,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         AdvanceTicks(world, 1);
 
-        Assert.True(world.IsPlayerInsideExperimentalEngineerMisdirectionFieldForVisuals(world.LocalPlayer));
+        Assert.True(world.ExperimentalRules.IsPlayerInsideExperimentalEngineerMisdirectionFieldForVisuals(world.LocalPlayer));
         _ = world.DrainPendingDamageEvents();
         var evadedHitCount = 0;
         for (var attempt = 0; attempt < 25; attempt += 1)
@@ -1038,7 +1038,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         world.TeleportLocalPlayer(world.LocalPlayer.X + 160f, world.LocalPlayer.Y - 48f);
         AdvanceTicks(world, 30);
 
-        Assert.True(world.IsExperimentalEngineerFloatingSentry(sentry));
+        Assert.True(world.ExperimentalRules.IsExperimentalEngineerFloatingSentry(sentry));
         Assert.True(MathF.Abs(sentry.X - startX) > 24f || MathF.Abs(sentry.Y - startY) > 12f);
     }
 
@@ -1064,7 +1064,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var settings = new ExperimentalGameplaySettings(
             EnableDemoknightKit: survivorClass == PlayerClass.Demoman);
         var world = CreateJoinedRageWorld(survivorClass, settings);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
         world.LocalPlayer.AddRageCharge(
             ExperimentalGameplaySettings.RageMaxCharge,
             ExperimentalGameplaySettings.RageMaxCharge);
@@ -1077,8 +1077,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void JumpPadLaunchesEngineerOnlyWhenJumpIsPressed()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
-        Assert.True(world.TryBuildLocalJumpPad());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Structures.TryBuildLocalJumpPad());
         var pad = Assert.Single(world.JumpPads);
         AdvanceUntilJumpPadLanded(world, pad);
 
@@ -1097,8 +1097,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void GravitonAffixerPullsNearbyEnemiesAndSlowsThemOnContact()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerGravitonAffixer: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
-        Assert.True(world.TryBuildLocalJumpPad());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Structures.TryBuildLocalJumpPad());
         var pad = Assert.Single(world.JumpPads);
         AdvanceUntilJumpPadLanded(world, pad);
         var enemy = CreateBlueNetworkScout(world, 2);
@@ -1120,8 +1120,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void AuraEnergizerAddsPadAuraBurstAndReducedLaunchHeight()
     {
         var baselineWorld = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
-        Assert.True(baselineWorld.TryMoveLocalPlayerToControlPointSpawn());
-        Assert.True(baselineWorld.TryBuildLocalJumpPad());
+        Assert.True(baselineWorld.Spawns.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(baselineWorld.Structures.TryBuildLocalJumpPad());
         var baselinePad = Assert.Single(baselineWorld.JumpPads);
         AdvanceUntilJumpPadLanded(baselineWorld, baselinePad);
         PressJump(baselineWorld);
@@ -1129,8 +1129,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var baselineLaunchSpeed = baselineWorld.LocalPlayer.VerticalSpeed;
 
         var auraWorld = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerAuraEnergizer: true));
-        Assert.True(auraWorld.TryMoveLocalPlayerToControlPointSpawn());
-        Assert.True(auraWorld.TryBuildLocalJumpPad());
+        Assert.True(auraWorld.Spawns.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(auraWorld.Structures.TryBuildLocalJumpPad());
         var auraPad = Assert.Single(auraWorld.JumpPads);
         AdvanceUntilJumpPadLanded(auraWorld, auraPad);
         auraWorld.TeleportLocalPlayer(auraPad.X + 24f, auraPad.Y);
@@ -1149,7 +1149,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void EntanglementTraverserTeleportsEngineerToOwnedSentry()
     {
         var world = CreatePrototypeEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerEntanglementTraverser: true));
-        Assert.True(world.TryBuildLocalSentry());
+        Assert.True(world.Structures.TryBuildLocalSentry());
         var sentry = Assert.Single(world.Sentries);
         for (var tick = 0; tick < 2000 && !sentry.IsBuilt; tick += 1)
         {
@@ -1159,7 +1159,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(sentry.IsBuilt);
         world.LocalPlayer.AddMetal(50f);
         world.TeleportLocalPlayer(sentry.X + 112f, sentry.Y);
-        Assert.True(world.TryBuildLocalJumpPad());
+        Assert.True(world.Structures.TryBuildLocalJumpPad());
         var pad = Assert.Single(world.JumpPads);
         AdvanceUntilJumpPadLanded(world, pad);
         PressJump(world);
@@ -1225,14 +1225,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void MateriaRecyclerStillAllowsBuildingSentryAtOneHundredMetal()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerMateriaRecycler: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         AdvanceTicks(world, 1);
 
         Assert.Equal(200f, world.LocalPlayer.MaxMetal);
         Assert.True(world.LocalPlayer.SpendMetal(100f));
         Assert.Equal(100f, world.LocalPlayer.Metal);
         Assert.True(world.LocalPlayer.CanAffordSentry());
-        Assert.True(world.TryBuildLocalSentry());
+        Assert.True(world.Structures.TryBuildLocalSentry());
     }
 
     [Fact]
@@ -1243,7 +1243,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.Equal(CharacterClassCatalog.Engineer.MaxHealth + ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorBonusMaxHealth, world.LocalPlayer.MaxHealth);
         Assert.Equal(ExperimentalGameplaySettings.DefaultEngineerDestinyPunctuatorShotgunClipSize, world.LocalPlayer.MaxShells);
-        Assert.False(world.LocalPlayer.CanAffordSentry() && world.TryBuildLocalSentry());
+        Assert.False(world.LocalPlayer.CanAffordSentry() && world.Structures.TryBuildLocalSentry());
         Assert.Empty(world.Sentries);
     }
 
@@ -1274,7 +1274,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(
             EnableEngineerDestinyPunctuator: true,
             EnableEngineerEssenceExtractor: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         AdvanceTicks(world, 1);
         Assert.True(InvokeTryHandleExperimentalEngineerAlternateWeaponInteraction(world, world.LocalPlayer));
         Assert.True(world.LocalPlayer.IsExperimentalOffhandEquipped);
@@ -1311,7 +1311,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(
             EnableEngineerDestinyPunctuator: true,
             EnableEngineerEssenceExtractor: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         AdvanceTicks(world, 1);
 
         Assert.True(InvokeTryHandleExperimentalEngineerAlternateWeaponInteraction(world, world.LocalPlayer));
@@ -1350,7 +1350,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(
             EnableEngineerEssenceExtractor: true,
             EnableEngineerFreezeRay: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
         AdvanceTicks(world, 1);
@@ -1379,7 +1379,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void EngineerBeamOffhandDoesNotBlockSecondarySentryPlacement()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerEssenceExtractor: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         AdvanceTicks(world, 1);
 
         Assert.True(InvokeTryHandleExperimentalEngineerAlternateWeaponInteraction(world, world.LocalPlayer));
@@ -1406,13 +1406,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(
             EnableEngineerEssenceExtractor: enableEssenceExtractor,
             EnableEngineerFreezeRay: enableFreezeRay));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         AdvanceTicks(world, 1);
 
         Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -1436,13 +1436,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(
             EnableSoldierShotgunSecondaryWeapon: true,
             EnableSoldierCivilDefenseTurret: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         AdvanceTicks(world, 1);
 
         Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -1470,7 +1470,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
         Assert.False(world.LocalPlayer.IsExperimentalOffhandEquipped);
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -1533,7 +1533,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
 
         var durationTicks = GetHeavyGhostDashDurationTicks(world);
         var startX = world.LocalPlayer.X;
@@ -1551,7 +1551,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             initialSpeed > expectedBurstSpeed * 0.25f,
             $"expected burst speed; speed={initialSpeed:0.###} expected={expectedBurstSpeed:0.###}");
 
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         AdvanceTicks(world, durationTicks + 2);
 
         var totalDistance = MathF.Abs(world.LocalPlayer.X - startX);
@@ -1565,13 +1565,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedSpyWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var startY = world.LocalPlayer.Y;
 
         PressUseAbilitySpace(world);
         Assert.True(world.LocalPlayer.SpySuperjumpChargeTicks > 0);
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: true,
@@ -1618,7 +1618,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var verticalSpeedBeforePickup = world.LocalPlayer.VerticalSpeed;
         Assert.NotEqual(0f, verticalSpeedBeforePickup);
 
-        Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
+        Assert.True(world.ObjectiveRules.ForceGiveEnemyIntelToLocalPlayer());
 
         Assert.True(world.LocalPlayer.IsCarryingIntel);
         Assert.Equal(0f, world.LocalPlayer.HorizontalSpeed);
@@ -1631,14 +1631,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
 
         PressUseAbilitySpace(world);
         Assert.True(world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining > 0);
 
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
         world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
         world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
 
@@ -1653,14 +1653,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedMedicWorld(new ExperimentalGameplaySettings(EnableSecondaryAbilities: true));
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
 
         PressUseAbilitySpace(world);
         Assert.True(world.LocalPlayer.MedicHealDartCooldownTicks > 0);
 
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
         world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
         world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
 
@@ -1674,12 +1674,12 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void HealingCabinetPreservesSelectedSecondaryWeapon()
     {
         var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings(EnableSoldierShotgunSecondaryWeapon: true));
-        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(SimulationWorld.LocalPlayerSlot, GameplayEquipmentSlot.Secondary));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(SimulationWorld.LocalPlayerSlot, GameplayEquipmentSlot.Secondary));
         Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.SelectedGameplayEquippedSlot);
         Assert.Equal(GameplayEquipmentSlot.Secondary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
 
         world.LocalPlayer.ForceSetAmmo(0);
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
         world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
 
@@ -1696,13 +1696,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void HealingCabinetDoesNotResupplyAgainUntilFourSecondsHaveElapsed()
     {
         var world = CreateJoinedSoldierWorld(new ExperimentalGameplaySettings());
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
 
         var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
         world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
         world.LocalPlayer.ForceSetAmmo(0);
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         world.AdvanceOneTick();
 
         Assert.True(world.LocalPlayer.IsUsingHealingCabinet);
@@ -1726,14 +1726,14 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         Assert.True(world.LocalPlayer.TryActivateCivvieUmbrella());
         Assert.True(world.LocalPlayer.TryAbsorbCivvieUmbrellaHit());
         Assert.True(world.LocalPlayer.CivvieUmbrellaChargeTicks < PlayerEntity.CivvieUmbrellaMaxChargeTicks);
 
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
         world.LocalPlayer.ForceSetAmmo(world.LocalPlayer.MaxShells);
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         world.DrainPendingSoundEvents();
         var cabinet = world.Level.GetRoomObjects(RoomObjectType.HealingCabinet).First();
         world.TeleportLocalPlayer(cabinet.CenterX, cabinet.CenterY);
@@ -1754,7 +1754,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var attacker = CreateBlueNetworkScout(world, 2);
         var healthBefore = world.LocalPlayer.Health;
 
@@ -1776,7 +1776,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var attacker = CreateBlueNetworkScout(world, 2);
         var healthBefore = world.LocalPlayer.Health;
 
@@ -1860,7 +1860,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var attacker = CreateBlueNetworkScout(world, 2);
         var healthBefore = world.LocalPlayer.Health;
         var chargeBefore = world.LocalPlayer.CivvieUmbrellaChargeTicks;
@@ -2016,7 +2016,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var chargeBeforeAfterburn = civilian.CivvieUmbrellaChargeTicks;
         for (var tick = 0; tick < 5; tick += 1)
         {
-            world.SetLocalInput(new PlayerInputSnapshot(
+            world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
                 Left: false,
                 Right: false,
                 Up: false,
@@ -2063,7 +2063,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var teammate = CreateNetworkSoldier(world, 2);
         var enemy = CreateBlueNetworkScout(world, 3);
         teammate.TeleportTo(world.LocalPlayer.X + 64f, world.LocalPlayer.Y);
@@ -2107,7 +2107,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
 
         PressUseAbilitySpace(world);
         Assert.True(world.LocalPlayer.IsCivviePogoActive);
@@ -2122,7 +2122,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedCivilianWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
 
         PressUseAbilitySpace(world);
         Assert.True(world.LocalPlayer.IsCivviePogoActive);
@@ -2172,7 +2172,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         // Class change suicides by design, so the stale-loadout scenario
         // continues after a respawn.
         Assert.False(world.LocalPlayer.IsAlive);
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
 
         Assert.True(world.LocalPlayer.IsAlive);
         Assert.False(world.LocalPlayer.HasExperimentalOffhandWeapon);
@@ -2192,7 +2192,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
 
         using var staleParameters = JsonDocument.Parse(
             """
@@ -2284,7 +2284,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var target = CreateBlueNetworkScout(world, 2);
         target.ForceSetHealth(999);
         target.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
@@ -2327,7 +2327,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
 
         PressUseAbilitySpace(world);
         ReleaseAllInput(world);
@@ -2349,7 +2349,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         PressUseAbilitySpace(world);
 
-        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        var abilityEvent = Assert.Single(world.Abilities.DrainPendingGameplayAbilityEvents());
         Assert.True(abilityEvent.Handled);
         Assert.True(abilityEvent.ConsumedInput);
         Assert.False(abilityEvent.Cancelled);
@@ -2367,7 +2367,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = CreateJoinedHeavyWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
         var intercepted = false;
-        world.GameplayAbilityInputInterceptor = abilityEvent =>
+        world.Abilities.GameplayAbilityInputInterceptor = abilityEvent =>
         {
             intercepted = true;
             Assert.Equal("ability.heavy-utility", abilityEvent.ItemId);
@@ -2380,7 +2380,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(intercepted);
         Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
         Assert.Equal(0, world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
-        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        var abilityEvent = Assert.Single(world.Abilities.DrainPendingGameplayAbilityEvents());
         Assert.True(abilityEvent.Cancelled);
         Assert.True(abilityEvent.ConsumedInput);
         Assert.False(abilityEvent.Handled);
@@ -2422,7 +2422,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
         Assert.False(world.LocalPlayer.IsExperimentalGhostDashing);
         Assert.Equal(0, world.LocalPlayer.ExperimentalGhostDashCooldownTicksRemaining);
-        Assert.Empty(world.DrainPendingGameplayAbilityEvents());
+        Assert.Empty(world.Abilities.DrainPendingGameplayAbilityEvents());
     }
 
     [Fact]
@@ -2478,7 +2478,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         AdvanceTicks(world, world.Config.TicksPerSecond);
 
         Assert.Equal(world.LocalPlayer.MaxHealth - 30, world.LocalPlayer.Health);
-        Assert.Empty(world.DrainPendingGameplayAbilityEvents());
+        Assert.Empty(world.Abilities.DrainPendingGameplayAbilityEvents());
     }
 
     [Fact]
@@ -2532,7 +2532,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = CreateJoinedSniperWorld(new ExperimentalGameplaySettings());
         AdvanceTicks(world, 1);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
 
         PressSwapWeaponSpace(world);
         Assert.Equal("weapon.bow", world.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
@@ -2569,9 +2569,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(world.LocalPlayer.TrySelectGameplayPrimaryItem("weapon.bow"));
 
         Assert.True(world.LocalPlayer.IsSniperBowEquipped);
-        Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
+        Assert.True(world.ObjectiveRules.ForceGiveEnemyIntelToLocalPlayer());
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -2655,7 +2655,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var player = world.LocalPlayer;
         player.SetSpawnRoomState(false);
         player.TeleportTo(300f, platformTop - player.CollisionBottomOffset - 48f);
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         for (var tick = 0; tick < 120 && !player.IsGrounded; tick += 1)
         {
             world.AdvanceOneTick();
@@ -2664,7 +2664,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(player.IsGrounded);
         Assert.InRange(player.Bottom, platformTop - 0.01f, platformTop + 0.01f);
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: true,
@@ -2682,7 +2682,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.False(player.IsGrounded);
         Assert.True(player.Bottom < platformTop);
 
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         var passedAbovePlatform = false;
         for (var tick = 0; tick < 12; tick += 1)
         {
@@ -2734,7 +2734,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(GameplayEquipmentSlot.Primary, world.LocalPlayer.GameplayLoadoutState.EquippedSlot);
 
         ReleaseAllInput(world);
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -2775,7 +2775,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void SwapWeaponInputTogglesAnyClassSecondaryWeaponWithoutFiringUtility()
     {
         var world = CreateJoinedPyroWorld(new ExperimentalGameplaySettings());
-        Assert.True(world.TrySetNetworkPlayerGameplaySecondaryItem(SimulationWorld.LocalPlayerSlot, "weapon.rocketlauncher"));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplaySecondaryItem(SimulationWorld.LocalPlayerSlot, "weapon.rocketlauncher"));
         AdvanceTicks(world, 1);
 
         Assert.True(world.LocalPlayer.HasExperimentalOffhandWeapon);
@@ -2880,7 +2880,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void EssenceExtractorWorksThroughEquippedOffhandPrimaryInput()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerEssenceExtractor: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         enemy.ForceSetHealth(999);
         enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
@@ -2890,7 +2890,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(ExperimentalEngineerAlternateWeaponMode.EssenceExtractor, world.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
         var healthBefore = enemy.Health;
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -2913,7 +2913,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void FreezeRayWorksThroughEquippedOffhandPrimaryInput()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerFreezeRay: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         enemy.ForceSetHealth(999);
         enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
@@ -2922,7 +2922,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.True(InvokeTryHandleExperimentalEngineerAlternateWeaponInteraction(world, world.LocalPlayer));
         Assert.Equal(ExperimentalEngineerAlternateWeaponMode.FreezeRay, world.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -2945,7 +2945,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void EssenceExtractorDrainsEnemyAndAppliesDamageVulnerability()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerEssenceExtractor: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
         var healthBefore = enemy.Health;
@@ -2963,7 +2963,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void EssenceExtractorDealsTwentyFiveDamagePerSecondAndHealsInOneChunk()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerEssenceExtractor: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         world.LocalPlayer.ForceSetHealth(Math.Max(1, world.LocalPlayer.MaxHealth - 40));
         enemy.ForceSetHealth(999);
@@ -2987,7 +2987,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void FreezeRayChainsAcrossThreeTargetsWithoutHealingEngineer()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerFreezeRay: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         world.EnemyPlayer.ForceSetHealth(0);
         var primaryEnemy = CreateBlueNetworkScout(world, 2);
         var chainedEnemyA = CreateBlueNetworkScout(world, 3);
@@ -3026,7 +3026,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void FreezeRayExposureSurvivesShortBreakAndWeakensEnemyCombat()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerFreezeRay: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         enemy.ForceSetHealth(999);
         enemy.TeleportTo(world.LocalPlayer.X + 96f, world.LocalPlayer.Y);
@@ -3081,7 +3081,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void FreezeRayFrozenKillsSpawnCryoTintedGibsAndBlood()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerFreezeRay: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         world.EnemyPlayer.ForceSetHealth(0);
         var enemy = CreateBlueNetworkScout(world, 2);
         enemy.ForceSetHealth(999);
@@ -3107,7 +3107,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void ExperimentalOverkillAugmentAddsTwoCaveatRocketsToShotgunShots()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerExperimentalOverkillAugment: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         SetPlayerAimDirection(world.LocalPlayer, 0f);
 
         Assert.True(world.LocalPlayer.TryFirePrimaryWeapon());
@@ -3127,7 +3127,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void ExperimentalOverkillAugmentRocketsSeekWithoutCaveatInjector()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings(EnableEngineerExperimentalOverkillAugment: true));
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         var enemy = CreateBlueNetworkScout(world, 2);
         enemy.TeleportTo(world.LocalPlayer.X + 220f, world.LocalPlayer.Y + 84f);
         SetPlayerAimDirection(world.LocalPlayer, 0f);
@@ -3218,10 +3218,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     public void BuildingSentryUsesEngineerAimDirectionForInitialFacing()
     {
         var world = CreateJoinedEngineerWorld(new ExperimentalGameplaySettings());
-        _ = world.TryMoveLocalPlayerToControlPointSpawn();
+        _ = world.Spawns.TryMoveLocalPlayerToControlPointSpawn();
         SetPlayerAimDirection(world.LocalPlayer, 180f);
 
-        Assert.True(world.TryBuildLocalSentry());
+        Assert.True(world.Structures.TryBuildLocalSentry());
 
         var sentry = Assert.Single(world.Sentries);
         Assert.True(sentry.StartDirectionX < 0f);
@@ -3368,7 +3368,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         Assert.Equal(allyEnemy.Id, confusedEnemy.ExperimentalConfusedAttackTargetPlayerId);
         _ = InvokeApplyPlayerDamage(world, allyEnemy, 5, confusedEnemy);
         Assert.True(confusedEnemy.IsExperimentalConfusionRetaliationMarked);
-        Assert.True(SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(allyEnemy, confusedEnemy));
+        Assert.True(ExperimentalRulesSystem.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(allyEnemy, confusedEnemy));
     }
 
     [Fact]
@@ -3449,7 +3449,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = new SimulationWorld();
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
         world.ConfigureExperimentalGameplaySettings(settings);
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         return world;
     }
 
@@ -3457,9 +3457,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3468,9 +3468,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Heavy);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Heavy);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3479,11 +3479,11 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Pyro);
-        world.DespawnFriendlyDummy();
-        world.DespawnEnemyDummy();
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Pyro);
+        world.PracticeDummies.DespawnFriendlyDummy();
+        world.PracticeDummies.DespawnEnemyDummy();
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3492,9 +3492,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Demoman);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Demoman);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3503,9 +3503,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Sniper);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Sniper);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3514,9 +3514,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Spy);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Spy);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3525,9 +3525,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Quote);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Quote);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3536,9 +3536,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3547,9 +3547,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3558,9 +3558,9 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         world.ConfigureExperimentalGameplaySettings(settings);
         return world;
     }
@@ -3586,7 +3586,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         var world = new SimulationWorld();
         Assert.True(world.TrySetLocalClass(PlayerClass.Engineer));
         world.ConfigureExperimentalGameplaySettings(settings);
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         if (world.LocalPlayer.IsInSpawnRoom)
         {
             var startX = world.LocalPlayer.X;
@@ -3603,8 +3603,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static SentryEntity BuildLocalSentry(SimulationWorld world)
     {
-        _ = world.TryMoveLocalPlayerToControlPointSpawn();
-        Assert.True(world.TryBuildLocalSentry());
+        _ = world.Spawns.TryMoveLocalPlayerToControlPointSpawn();
+        Assert.True(world.Structures.TryBuildLocalSentry());
         return Assert.Single(world.Sentries);
     }
 
@@ -3623,10 +3623,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static SentryEntity BuildAndCompleteNetworkSentry(SimulationWorld world, byte ownerSlot, PlayerEntity owner)
     {
-        Assert.True(world.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToControlPointSpawn());
         owner.TeleportTo(world.LocalPlayer.X + 160f, world.LocalPlayer.Y);
         owner.SetSpawnRoomState(false);
-        Assert.True(world.TrySetNetworkPlayerInput(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(
             ownerSlot,
             new PlayerInputSnapshot(
                 Left: false,
@@ -3642,7 +3642,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 AimWorldY: owner.Y,
                 DebugKill: false)));
         world.AdvanceOneTick();
-        Assert.True(world.TrySetNetworkPlayerInput(ownerSlot, default));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(ownerSlot, default));
         var sentry = Assert.Single(world.Sentries, candidate => candidate.OwnerPlayerId == owner.Id);
         sentry.ForceBuilt();
         return sentry;
@@ -3715,7 +3715,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
                 solids: [],
                 importedFromSource: false));
 
-        Assert.True(world.IsNearPrimaryWeaponSwapStation(player));
+        Assert.True(world.Structures.IsNearPrimaryWeaponSwapStation(player));
     }
 
     private static void SetArrowCollisionTestLevel(SimulationWorld world)
@@ -3745,82 +3745,82 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static PlayerEntity CreateBlueNetworkScout(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static PlayerEntity CreateBlueNetworkSpy(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Spy));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Spy));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static PlayerEntity CreateBlueNetworkSoldier(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static PlayerEntity CreateBlueNetworkDemoman(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Demoman));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Demoman));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static PlayerEntity CreateBlueNetworkPyro(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Pyro));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Pyro));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static PlayerEntity CreateRedNetworkScout(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static PlayerEntity CreateBlueNetworkEngineer(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Engineer));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Engineer));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static PlayerEntity CreateNetworkSoldier(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static PlayerEntity CreateNetworkSniper(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Sniper));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Sniper));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
@@ -3850,7 +3850,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressJump(SimulationWorld world)
     {
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: true,
@@ -3882,10 +3882,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         // normal gameplay still requires the player to be at a primary swap station.
         if (world.LocalPlayer.HasAlternatePrimaryWeapons)
         {
-            Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(SimulationWorld.LocalPlayerSlot, suppressed: true));
+            Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(SimulationWorld.LocalPlayerSlot, suppressed: true));
         }
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -3908,7 +3908,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressTaunt(SimulationWorld world)
     {
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -3928,7 +3928,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressUp(SimulationWorld world)
     {
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: true,
@@ -3947,7 +3947,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressUseAbilitySpace(SimulationWorld world, float aimWorldX, float aimWorldY)
     {
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -3967,7 +3967,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressUseAbilitySpaceAndFirePrimary(SimulationWorld world, float aimWorldX, float aimWorldY)
     {
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -3987,7 +3987,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressFireSecondaryAndSwapWeapon(SimulationWorld world)
     {
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -4007,7 +4007,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PressFireSecondary(SimulationWorld world)
     {
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -4029,7 +4029,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         for (var tick = 0; tick < PlayerEntity.CivvieUmbrellaAirblastOpeningTick + 2; tick += 1)
         {
-            world.SetLocalInput(new PlayerInputSnapshot(
+            world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
                 Left: false,
                 Right: false,
                 Up: false,
@@ -4054,7 +4054,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void FirePrimaryOnce(SimulationWorld world)
     {
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -4078,7 +4078,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
         string expectedExecutorId,
         string expectedCategory = GameplayAbilityConstants.SecondaryCategory)
     {
-        var abilityEvent = Assert.Single(world.DrainPendingGameplayAbilityEvents());
+        var abilityEvent = Assert.Single(world.Abilities.DrainPendingGameplayAbilityEvents());
         Assert.True(abilityEvent.Handled);
         Assert.True(abilityEvent.ConsumedInput);
         Assert.False(abilityEvent.Cancelled);
@@ -4095,10 +4095,10 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     {
         if (player.HasAlternatePrimaryWeapons)
         {
-            Assert.True(world.TrySetNetworkPlayerAutomaticRespawnSuppressed(slot, suppressed: true));
+            Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(slot, suppressed: true));
         }
 
-        Assert.True(world.TrySetNetworkPlayerInput(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(
             slot,
             new PlayerInputSnapshot(
                 Left: false,
@@ -4120,13 +4120,13 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void ReleaseNetworkInput(SimulationWorld world, byte slot)
     {
-        Assert.True(world.TrySetNetworkPlayerInput(slot, default));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(slot, default));
         world.AdvanceOneTick();
     }
 
     private static void ReleaseAllInput(SimulationWorld world)
     {
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         world.AdvanceOneTick();
     }
 
@@ -4438,8 +4438,8 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
 
     private static void PrepareOpenFlamethrowerTestWorld(SimulationWorld world)
     {
-        world.DespawnFriendlyDummy();
-        world.DespawnEnemyDummy();
+        world.PracticeDummies.DespawnFriendlyDummy();
+        world.PracticeDummies.DespawnEnemyDummy();
         SetOpenCombatLevel(world);
         world.TeleportLocalPlayer(100f, 100f);
         world.LocalPlayer.SetSpawnRoomState(false);

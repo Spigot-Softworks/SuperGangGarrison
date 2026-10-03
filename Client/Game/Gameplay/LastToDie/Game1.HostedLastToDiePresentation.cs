@@ -75,7 +75,7 @@ public partial class Game1
                 continue;
             }
 
-            if (_world.TryGetNetworkPlayer(participant.Slot, out var teammate)
+            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(participant.Slot, out var teammate)
                 && teammate.IsAlive)
             {
                 return teammate;
@@ -895,7 +895,7 @@ public partial class Game1
             var y = ViewportHeight * (0.37f + ((slot - 1) * (snapshot.MaximumPlayers > 2 ? 0.075f : 0.09f)));
             var name = player is null
                 ? "Waiting for player..."
-                : _world.TryGetNetworkPlayer((byte)slot, out var entity)
+                : _world.NetworkPlayerRules.TryGetNetworkPlayer((byte)slot, out var entity)
                     ? entity.DisplayName
                     : $"Player {slot}";
             var role = player is not null && player.IsHost ? "  [HOST]" : string.Empty;
@@ -965,7 +965,7 @@ public partial class Game1
     {
         var host = snapshot.Players.FirstOrDefault(player => player.IsHost);
         var hostName = host is not null
-            && _world.TryGetNetworkPlayer(host.Slot, out var hostEntity)
+            && _world.NetworkPlayerRules.TryGetNetworkPlayer(host.Slot, out var hostEntity)
             && !string.IsNullOrWhiteSpace(hostEntity.DisplayName)
                 ? hostEntity.DisplayName.Trim()
                 : host?.Slot == _networkClient.LocalPlayerSlot

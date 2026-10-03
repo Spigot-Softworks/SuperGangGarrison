@@ -12,7 +12,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
     public void SpawnCapturesJavelinAndUsesSpawnRelativeFuse()
     {
         var world = CreateWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Javelin]));
 
@@ -24,7 +24,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         Assert.Equal(0b1001, javelin.LastToDiePayload.Encode());
         Assert.Equal(expectedFuse, javelin.LastToDieJavelinFuseTicksRemaining);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             []));
         Assert.True(javelin.AppliesLastToDieJavelin);
@@ -34,7 +34,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
     public void InFlightFuseExpiryExplodesExactlyOnceAtCurrentLocation()
     {
         var world = CreateWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Javelin]));
         var javelin = SpawnKritzM2(world, world.LocalPlayer, 120f, 40f, 3f, 0f);
@@ -75,7 +75,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         var enemy = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         world.LocalPlayer.TeleportTo(100f, 100f);
         enemy.TeleportTo(180f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Javelin]));
         var javelin = SpawnKritzM2(world, world.LocalPlayer, 120f, 100f, 20f, 0f);
@@ -114,7 +114,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
     {
         var world = CreateWorld(
             new LevelSolid(200f, 0f, 20f, 400f));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Javelin]));
         var javelin = SpawnKritzM2(world, world.LocalPlayer, 120f, 100f, 30f, 0f);
@@ -144,7 +144,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         const float explosionX = 400f;
         const float explosionY = 200f;
         var world = CreateWorld(new LevelSolid(450f, 100f, 10f, 200f));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Javelin]));
         world.LocalPlayer.TeleportTo(explosionX, explosionY);
@@ -200,7 +200,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         const float explosionX = 300f;
         const float explosionY = 180f;
         var world = CreateWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [
                 LastToDiePerkIds.Medic.Javelin,
@@ -239,7 +239,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         Assert.All(
             new[] { unstunnedEnemy, stunnedEnemy },
             target => Assert.Contains(
-                world.GetLastToDieStatusEffects(target.Id),
+                world.LastToDieRules.GetLastToDieStatusEffects(target.Id),
                 status => status.Id == LastToDieStatusEffectIds.MedicNeurotoxinStun
                     && status.SourcePlayerId == world.LocalPlayer.Id));
     }
@@ -252,13 +252,13 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         var enemy = AddPlayer(world, 3, PlayerClass.Heavy, PlayerTeam.Blue);
         owner.TeleportTo(100f, 100f);
         enemy.TeleportTo(180f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Medic.Javelin]));
         var javelin = SpawnKritzM2(world, owner, 120f, 100f, 20f, 0f);
         var ownerId = owner.Id;
 
-        Assert.True(world.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
         Assert.Contains(javelin, world.Needles);
         AdvanceUntilAnchored(world, javelin);
 
@@ -275,7 +275,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
     {
         var source = CreateWorld();
         var owner = AddPlayer(source, 2, PlayerClass.Medic, PlayerTeam.Blue);
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Medic.Javelin]));
         var javelin = SpawnKritzM2(source, owner, 240f, 120f, 10f, 0f);
@@ -292,7 +292,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         var publisher = new Protocol64StatePublisher(source);
         _ = publisher.BuildProjectileStates(10);
         var ownerId = owner.Id;
-        Assert.True(source.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(source.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
         var state = Assert.Single(publisher.BuildProjectileStates(11));
         Assert.Equal((byte)0b1001, state.LastToDieMedicKritzM2Payload);
         Assert.Equal(ownerId, state.LastToDieMedicJavelinOwnerPlayerId);
@@ -302,7 +302,7 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         Assert.False(state.HasLastToDieMedicJavelinExploded);
 
         var receiver = CreateWorld();
-        Assert.True(receiver.ApplyProtocol64ProjectileState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64ProjectileState(state));
         var recreated = Assert.IsType<MedicHealNeedleProjectileEntity>(
             Assert.Single(receiver.Needles));
         Assert.Equal(ownerId, recreated.OwnerId);
@@ -363,8 +363,8 @@ public sealed class LastToDieMedicJavelinRuntimeTests
             floorY: 400f,
             solids,
             importedFromSource: false));
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }
@@ -375,10 +375,10 @@ public sealed class LastToDieMedicJavelinRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         player.SetSpawnRoomState(false);
         return player;
     }

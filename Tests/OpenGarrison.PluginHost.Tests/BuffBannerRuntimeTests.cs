@@ -20,18 +20,18 @@ public sealed class BuffBannerRuntimeTests
             BuiltInGameplayBehaviorIds.SoldierBuffBanner));
 
         var firstEnemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryApplyGameplayDamage(firstEnemy.Id, 150f, soldier.Id, "RocketKL"));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(firstEnemy.Id, 150f, soldier.Id, "RocketKL"));
         Assert.True(firstEnemy.IsAlive);
         Assert.Equal(150, soldier.BuffBannerChargeDamage);
         Assert.DoesNotContain(world.PendingSoundEvents, sound => sound.SoundName == "UberChargedSnd");
 
-        Assert.True(world.TryApplyGameplayDamage(firstEnemy.Id, 10_000f, soldier.Id, "RocketKL"));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(firstEnemy.Id, 10_000f, soldier.Id, "RocketKL"));
         Assert.False(firstEnemy.IsAlive);
         Assert.Equal(200, soldier.BuffBannerChargeDamage);
         Assert.DoesNotContain(world.PendingSoundEvents, sound => sound.SoundName == "UberChargedSnd");
 
         var secondEnemy = AddNetworkPlayer(world, 3, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryApplyGameplayDamage(secondEnemy.Id, 10_000f, soldier.Id, "RocketKL"));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(secondEnemy.Id, 10_000f, soldier.Id, "RocketKL"));
 
         Assert.Equal(PlayerEntity.BuffBannerDefaultMaxChargeDamage, soldier.BuffBannerChargeDamage);
         Assert.True(soldier.IsBuffBannerReady);
@@ -44,7 +44,7 @@ public sealed class BuffBannerRuntimeTests
         Assert.Equal(soldier.Y, readySound.Y);
 
         var teammate = AddNetworkPlayer(world, 4, PlayerClass.Scout, PlayerTeam.Red);
-        Assert.False(world.TryApplyGameplayDamage(teammate.Id, 10_000f, soldier.Id, "RocketKL"));
+        Assert.False(world.Abilities.TryApplyGameplayDamage(teammate.Id, 10_000f, soldier.Id, "RocketKL"));
         Assert.Equal(PlayerEntity.BuffBannerDefaultMaxChargeDamage, soldier.BuffBannerChargeDamage);
         Assert.Single(world.PendingSoundEvents, sound => sound.SoundName == "UberChargedSnd");
     }
@@ -57,8 +57,8 @@ public sealed class BuffBannerRuntimeTests
         Assert.True(soldier.TryAddBuffBannerDamageCharge(PlayerEntity.BuffBannerDefaultMaxChargeDamage));
         soldier.AddRageCharge(100f, ExperimentalGameplaySettings.RageMaxCharge);
 
-        world.SetLocalPreviousInput(default);
-        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.NetworkPlayerRules.SetLocalPreviousInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
         world.AdvanceOneTick();
 
         Assert.True(soldier.IsBuffBannerDeploying);
@@ -69,7 +69,7 @@ public sealed class BuffBannerRuntimeTests
 
         var ammoBefore = soldier.CurrentShells;
         var xBefore = soldier.X;
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             Right = true,
@@ -153,11 +153,11 @@ public sealed class BuffBannerRuntimeTests
         Assert.True(decoded.Succeeded, decoded.Fault?.Message);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(Assert.Single(decoded.Event!.Players)));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(Assert.Single(decoded.Event!.Players)));
         Assert.True(receiver.LocalPlayer.IsBuffBannerDeploying);
         Assert.Equal(37, receiver.LocalPlayer.BuffBannerDeployTicksRemaining);
 
-        source.ForceKillLocalPlayer();
+        source.NetworkPlayerRules.ForceKillLocalPlayer();
         Assert.Equal(0, source.LocalPlayer.BuffBannerChargeDamage);
         Assert.False(source.LocalPlayer.IsBuffBannerDeploying);
         Assert.False(source.LocalPlayer.IsBuffBannerActive);
@@ -166,11 +166,11 @@ public sealed class BuffBannerRuntimeTests
     private static SimulationWorld CreateSoldierWorld()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         world.LocalPlayer.SetSpawnRoomState(false);
-        world.SetLocalInput(default);
-        world.SetLocalPreviousInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalPreviousInput(default);
         _ = world.DrainPendingSoundEvents();
         return world;
     }
@@ -181,16 +181,16 @@ public sealed class BuffBannerRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
     private static void Advance(SimulationWorld world, int ticks)
     {
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         for (var tick = 0; tick < ticks; tick += 1)
         {
             world.AdvanceOneTick();

@@ -14,7 +14,7 @@ public partial class Game1
             || IsLocalSpectatorPresentationActive()
             || !player.IsAlive
             || !player.HasAlternatePrimaryWeapons
-            || !_world.IsNearPrimaryWeaponSwapStation(player))
+            || !_world.Structures.IsNearPrimaryWeaponSwapStation(player))
         {
             return;
         }

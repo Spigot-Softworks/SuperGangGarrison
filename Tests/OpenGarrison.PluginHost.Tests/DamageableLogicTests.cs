@@ -508,17 +508,17 @@ public sealed class DamageableLogicTests
 
         Assert.True(world.Level.LogicGraph.GetOutput(healWhenNodeIndex));
 
-        Assert.True(world.BlocksProjectileDamageableZone(0));
+        Assert.True(world.MapLogic.BlocksProjectileDamageableZone(0));
 
 
 
-        Assert.True(world.TryApplyDamageableZoneDamage(0, 100f));
+        Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, 100f));
 
-        Assert.Equal(0f, world.GetDamageableZoneHealth(0));
+        Assert.Equal(0f, world.MapLogic.GetDamageableZoneHealth(0));
 
-        Assert.False(world.BlocksProjectileDamageableZone(0));
+        Assert.False(world.MapLogic.BlocksProjectileDamageableZone(0));
 
-        Assert.False(world.TryApplyDamageableZoneDamage(0, 10f));
+        Assert.False(world.MapLogic.TryApplyDamageableZoneDamage(0, 10f));
 
         Assert.False(DamageableMetadata.BlocksPlayers(
 
@@ -528,13 +528,13 @@ public sealed class DamageableLogicTests
 
 
 
-        world.TickMapLogicTimers();
+        world.MapLogic.TickMapLogicTimers();
 
 
 
-        Assert.Equal(100f, world.GetDamageableZoneHealth(0));
+        Assert.Equal(100f, world.MapLogic.GetDamageableZoneHealth(0));
 
-        Assert.True(world.BlocksProjectileDamageableZone(0));
+        Assert.True(world.MapLogic.BlocksProjectileDamageableZone(0));
 
         Assert.True(DamageableMetadata.BlocksPlayers(
 
@@ -542,9 +542,9 @@ public sealed class DamageableLogicTests
 
             world.Level.GetDamageableZoneCurrentHealth(0, zone)));
 
-        Assert.True(world.TryApplyDamageableZoneDamage(0, 25f));
+        Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, 25f));
 
-        Assert.Equal(75f, world.GetDamageableZoneHealth(0));
+        Assert.Equal(75f, world.MapLogic.GetDamageableZoneHealth(0));
 
     }
 
@@ -587,10 +587,10 @@ public sealed class DamageableLogicTests
     {
         var zone = CreateDamageableZone(0, 100f, disableWhenDestroyed: true);
         var world = CreateWorld([zone]);
-        Assert.True(world.BlocksProjectileDamageableZone(0));
-        Assert.True(world.TryApplyDamageableZoneDamage(0, 100f));
-        Assert.False(world.BlocksProjectileDamageableZone(0));
-        Assert.False(world.TryApplyDamageableZoneDamage(0, 10f));
+        Assert.True(world.MapLogic.BlocksProjectileDamageableZone(0));
+        Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, 100f));
+        Assert.False(world.MapLogic.BlocksProjectileDamageableZone(0));
+        Assert.False(world.MapLogic.TryApplyDamageableZoneDamage(0, 10f));
     }
 
     [Fact]
@@ -598,9 +598,9 @@ public sealed class DamageableLogicTests
     {
         var zone = CreateDamageableZone(0, 100f);
         var world = CreateWorld([zone]);
-        world.ApplyExplosiveDamageToDamageableZones(21f, 21f, 65f, 30f, splashThresholdFactor: 0.25f);
-        Assert.True(world.GetDamageableZoneHealth(0) < 100f);
-        Assert.True(world.GetDamageableZoneHealth(0) > 0f);
+        world.MapLogic.ApplyExplosiveDamageToDamageableZones(21f, 21f, 65f, 30f, splashThresholdFactor: 0.25f);
+        Assert.True(world.MapLogic.GetDamageableZoneHealth(0) < 100f);
+        Assert.True(world.MapLogic.GetDamageableZoneHealth(0) > 0f);
     }
 
     [Fact]
@@ -700,10 +700,10 @@ public sealed class DamageableLogicTests
         var world = CreateWorld([CreateDamageableZone(0, 100f)], graph);
         var nodeIndex = graph.NodeIndexByKey["dmgTrigger"];
 
-        Assert.True(world.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Blue));
+        Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Blue));
         Assert.False(world.Level.LogicGraph.GetOutput(nodeIndex));
 
-        Assert.True(world.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Red));
+        Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Red));
         Assert.True(world.Level.LogicGraph.GetOutput(nodeIndex));
     }
 
@@ -723,9 +723,9 @@ public sealed class DamageableLogicTests
             },
         ]);
         var world = CreateWorld([CreateDamageableZone(0, 100f)], graph);
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
 
         var blueSentry = new SentryEntity(
             id: 9001,
@@ -940,16 +940,16 @@ public sealed class DamageableLogicTests
         ]);
         var world = CreateWorld([zone, sprite], graph, activators);
 
-        world.EvaluateMapLogicGraph();
+        world.MapLogic.EvaluateMapLogicGraph();
         Assert.True(world.Level.IsRoomObjectActive(1));
 
-        Assert.True(world.TryApplyDamageableZoneDamage(0, 25f));
+        Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, 25f));
         var triggerIndex = graph.NodeIndexByKey["dmgTrigger"];
         Assert.True(world.Level.LogicGraph.GetOutput(triggerIndex));
         Assert.False(world.Level.IsRoomObjectActive(1));
 
         world.Level.LogicGraph.EvaluateCombinatorial([]);
-        world.TickMapLogicTimers();
+        world.MapLogic.TickMapLogicTimers();
         Assert.False(world.Level.IsRoomObjectActive(1));
     }
 

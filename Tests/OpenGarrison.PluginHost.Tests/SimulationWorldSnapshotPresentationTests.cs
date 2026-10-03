@@ -33,7 +33,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
             Shots = [world.Snapshots.ToSnapshotBulletState(source)],
         };
 
-        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(snapshot, localPlayerSlot: 1));
 
         var recreated = Assert.Single(world.Shots);
         Assert.Equal(source.DamageValue, recreated.DamageValue);
@@ -53,11 +53,11 @@ public sealed class SimulationWorldSnapshotPresentationTests
             Y = 320f,
         };
 
-        Assert.True(world.ApplySnapshot(CreateSnapshot(world, 80, local, firstRemote), localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(CreateSnapshot(world, 80, local, firstRemote), localPlayerSlot: 1));
         var firstAppliedPlayer = Assert.Single(world.RemoteSnapshotPlayers);
         Assert.Equal(202, firstAppliedPlayer.Id);
 
-        Assert.True(world.ApplySnapshot(CreateSnapshot(world, 81, local, secondRemote), localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(CreateSnapshot(world, 81, local, secondRemote), localPlayerSlot: 1));
 
         var secondAppliedPlayer = Assert.Single(world.RemoteSnapshotPlayers);
         Assert.Equal(303, secondAppliedPlayer.Id);
@@ -97,9 +97,9 @@ public sealed class SimulationWorldSnapshotPresentationTests
             ],
         };
 
-        Assert.True(world.ApplySnapshot(first, localPlayerSlot: 1));
-        Assert.True(world.ApplySnapshot(second, localPlayerSlot: 1));
-        Assert.True(world.ApplySnapshot(retransmit, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(first, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(second, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(retransmit, localPlayerSlot: 1));
 
         Assert.Equal(2, world.PendingSoundEvents.Count);
         Assert.Contains(world.PendingSoundEvents, sound => sound.EventId == 7001);
@@ -145,7 +145,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
             ],
         };
 
-        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(snapshot, localPlayerSlot: 1));
 
         var shot = Assert.Single(world.RevolverShots);
         Assert.Equal(11.2f, shot.DamageValue);
@@ -193,9 +193,9 @@ public sealed class SimulationWorldSnapshotPresentationTests
             ],
         };
 
-        Assert.True(world.ApplySnapshot(initial, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(initial, localPlayerSlot: 1));
         var predicted = Assert.Single(world.RevolverShots);
-        Assert.True(world.ApplySnapshot(corrected, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(corrected, localPlayerSlot: 1));
 
         var authoritative = Assert.Single(world.RevolverShots);
         Assert.NotSame(predicted, authoritative);
@@ -232,7 +232,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
         Assert.True(ProtocolCodec.TryDeserialize(payload, out var roundTripped));
         var roundTrippedSnapshot = Assert.IsType<SnapshotMessage>(roundTripped);
 
-        Assert.True(world.ApplySnapshot(roundTrippedSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(roundTrippedSnapshot, localPlayerSlot: 1));
 
         var entry = Assert.Single(world.KillFeed);
         Assert.Equal(killFeedEntry.EventId, entry.EventId);
@@ -263,7 +263,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
             frame: 112,
             localPlayer: awaitingLocalPlayer);
 
-        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(snapshot, localPlayerSlot: 1));
 
         Assert.True(world.LocalPlayerAwaitingJoin);
         Assert.False(world.LocalPlayer.IsAlive);
@@ -294,7 +294,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
             localPlayer: localPlayer,
             remotePlayer: awaitingRemotePlayer);
 
-        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(snapshot, localPlayerSlot: 1));
 
         var remote = Assert.Single(world.RemoteSnapshotPlayers);
         Assert.True(world.IsRemoteSnapshotPlayerAwaitingJoin(remote));
@@ -315,16 +315,16 @@ public sealed class SimulationWorldSnapshotPresentationTests
         var visibleSnapshot = CreateSnapshot(world, 120, localPlayer, remoteSpy);
         var hiddenSnapshot = CreateSnapshot(world, 121, localPlayer);
 
-        Assert.True(world.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
         Assert.Single(world.RemoteSnapshotPlayers);
         Assert.Single(world.RemoteSnapshotScoreboardPlayers);
 
-        Assert.True(world.ApplySnapshot(hiddenSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(hiddenSnapshot, localPlayerSlot: 1));
 
         Assert.Empty(world.RemoteSnapshotPlayers);
         var scoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
         Assert.Equal(remoteSpy.PlayerId, scoreboardPlayer.Id);
-        Assert.True(world.TryGetPlayerNetworkSlot(scoreboardPlayer, out var slot));
+        Assert.True(world.NetworkPlayerRules.TryGetPlayerNetworkSlot(scoreboardPlayer, out var slot));
         Assert.Equal(remoteSpy.Slot, slot);
     }
 
@@ -345,23 +345,23 @@ public sealed class SimulationWorldSnapshotPresentationTests
         };
         var visibleAgainSnapshot = CreateSnapshot(world, 124, localPlayer, remoteSpy);
 
-        Assert.True(world.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
         Assert.Single(world.RemoteSnapshotPlayers);
         Assert.Single(world.RemoteSnapshotScoreboardPlayers);
 
-        Assert.True(world.ApplySnapshot(hiddenSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(hiddenSnapshot, localPlayerSlot: 1));
 
         Assert.Empty(world.RemoteSnapshotPlayers);
         var hiddenScoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
         Assert.Equal(remoteSpy.PlayerId, hiddenScoreboardPlayer.Id);
-        Assert.True(world.TryGetPlayerNetworkSlot(hiddenScoreboardPlayer, out var hiddenSlot));
+        Assert.True(world.NetworkPlayerRules.TryGetPlayerNetworkSlot(hiddenScoreboardPlayer, out var hiddenSlot));
         Assert.Equal(remoteSpy.Slot, hiddenSlot);
 
-        Assert.True(world.ApplySnapshot(visibleAgainSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(visibleAgainSnapshot, localPlayerSlot: 1));
 
         var visibleScoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
         Assert.Equal(remoteSpy.PlayerId, visibleScoreboardPlayer.Id);
-        Assert.True(world.TryGetPlayerNetworkSlot(visibleScoreboardPlayer, out var visibleSlot));
+        Assert.True(world.NetworkPlayerRules.TryGetPlayerNetworkSlot(visibleScoreboardPlayer, out var visibleSlot));
         Assert.Equal(remoteSpy.Slot, visibleSlot);
     }
 
@@ -376,7 +376,7 @@ public sealed class SimulationWorldSnapshotPresentationTests
         };
 
         Assert.Equal(5, world.MatchRules.CapLimit);
-        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(snapshot, localPlayerSlot: 1));
 
         Assert.Equal(9, world.MatchRules.CapLimit);
     }
@@ -396,9 +396,9 @@ public sealed class SimulationWorldSnapshotPresentationTests
         var visibleSnapshot = CreateSnapshot(world, 125, localPlayer, remoteSpy);
         var hiddenSnapshot = CreateSnapshot(world, 126, localPlayer);
 
-        Assert.True(world.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
 
-        Assert.True(world.ApplySnapshot(hiddenSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(hiddenSnapshot, localPlayerSlot: 1));
 
         Assert.Empty(world.RemoteSnapshotPlayers);
         var scoreboardPlayer = Assert.Single(world.RemoteSnapshotScoreboardPlayers);
@@ -414,10 +414,10 @@ public sealed class SimulationWorldSnapshotPresentationTests
         var visibleSnapshot = CreateSnapshot(world, 130, localPlayer, remoteSoldier);
         var removedSnapshot = CreateSnapshot(world, 131, localPlayer);
 
-        Assert.True(world.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(visibleSnapshot, localPlayerSlot: 1));
         Assert.Single(world.RemoteSnapshotScoreboardPlayers);
 
-        Assert.True(world.ApplySnapshot(removedSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(removedSnapshot, localPlayerSlot: 1));
 
         Assert.Empty(world.RemoteSnapshotPlayers);
         Assert.Empty(world.RemoteSnapshotScoreboardPlayers);

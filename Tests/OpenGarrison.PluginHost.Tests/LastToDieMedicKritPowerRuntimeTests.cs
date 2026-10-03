@@ -16,7 +16,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         var world = CreateWorld(PlayerClass.Medic);
         var medic = world.LocalPlayer;
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Red, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.KritPower]));
         Assert.True(medic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
@@ -141,7 +141,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         var world = CreateWorld(PlayerClass.Medic);
         var owner = world.LocalPlayer;
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 240f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Javelin]));
         owner.RefreshKritzCritBoost(77, 2, 3.5f, 10);
@@ -165,10 +165,10 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         var world = CreateWorld(PlayerClass.Sniper);
         var sniper = world.LocalPlayer;
         var provider = AddPlayer(world, 2, PlayerClass.Medic, PlayerTeam.Red, 160f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.MenageATrois]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Medic.KritPower]));
         Assert.True(sniper.TrySelectGameplayPrimaryItem("weapon.bow"));
@@ -190,7 +190,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
 
         Assert.Equal(3.5f, Assert.IsType<ArrowProjectileEntity>(world.Needles[0]).CriticalDamageMultiplier);
         Assert.Equal(3.5f, sniper.LastToDieSniperVolleyState.Payload.CriticalDamageMultiplier);
-        Assert.True(world.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
         sniper.HydrateKritzCritBoost(false, 0, 0, int.MaxValue, 1f);
 
         for (var tick = 0; tick < LastToDieSniperProfile.MenageATroisArrowIntervalSourceTicks; tick += 1)
@@ -229,7 +229,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         var sniper = world.LocalPlayer;
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 240f, 100f);
         target.SetExperimentalMaxHealthOverride(600, refillHealth: true);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.ExplosiveTip]));
         sniper.RefreshKritzCritBoost(41, 2, 3.5f, 10);
@@ -319,7 +319,7 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         Assert.Equal(3.5f, Assert.Single(decodedSnapshot.Rockets).CriticalDamageMultiplier);
 
         var legacyReceiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(legacyReceiver.ApplySnapshot(decodedSnapshot));
+        Assert.True(legacyReceiver.SnapshotApply.ApplySnapshot(decodedSnapshot));
         Assert.Equal(3.5f, legacyReceiver.LocalPlayer.ActiveKritzCritDamageMultiplier);
         Assert.Equal(3.5f, Assert.Single(legacyReceiver.Rockets).CriticalDamageMultiplier);
 
@@ -379,8 +379,8 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         Assert.Equal(3.5f, projectileState.CriticalDamageMultiplier);
 
         var protocolReceiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(protocolReceiver.ApplyProtocol64PlayerState(playerState));
-        Assert.True(protocolReceiver.ApplyProtocol64ProjectileState(projectileState));
+        Assert.True(protocolReceiver.SnapshotApply.ApplyProtocol64PlayerState(playerState));
+        Assert.True(protocolReceiver.SnapshotApply.ApplyProtocol64ProjectileState(projectileState));
         Assert.Equal(3.5f, protocolReceiver.LocalPlayer.ActiveKritzCritDamageMultiplier);
         Assert.Equal(3.5f, Assert.Single(protocolReceiver.Rockets).CriticalDamageMultiplier);
 
@@ -523,8 +523,8 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
             floorY: 480f,
             solids: [],
             importedFromSource: false));
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }
@@ -537,10 +537,10 @@ public sealed class LastToDieMedicKritPowerRuntimeTests
         float x,
         float y)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         player.SetSpawnRoomState(false);
         return player;

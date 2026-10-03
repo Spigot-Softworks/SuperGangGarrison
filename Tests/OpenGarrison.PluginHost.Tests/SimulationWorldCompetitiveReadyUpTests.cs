@@ -12,12 +12,12 @@ public sealed class SimulationWorldCompetitiveReadyUpTests
         var world = new SimulationWorld();
         SetAttackDefenseControlPointLevel(world);
 
-        world.SetCompetitiveReadyUpEnabled(true);
+        world.ReadyUp.SetCompetitiveReadyUpEnabled(true);
 
-        Assert.True(world.CompetitiveReadyUpEnabled);
-        Assert.Equal(CompetitiveReadyUpPhase.Skirmish, world.CompetitiveReadyUpPhase);
-        Assert.True(world.CompetitiveObjectivesLocked);
-        Assert.Equal(0, world.CompetitiveReadyUpTicksRemaining);
+        Assert.True(world.ReadyUp.CompetitiveReadyUpEnabled);
+        Assert.Equal(CompetitiveReadyUpPhase.Skirmish, world.ReadyUp.CompetitiveReadyUpPhase);
+        Assert.True(world.ReadyUp.CompetitiveObjectivesLocked);
+        Assert.Equal(0, world.ReadyUp.CompetitiveReadyUpTicksRemaining);
         Assert.False(world.ControlPointSetupActive);
         Assert.Equal(0, world.ControlPointSetupTicksRemaining);
         Assert.False(world.Level.ControlPointSetupGatesActive);
@@ -29,23 +29,23 @@ public sealed class SimulationWorldCompetitiveReadyUpTests
     {
         var world = new SimulationWorld();
         SetAttackDefenseControlPointLevel(world);
-        world.SetCompetitiveSetupSeconds(10);
-        world.SetCompetitiveReadyUpEnabled(true);
+        world.ReadyUp.SetCompetitiveSetupSeconds(10);
+        world.ReadyUp.SetCompetitiveReadyUpEnabled(true);
         var playableSlots = new byte[] { 1, 2 };
 
-        Assert.True(world.TrySetNetworkPlayerReady(1, ready: true));
-        world.AdvanceCompetitiveReadyUp(playableSlots);
-        Assert.Equal(CompetitiveReadyUpPhase.Skirmish, world.CompetitiveReadyUpPhase);
+        Assert.True(world.ReadyUp.TrySetNetworkPlayerReady(1, ready: true));
+        world.ReadyUp.AdvanceCompetitiveReadyUp(playableSlots);
+        Assert.Equal(CompetitiveReadyUpPhase.Skirmish, world.ReadyUp.CompetitiveReadyUpPhase);
 
-        Assert.True(world.TrySetNetworkPlayerReady(2, ready: true));
-        world.AdvanceCompetitiveReadyUp(playableSlots);
-        Assert.Equal(CompetitiveReadyUpPhase.Countdown, world.CompetitiveReadyUpPhase);
-        Assert.Equal(world.Config.TicksPerSecond * 3, world.CompetitiveReadyUpTicksRemaining);
+        Assert.True(world.ReadyUp.TrySetNetworkPlayerReady(2, ready: true));
+        world.ReadyUp.AdvanceCompetitiveReadyUp(playableSlots);
+        Assert.Equal(CompetitiveReadyUpPhase.Countdown, world.ReadyUp.CompetitiveReadyUpPhase);
+        Assert.Equal(world.Config.TicksPerSecond * 3, world.ReadyUp.CompetitiveReadyUpTicksRemaining);
 
         AdvanceCompetitiveReadyUpTicks(world, playableSlots, world.Config.TicksPerSecond * 3);
 
-        Assert.Equal(CompetitiveReadyUpPhase.Setup, world.CompetitiveReadyUpPhase);
-        Assert.Equal(world.Config.TicksPerSecond * 10, world.CompetitiveReadyUpTicksRemaining);
+        Assert.Equal(CompetitiveReadyUpPhase.Setup, world.ReadyUp.CompetitiveReadyUpPhase);
+        Assert.Equal(world.Config.TicksPerSecond * 10, world.ReadyUp.CompetitiveReadyUpTicksRemaining);
         Assert.Equal(TeamGateLockMask.Red | TeamGateLockMask.Blue, world.Level.ForcedBlockingTeamGates);
         Assert.False(world.ControlPointSetupActive);
         Assert.Equal(0, world.ControlPointSetupTicksRemaining);
@@ -57,26 +57,26 @@ public sealed class SimulationWorldCompetitiveReadyUpTests
     {
         var world = new SimulationWorld();
         SetAttackDefenseControlPointLevel(world);
-        world.SetCompetitiveSetupSeconds(10);
-        world.SetCompetitiveReadyUpEnabled(true);
+        world.ReadyUp.SetCompetitiveSetupSeconds(10);
+        world.ReadyUp.SetCompetitiveReadyUpEnabled(true);
         var playableSlots = new byte[] { 1, 2 };
 
-        world.TrySetNetworkPlayerReady(1, ready: true);
-        world.TrySetNetworkPlayerReady(2, ready: true);
-        world.AdvanceCompetitiveReadyUp(playableSlots);
+        world.ReadyUp.TrySetNetworkPlayerReady(1, ready: true);
+        world.ReadyUp.TrySetNetworkPlayerReady(2, ready: true);
+        world.ReadyUp.AdvanceCompetitiveReadyUp(playableSlots);
         AdvanceCompetitiveReadyUpTicks(world, playableSlots, world.Config.TicksPerSecond * 3);
         AdvanceCompetitiveReadyUpTicks(world, playableSlots, world.Config.TicksPerSecond * 10);
 
-        Assert.Equal(CompetitiveReadyUpPhase.Live, world.CompetitiveReadyUpPhase);
-        Assert.Equal(0, world.CompetitiveReadyUpTicksRemaining);
+        Assert.Equal(CompetitiveReadyUpPhase.Live, world.ReadyUp.CompetitiveReadyUpPhase);
+        Assert.Equal(0, world.ReadyUp.CompetitiveReadyUpTicksRemaining);
         Assert.Equal(TeamGateLockMask.None, world.Level.ForcedBlockingTeamGates);
         Assert.True(world.ControlPointSetupActive);
         Assert.True(world.Level.ControlPointSetupGatesActive);
-        Assert.Equal(world.ControlPointSetupDurationTicks, world.ControlPointSetupTicksRemaining);
+        Assert.Equal(world.ObjectiveRules.ControlPointSetupDurationTicks, world.ControlPointSetupTicksRemaining);
         Assert.Equal(world.Config.TicksPerSecond * 30, world.ControlPointSetupTicksRemaining);
         Assert.Equal(world.MatchRules.TimeLimitTicks, world.MatchState.TimeRemainingTicks);
-        Assert.False(world.IsNetworkPlayerReady(1));
-        Assert.False(world.IsNetworkPlayerReady(2));
+        Assert.False(world.ReadyUp.IsNetworkPlayerReady(1));
+        Assert.False(world.ReadyUp.IsNetworkPlayerReady(2));
     }
 
     private static void AdvanceCompetitiveReadyUpTicks(
@@ -86,7 +86,7 @@ public sealed class SimulationWorldCompetitiveReadyUpTests
     {
         for (var tick = 0; tick < ticks; tick += 1)
         {
-            world.AdvanceCompetitiveReadyUp(playableSlots);
+            world.ReadyUp.AdvanceCompetitiveReadyUp(playableSlots);
         }
     }
 

@@ -867,7 +867,7 @@ internal sealed class ServerBuiltInCommandRegistrar(
     private static bool TryRequireSourceSlot(OpenGarrisonServerCommandContext context, out byte slot)
     {
         slot = context.Identity.SourceSlot.GetValueOrDefault();
-        return context.Identity.SourceSlot.HasValue && SimulationWorld.IsPlayableNetworkPlayerSlot(slot);
+        return context.Identity.SourceSlot.HasValue && NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot);
     }
 
     private static bool TryResolveTargetSlot(

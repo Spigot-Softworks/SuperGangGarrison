@@ -134,8 +134,8 @@ sealed class ServerSessionManager
             }
         }
 
-        _world.TrySetNetworkPlayerName(slot, sanitizedName);
-        _world.TrySetNetworkPlayerBadgeMask(slot, badgeMask);
+        _world.NetworkPlayerRules.TrySetNetworkPlayerName(slot, sanitizedName);
+        _world.NetworkPlayerRules.TrySetNetworkPlayerBadgeMask(slot, badgeMask);
         _gameplayOwnershipService?.ApplyClientProfile(slot, sanitizedName, badgeMask);
         if (client is not null)
         {
@@ -169,7 +169,7 @@ sealed class ServerSessionManager
                     commandsForThisTick.Add(nextCommand);
                 }
 
-                var applied = _world.TrySetNetworkPlayerInput(
+                var applied = _world.NetworkPlayerRules.TrySetNetworkPlayerInput(
                     slot,
                     ConvertAimPositionFromClient(slot, commandInput),
                     commandEdges,
@@ -187,12 +187,12 @@ sealed class ServerSessionManager
                 && _canAcceptPlayableInput(slot)
                 && client.TryGetInputForNextTick(out var input))
             {
-                _world.TrySetNetworkPlayerInput(slot, ConvertAimPositionFromClient(slot, input),
+                _world.NetworkPlayerRules.TrySetNetworkPlayerInput(slot, ConvertAimPositionFromClient(slot, input),
                     InputButtons.None, requireExplicitPresses: client.Protocol64Enabled);
             }
             else
             {
-                _world.TryClearNetworkPlayerInputOverride(slot);
+                _world.NetworkPlayerRules.TryClearNetworkPlayerInputOverride(slot);
             }
         }
     }
@@ -354,7 +354,7 @@ sealed class ServerSessionManager
 
     private PlayerInputSnapshot ConvertAimPositionFromClient(byte slot, PlayerInputSnapshot input)
     {
-        if (_world.TryGetNetworkPlayer(slot, out var player))
+        if (_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return ConvertRelativeAimToWorld(input, player.X, player.Y);
         }
@@ -471,12 +471,12 @@ sealed class ServerSessionManager
         _log($"[server] client removed slot={slot} peer={removedClient.RemoteDescription} reason={reason}");
         _clientDisconnecting(removedClient);
         _clientRemoved(removedClient, reason);
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot))
         {
-            _world.TryClearNetworkPlayerInputOverride(slot);
+            _world.NetworkPlayerRules.TryClearNetworkPlayerInputOverride(slot);
             if (!_retainPlayableSlotOnDisconnect(slot))
             {
-                _world.TryReleaseNetworkPlayerSlot(slot);
+                _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(slot);
                 _gameplayOwnershipService?.ReleaseSlot(slot);
             }
         }
@@ -575,14 +575,14 @@ sealed class ServerSessionManager
         }
 
         var team = (PlayerTeam)requestedTeam;
-        if (!_world.CanNetworkPlayerChangeTeamInCurrentMode(slot))
+        if (!_world.VipRules.CanNetworkPlayerChangeTeamInCurrentMode(slot))
         {
             return false;
         }
 
         var accepted = deferUntilClassSelection
-            ? _world.TryRequestNetworkPlayerTeamSelection(slot, team)
-            : _world.TrySetNetworkPlayerTeam(slot, team);
+            ? _world.NetworkPlayerRules.TryRequestNetworkPlayerTeamSelection(slot, team)
+            : _world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team);
         if (!accepted)
         {
             return false;
@@ -608,12 +608,12 @@ sealed class ServerSessionManager
             }
 
             definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
-            if (!_world.CanNetworkPlayerSelectClassInCurrentMode(slot, definition))
+            if (!_world.VipRules.CanNetworkPlayerSelectClassInCurrentMode(slot, definition))
             {
                 return false;
             }
 
-            if (!_world.TryApplyNetworkPlayerClassSelection(slot, gameplayClassId))
+            if (!_world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, gameplayClassId))
             {
                 return false;
             }
@@ -627,12 +627,12 @@ sealed class ServerSessionManager
             }
 
             definition = CharacterClassCatalog.GetDefinition(playerClass);
-            if (!_world.CanNetworkPlayerSelectClassInCurrentMode(slot, definition))
+            if (!_world.VipRules.CanNetworkPlayerSelectClassInCurrentMode(slot, definition))
             {
                 return false;
             }
 
-            if (!_world.TryApplyNetworkPlayerClassSelection(slot, playerClass))
+            if (!_world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass))
             {
                 return false;
             }
@@ -660,14 +660,14 @@ sealed class ServerSessionManager
         var oldSlot = client.Slot;
 
         if (_clientsBySlot.ContainsKey(newSlot)
-            || SimulationWorld.IsPlayableNetworkPlayerSlot(newSlot) && !_isPlayableSlotAvailable(newSlot))
+            || NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(newSlot) && !_isPlayableSlotAvailable(newSlot))
         {
             return false;
         }
 
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(oldSlot))
+        if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(oldSlot))
         {
-            _world.TryReleaseNetworkPlayerSlot(oldSlot);
+            _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(oldSlot);
             _gameplayOwnershipService?.ReleaseSlot(oldSlot);
         }
 
@@ -676,9 +676,9 @@ sealed class ServerSessionManager
         _clientsBySlot[newSlot] = client;
         _clientSlotChanged(oldSlot, newSlot);
 
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(newSlot))
+        if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(newSlot))
         {
-            _world.TryPrepareNetworkPlayerJoin(newSlot);
+            _world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(newSlot);
             ApplyClientProfile(newSlot, client.Name, client.BadgeMask);
         }
 
@@ -722,15 +722,15 @@ sealed class ServerSessionManager
 
     private bool ApplyRequestedGameplayLoadout(byte slot, string? requestedLoadoutId, byte requestedLoadoutIndex)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            || !_world.TryGetNetworkPlayer(slot, out var player))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
 
         if (!string.IsNullOrWhiteSpace(requestedLoadoutId))
         {
-            return _world.TrySetNetworkPlayerGameplayLoadout(slot, requestedLoadoutId.Trim());
+            return _world.NetworkPlayerRules.TrySetNetworkPlayerGameplayLoadout(slot, requestedLoadoutId.Trim());
         }
 
         if (requestedLoadoutIndex == 0)
@@ -745,6 +745,6 @@ sealed class ServerSessionManager
             return false;
         }
 
-        return _world.TrySetNetworkPlayerGameplayLoadout(slot, orderedLoadouts[loadoutIndex].Id);
+        return _world.NetworkPlayerRules.TrySetNetworkPlayerGameplayLoadout(slot, orderedLoadouts[loadoutIndex].Id);
     }
 }

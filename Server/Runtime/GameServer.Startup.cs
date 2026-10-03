@@ -200,9 +200,9 @@ partial class GameServer
 
         _world.RandomSpreadEnabled = host.RandomSpreadEnabled;
         _world.SniperAimIndicatorEnabled = host.SniperAimIndicatorEnabled;
-        _world.SetCompetitiveReadyUpEnabled(host.CompetitiveReadyUpEnabled);
-        _world.SetCompetitiveSetupSeconds(_competitiveSetupSeconds);
-        _world.SetRoundEndFriendlyFire(host.RoundEndFriendlyFireEnabled);
+        _world.ReadyUp.SetCompetitiveReadyUpEnabled(host.CompetitiveReadyUpEnabled);
+        _world.ReadyUp.SetCompetitiveSetupSeconds(_competitiveSetupSeconds);
+        _world.ServerTuning.SetRoundEndFriendlyFire(host.RoundEndFriendlyFireEnabled);
         _world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: host.SecondaryAbilitiesEnabled,
             EnableSoldierShotgunSecondaryWeapon: host.SecondaryAbilitiesEnabled));
@@ -210,26 +210,26 @@ partial class GameServer
             timeLimitMinutes: Math.Clamp(host.TimeLimitMinutes, 1, 255),
             capLimit: Math.Clamp(host.CapLimit, 1, 255),
             respawnSeconds: Math.Clamp(host.RespawnSeconds, 0, 255));
-        _world.SetPlayerScale(host.PlayerScale);
+        _world.ServerTuning.SetPlayerScale(host.PlayerScale);
         _world.SetMapScale(host.MapScale);
-        _world.SetMovementSpeedScale(host.MovementSpeedScale);
-        _world.SetProjectileSpeedScale(host.ProjectileSpeedScale);
-        _world.SetDamageScale(host.DamageScale);
-        _world.SetGravityScale(host.GravityScale);
-        _world.SetHorizontalSpeedClampPerTick(host.HorizontalSpeedClampPerTick);
-        _world.SetVerticalSpeedClampPerTick(host.VerticalSpeedClampPerTick);
-        _world.SetCaptureSpeedMultiplierPerPlayer(host.CaptureSpeedMultiplierPerPlayer);
-        _world.SetVipAllowDuplicateClasses(host.VipAllowDuplicateClasses);
-        _world.SetClassLimit(PlayerClass.Scout, host.ClassLimitScout);
-        _world.SetClassLimit(PlayerClass.Engineer, host.ClassLimitEngineer);
-        _world.SetClassLimit(PlayerClass.Pyro, host.ClassLimitPyro);
-        _world.SetClassLimit(PlayerClass.Soldier, host.ClassLimitSoldier);
-        _world.SetClassLimit(PlayerClass.Demoman, host.ClassLimitDemoman);
-        _world.SetClassLimit(PlayerClass.Heavy, host.ClassLimitHeavy);
-        _world.SetClassLimit(PlayerClass.Sniper, host.ClassLimitSniper);
-        _world.SetClassLimit(PlayerClass.Medic, host.ClassLimitMedic);
-        _world.SetClassLimit(PlayerClass.Spy, host.ClassLimitSpy);
-        _world.SetClassLimit(PlayerClass.Quote, host.ClassLimitCivilian);
+        _world.ServerTuning.SetMovementSpeedScale(host.MovementSpeedScale);
+        _world.ServerTuning.SetProjectileSpeedScale(host.ProjectileSpeedScale);
+        _world.ServerTuning.SetDamageScale(host.DamageScale);
+        _world.ServerTuning.SetGravityScale(host.GravityScale);
+        _world.ServerTuning.SetHorizontalSpeedClampPerTick(host.HorizontalSpeedClampPerTick);
+        _world.ServerTuning.SetVerticalSpeedClampPerTick(host.VerticalSpeedClampPerTick);
+        _world.ClassRules.SetCaptureSpeedMultiplierPerPlayer(host.CaptureSpeedMultiplierPerPlayer);
+        _world.ClassRules.SetVipAllowDuplicateClasses(host.VipAllowDuplicateClasses);
+        _world.ClassRules.SetClassLimit(PlayerClass.Scout, host.ClassLimitScout);
+        _world.ClassRules.SetClassLimit(PlayerClass.Engineer, host.ClassLimitEngineer);
+        _world.ClassRules.SetClassLimit(PlayerClass.Pyro, host.ClassLimitPyro);
+        _world.ClassRules.SetClassLimit(PlayerClass.Soldier, host.ClassLimitSoldier);
+        _world.ClassRules.SetClassLimit(PlayerClass.Demoman, host.ClassLimitDemoman);
+        _world.ClassRules.SetClassLimit(PlayerClass.Heavy, host.ClassLimitHeavy);
+        _world.ClassRules.SetClassLimit(PlayerClass.Sniper, host.ClassLimitSniper);
+        _world.ClassRules.SetClassLimit(PlayerClass.Medic, host.ClassLimitMedic);
+        _world.ClassRules.SetClassLimit(PlayerClass.Spy, host.ClassLimitSpy);
+        _world.ClassRules.SetClassLimit(PlayerClass.Quote, host.ClassLimitCivilian);
     }
 
     internal static bool ResolveLocalPredictionEnabled(
@@ -500,7 +500,7 @@ partial class GameServer
                     && ticks > 0
                     && _world.Frame % (_config.TicksPerSecond * 5) == 0)
                 {
-                    var activePlayableCount = _world.EnumerateActiveNetworkPlayers().Count();
+                    var activePlayableCount = _world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Count();
                     Console.WriteLine(
                         $"[server] frame={_world.Frame} clients={_clientsBySlot.Count} " +
                         $"mode={_world.MatchRules.Mode} phase={_world.MatchState.Phase} hp={_world.LocalPlayer.Health}/{_world.LocalPlayer.MaxHealth} " +
@@ -798,7 +798,7 @@ partial class GameServer
         int ticksAdvanced,
         TimeSpan now)
     {
-        var activePlayableCount = _world.EnumerateActiveNetworkPlayers().Count();
+        var activePlayableCount = _world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Count();
         var botMetrics = _botManager.Metrics;
         eventLog.Write(
             "server_loop_long_frame",
@@ -869,7 +869,7 @@ partial class GameServer
         _pluginCommandRegistry = pluginRuntime.CommandRegistry;
         RegisterServerAudioCommands();
         _pluginHost = pluginRuntime.PluginHost;
-        _world.GameplayAbilityInputInterceptor = abilityEvent => _pluginHost?.TryNotifyGameplayAbilityInput(abilityEvent) ?? false;
+        _world.Abilities.GameplayAbilityInputInterceptor = abilityEvent => _pluginHost?.TryNotifyGameplayAbilityInput(abilityEvent) ?? false;
         _world.SpawnDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeSpawn(request));
         _world.DamageDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeDamage(request));
         _world.DeathDecisionInterceptor = request => ToWorldDecision(_pluginHost?.BeforeDeath(request));
@@ -964,7 +964,7 @@ partial class GameServer
                 continue;
             }
 
-            var team = _world.GetNetworkPlayerConfiguredTeam(entry.Key);
+            var team = _world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(entry.Key);
             if (team == PlayerTeam.Red)
             {
                 redCount += 1;
@@ -1047,7 +1047,7 @@ partial class GameServer
 
     private ServerRegistrySnapshot CreateServerRegistrySnapshot()
     {
-        var players = _world.EnumerateActiveNetworkPlayers().Count();
+        var players = _world.NetworkPlayerRules.EnumerateActiveNetworkPlayers().Count();
         var spectators = _clientsBySlot.Keys.Count(IsSpectatorSlot);
         return new ServerRegistrySnapshot(
             _serverName,
@@ -1123,7 +1123,7 @@ partial class GameServer
             "Global live player collision and render scale.",
             _world.ConfiguredPlayerScale,
             () => _world.ConfiguredPlayerScale,
-            value => _world.SetPlayerScale(value),
+            value => _world.ServerTuning.SetPlayerScale(value),
             minValue: PlayerEntity.MinPlayerScale,
             maxValue: PlayerEntity.MaxPlayerScale);
         registry.RegisterFloat(
@@ -1139,7 +1139,7 @@ partial class GameServer
             "Global player movement speed multiplier.",
             _world.ConfiguredMovementSpeedScale,
             () => _world.ConfiguredMovementSpeedScale,
-            value => _world.SetMovementSpeedScale(value),
+            value => _world.ServerTuning.SetMovementSpeedScale(value),
             minValue: 0.1f,
             maxValue: 4f);
         registry.RegisterFloat(
@@ -1147,7 +1147,7 @@ partial class GameServer
             "Global projectile launch speed multiplier.",
             _world.ConfiguredProjectileSpeedScale,
             () => _world.ConfiguredProjectileSpeedScale,
-            value => _world.SetProjectileSpeedScale(value),
+            value => _world.ServerTuning.SetProjectileSpeedScale(value),
             minValue: 0.1f,
             maxValue: 4f);
         registry.RegisterFloat(
@@ -1155,7 +1155,7 @@ partial class GameServer
             "Global damage multiplier for player and structure damage.",
             _world.ConfiguredDamageScale,
             () => _world.ConfiguredDamageScale,
-            value => _world.SetDamageScale(value),
+            value => _world.ServerTuning.SetDamageScale(value),
             minValue: 0f,
             maxValue: 10f);
         registry.RegisterFloat(
@@ -1163,7 +1163,7 @@ partial class GameServer
             "Global gravity multiplier for player and ballistic projectile gravity.",
             _world.ConfiguredGravityScale,
             () => _world.ConfiguredGravityScale,
-            value => _world.SetGravityScale(value),
+            value => _world.ServerTuning.SetGravityScale(value),
             minValue: 0f,
             maxValue: 4f);
         registry.RegisterFloat(
@@ -1171,7 +1171,7 @@ partial class GameServer
             "Base horizontal movement speed clamp in source units per tick.",
             _world.ConfiguredHorizontalSpeedClampPerTick,
             () => _world.ConfiguredHorizontalSpeedClampPerTick,
-            value => _world.SetHorizontalSpeedClampPerTick(value),
+            value => _world.ServerTuning.SetHorizontalSpeedClampPerTick(value),
             minValue: 1f,
             maxValue: 60f);
         registry.RegisterFloat(
@@ -1179,7 +1179,7 @@ partial class GameServer
             "Base vertical movement speed clamp in source units per tick.",
             _world.ConfiguredVerticalSpeedClampPerTick,
             () => _world.ConfiguredVerticalSpeedClampPerTick,
-            value => _world.SetVerticalSpeedClampPerTick(value),
+            value => _world.ServerTuning.SetVerticalSpeedClampPerTick(value),
             minValue: 1f,
             maxValue: 60f);
         registry.RegisterFloat(
@@ -1187,7 +1187,7 @@ partial class GameServer
             "Multiplier applied to capture progress contributed by each capturing player.",
             _world.ConfiguredCaptureSpeedMultiplierPerPlayer,
             () => _world.ConfiguredCaptureSpeedMultiplierPerPlayer,
-            value => _world.SetCaptureSpeedMultiplierPerPlayer(value),
+            value => _world.ClassRules.SetCaptureSpeedMultiplierPerPlayer(value),
             minValue: 0f,
             maxValue: 10f);
         registry.RegisterBoolean(
@@ -1195,13 +1195,13 @@ partial class GameServer
             "Allow VIP maps to use regular class limits instead of one of each class per team.",
             _world.VipAllowDuplicateClasses,
             () => _world.VipAllowDuplicateClasses,
-            value => _world.SetVipAllowDuplicateClasses(value));
+            value => _world.ClassRules.SetVipAllowDuplicateClasses(value));
         registry.RegisterInteger(
             "sv_classlimit_all",
             "Set every per-team class limit at once. Set to 0 for unlimited.",
-            _world.GetUniformClassLimit(),
-            () => _world.GetUniformClassLimit(),
-            value => _world.SetAllClassLimits(value),
+            _world.ClassRules.GetUniformClassLimit(),
+            () => _world.ClassRules.GetUniformClassLimit(),
+            value => _world.ClassRules.SetAllClassLimits(value),
             minValue: 0,
             maxValue: SimulationWorld.MaxPlayableNetworkPlayers);
         RegisterClassLimitCvar(registry, PlayerClass.Scout, "sv_classlimit_scout", "Maximum Scouts per team. Set to 0 for unlimited.");
@@ -1219,7 +1219,7 @@ partial class GameServer
             "Enable same-team player damage during ended-round humiliation.",
             _world.RoundEndFriendlyFireEnabled,
             () => _world.RoundEndFriendlyFireEnabled,
-            value => _world.SetRoundEndFriendlyFire(value));
+            value => _world.ServerTuning.SetRoundEndFriendlyFire(value));
         registry.RegisterBoolean(
             "sv_autobalance",
             "Enable or disable server auto-balance.",
@@ -1308,11 +1308,11 @@ partial class GameServer
             "sv_competitive_readyup",
             "Start each round in skirmish until a majority of active players ready up with F4.",
             _competitiveReadyUpEnabled,
-            () => _world.CompetitiveReadyUpEnabled,
+            () => _world.ReadyUp.CompetitiveReadyUpEnabled,
             value =>
             {
                 _competitiveReadyUpEnabled = value;
-                _world.SetCompetitiveReadyUpEnabled(value);
+                _world.ReadyUp.SetCompetitiveReadyUpEnabled(value);
                 if (!value)
                 {
                     _competitiveReadyButtonDownSlots.Clear();
@@ -1322,11 +1322,11 @@ partial class GameServer
             "sv_competitive_setup_seconds",
             "Spawn-door setup duration after competitive ready-up completes.",
             _competitiveSetupSeconds,
-            () => _world.CompetitiveSetupSeconds,
+            () => _world.ReadyUp.CompetitiveSetupSeconds,
             value =>
             {
                 _competitiveSetupSeconds = Math.Clamp(value, 0, 120);
-                _world.SetCompetitiveSetupSeconds(_competitiveSetupSeconds);
+                _world.ReadyUp.SetCompetitiveSetupSeconds(_competitiveSetupSeconds);
             },
             minValue: 0,
             maxValue: 120);
@@ -1428,9 +1428,9 @@ partial class GameServer
         registry.RegisterInteger(
             name,
             description,
-            _world.GetClassLimit(playerClass),
-            () => _world.GetClassLimit(playerClass),
-            value => _world.SetClassLimit(playerClass, value),
+            _world.ClassRules.GetClassLimit(playerClass),
+            () => _world.ClassRules.GetClassLimit(playerClass),
+            value => _world.ClassRules.SetClassLimit(playerClass, value),
             minValue: 0,
             maxValue: SimulationWorld.MaxPlayableNetworkPlayers);
     }

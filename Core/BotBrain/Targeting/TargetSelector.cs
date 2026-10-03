@@ -38,7 +38,7 @@ public static class TargetSelector
 
         try
         {
-            foreach (var generator in world.Generators)
+            foreach (var generator in world.ObjectiveRules.Generators)
             {
                 if (generator.Team == ownTeam || generator.IsDestroyed)
                 {
@@ -186,7 +186,7 @@ public static class TargetSelector
             return false;
         }
 
-        var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, candidate);
+        var treatAsFriendlyFireTarget = ExperimentalRulesSystem.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, candidate);
         if (candidate.Team != opposingTeam && !treatAsFriendlyFireTarget)
         {
             return false;

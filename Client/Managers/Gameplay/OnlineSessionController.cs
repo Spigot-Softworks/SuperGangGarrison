@@ -523,7 +523,7 @@ public sealed class OnlineSessionController
 
             _context._world.ConfigureSessionPresentationSeed(welcome.LevelName, welcome.MapContentHash);
 
-            _context._world.PrepareLocalPlayerJoin();
+            _context._world.NetworkPlayerRules.PrepareLocalPlayerJoin();
             _context.ResetGameplayTransitionEffects();
             _context.BeginNetworkWorldWarmup(welcome.LevelName);
             _context.Gameplay.Session.EnterGameplaySession(

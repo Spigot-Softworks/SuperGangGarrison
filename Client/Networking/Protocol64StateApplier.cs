@@ -473,10 +473,10 @@ public sealed class Protocol64StateApplier
         if (!_hasWorldSlotMapping || _lastWorldClientSlot != clientLocalPlayerSlot)
         {
             foreach (var previous in _lastWorldPlayers)
-                world.RemoveProtocol64Player(new Protocol64PlayerIdentity(
+                world.SnapshotApply.RemoveProtocol64Player(new Protocol64PlayerIdentity(
                     previous.Key.Slot, previous.Key.PlayerId, previous.Value), _lastWorldClientSlot);
             if (clientLocalPlayerSlot.HasValue)
-                world.ResetProtocol64ClientLocalPlayer();
+                world.SnapshotApply.ResetProtocol64ClientLocalPlayer();
             _lastWorldPlayers.Clear();
             _lastWorldProjectiles.Clear();
             _lastWorldPlayerSequence = 0;
@@ -489,7 +489,7 @@ public sealed class Protocol64StateApplier
         {
             foreach (var removed in _removedPlayerGenerations)
             {
-                world.RemoveProtocol64Player(new Protocol64PlayerIdentity(
+                world.SnapshotApply.RemoveProtocol64Player(new Protocol64PlayerIdentity(
                     removed.Key.Slot,
                     removed.Key.PlayerId,
                     removed.Value), clientLocalPlayerSlot);
@@ -504,7 +504,7 @@ public sealed class Protocol64StateApplier
             {
                 if (!_players.ContainsKey(previous.Key))
                 {
-                    world.RemoveProtocol64Player(new Protocol64PlayerIdentity(
+                    world.SnapshotApply.RemoveProtocol64Player(new Protocol64PlayerIdentity(
                         previous.Key.Slot,
                         previous.Key.PlayerId,
                         previous.Value), clientLocalPlayerSlot);
@@ -513,7 +513,7 @@ public sealed class Protocol64StateApplier
 
             foreach (var player in _players.Values)
             {
-                world.ApplyProtocol64PlayerState(player, clientLocalPlayerSlot);
+                world.SnapshotApply.ApplyProtocol64PlayerState(player, clientLocalPlayerSlot);
             }
 
             _lastWorldPlayers.Clear();
@@ -527,7 +527,7 @@ public sealed class Protocol64StateApplier
 
         foreach (var removed in _removedProjectiles.Keys)
         {
-            world.RemoveProtocol64Projectile(removed);
+            world.SnapshotApply.RemoveProtocol64Projectile(removed);
             _lastWorldProjectiles.Remove(removed);
         }
 
@@ -539,7 +539,7 @@ public sealed class Protocol64StateApplier
                 continue;
             }
 
-            if (world.ApplyProtocol64ProjectileState(projectile, clientLocalPlayerSlot))
+            if (world.SnapshotApply.ApplyProtocol64ProjectileState(projectile, clientLocalPlayerSlot))
             {
                 _lastWorldProjectiles[projectile.EntityId] = projectile;
             }
@@ -556,7 +556,7 @@ public sealed class Protocol64StateApplier
         foreach (var projectile in _projectiles.Values)
         {
             if (projectile.StateTick > snapshotFrame
-                && world.ApplyProtocol64ProjectileState(projectile, localPlayerSlot))
+                && world.SnapshotApply.ApplyProtocol64ProjectileState(projectile, localPlayerSlot))
             {
                 _lastWorldProjectiles[projectile.EntityId] = projectile;
             }
@@ -566,7 +566,7 @@ public sealed class Protocol64StateApplier
         {
             if (removed.StateTick > snapshotFrame)
             {
-                world.RemoveProtocol64Projectile(removed.EntityId);
+                world.SnapshotApply.RemoveProtocol64Projectile(removed.EntityId);
                 _lastWorldProjectiles.Remove(removed.EntityId);
             }
         }
@@ -582,7 +582,7 @@ public sealed class Protocol64StateApplier
         ArgumentNullException.ThrowIfNull(world);
         return TryGetPlayerState(localPlayerSlot, out var state)
             && state.Equipment is not null
-            && world.ApplyProtocol64PlayerState(state, localPlayerSlot);
+            && world.SnapshotApply.ApplyProtocol64PlayerState(state, localPlayerSlot);
     }
 
     private Protocol64StateApplyResult Repair(Protocol64StateResyncReason reason, string message)

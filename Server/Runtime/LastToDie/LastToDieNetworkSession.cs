@@ -149,7 +149,7 @@ internal sealed class LastToDieNetworkSession(
         var eligible = clients
             .Where(client => client.IsAuthorized
                 && !client.IsWatchOnly
-                && SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot))
+                && NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(client.Slot))
             .OrderByDescending(client => client.IsLoopbackConnection)
             .ThenBy(client => client.ConnectedAt)
             .ThenBy(client => client.Slot)

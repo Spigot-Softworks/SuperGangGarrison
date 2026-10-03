@@ -105,9 +105,9 @@ public partial class Game1
 
     private void DrawSpectatorDeadBoardRow(PlayerEntity player, int boardX, int rowY, Vector2 iconPosition)
     {
-        if (_world.TryGetPlayerNetworkSlot(player, out var slot))
+        if (_world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot))
         {
-            var respawnTicks = _world.GetNetworkPlayerRespawnTicks(slot);
+            var respawnTicks = _world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(slot);
             if (respawnTicks > 0)
             {
                 var respawnSeconds = MathF.Ceiling(respawnTicks / (float)Math.Max(1, _config.TicksPerSecond));
@@ -318,8 +318,8 @@ public partial class Game1
         }
 
         DrawSpectatorMinimapObjectives(mapBounds);
-        DrawSpectatorMinimapIntel(mapBounds, _world.RedIntel);
-        DrawSpectatorMinimapIntel(mapBounds, _world.BlueIntel);
+        DrawSpectatorMinimapIntel(mapBounds, _world.ObjectiveRules.RedIntel);
+        DrawSpectatorMinimapIntel(mapBounds, _world.ObjectiveRules.BlueIntel);
         DrawSpectatorMinimapGenerators(mapBounds);
         DrawSpectatorMinimapSentries(mapBounds);
         DrawSpectatorMinimapPlayers(mapBounds);
@@ -456,7 +456,7 @@ public partial class Game1
 
     private void DrawSpectatorMinimapGenerators(Rectangle mapBounds)
     {
-        foreach (var generator in _world.Generators)
+        foreach (var generator in _world.ObjectiveRules.Generators)
         {
             var frameIndex = generator.Team == PlayerTeam.Red ? 14 : 16;
             DrawSpectatorMapSprite(

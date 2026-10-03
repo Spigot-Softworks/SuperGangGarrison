@@ -468,7 +468,7 @@ public partial class Game1
 
         if (effects.HasFlag(GameplayMessageOnEndEffects.Logic) && marker.UsesOnEndTrigger)
         {
-            _world.PulseMapLogicNode(marker.OnEndTriggerNodeIndex);
+            _world.MapLogic.PulseMapLogicNode(marker.OnEndTriggerNodeIndex);
         }
     }
 

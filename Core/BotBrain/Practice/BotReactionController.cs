@@ -167,7 +167,7 @@ public sealed class BotReactionController : IBotReactionController
         // On client: this is LocalPlayer
         // On server: this could be a configurable observer or omitted for pure ambient reactions
         PlayerEntity? targetPlayer = null;
-        if (world.TryGetNetworkPlayer(SimulationWorld.LocalPlayerSlot, out var local))
+        if (world.NetworkPlayerRules.TryGetNetworkPlayer(SimulationWorld.LocalPlayerSlot, out var local))
         {
             targetPlayer = local;
         }
@@ -203,7 +203,7 @@ public sealed class BotReactionController : IBotReactionController
         {
             var slot = entry.Key;
 
-            if (!world.TryGetNetworkPlayer(slot, out var bot) || bot is null)
+            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot) || bot is null)
             {
                 continue;
             }
@@ -395,7 +395,7 @@ public sealed class BotReactionController : IBotReactionController
             return false;
         }
 
-        if (!world.TryTriggerNetworkPlayerChatBubble(slot, bubbleFrame))
+        if (!world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(slot, bubbleFrame))
         {
             return false;
         }

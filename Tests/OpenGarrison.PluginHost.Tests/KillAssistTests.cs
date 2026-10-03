@@ -7,10 +7,10 @@ public sealed class KillAssistTests
 {
     private static PlayerEntity Join(SimulationWorld world, byte slot, PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 
@@ -22,8 +22,8 @@ public sealed class KillAssistTests
     public void OnlyMostRecentOtherDamageWithinSevenSecondsEarnsAssist(int elapsedTicks, bool earnsAssist)
     {
         var world = new SimulationWorld();
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var earlier = Join(world, 3, PlayerTeam.Blue);
@@ -49,13 +49,13 @@ public sealed class KillAssistTests
     public void HealingDoesNotReplaceTheMostRecentDamageContributor()
     {
         var world = new SimulationWorld();
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var contributor = Join(world, 3, PlayerTeam.Blue);
         var medic = Join(world, 4, PlayerTeam.Blue);
-        Assert.True(world.TryForceNetworkPlayerClassSelectionAndRespawn(4, PlayerClass.Medic));
+        Assert.True(world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(4, PlayerClass.Medic));
         medic.SetMedicHealingTarget(killer);
         Assert.Equal(killer.Id, medic.MedicHealTargetId);
         world.Combat.ApplyPlayerDamage(victim, 5, contributor);
@@ -70,8 +70,8 @@ public sealed class KillAssistTests
     public void ContributorStillGetsAssistAfterDying()
     {
         var world = new SimulationWorld();
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var contributor = Join(world, 3, PlayerTeam.Blue);
@@ -87,8 +87,8 @@ public sealed class KillAssistTests
     public void AssisterCanEarnRevengeFromTheKillTheyHelpedComplete()
     {
         var world = new SimulationWorld();
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var assistant = Join(world, 3, PlayerTeam.Blue);
@@ -113,8 +113,8 @@ public sealed class KillAssistTests
     public void AssisterCanEarnDominationOnTheKillTheyHelpedComplete()
     {
         var world = new SimulationWorld();
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
-        world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red);
         var victim = world.LocalPlayer;
         var killer = Join(world, 2, PlayerTeam.Blue);
         var assistant = Join(world, 3, PlayerTeam.Blue);

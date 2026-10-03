@@ -493,8 +493,8 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
-                && _world.IsNetworkPlayerAwaitingJoin(client.Slot))
+            if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(client.Slot)
+                && _world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot))
             {
                 spectatorCount += 1;
             }
@@ -517,8 +517,8 @@ sealed class SnapshotBroadcaster
             _world.BlueCaps,
             spectatorCount,
             LastProcessedInputSequence: 0,
-            _world.Snapshots.ToSnapshotIntelState(_world.RedIntel),
-            _world.Snapshots.ToSnapshotIntelState(_world.BlueIntel),
+            _world.Snapshots.ToSnapshotIntelState(_world.ObjectiveRules.RedIntel),
+            _world.Snapshots.ToSnapshotIntelState(_world.ObjectiveRules.BlueIntel),
             Players: Array.Empty<SnapshotPlayerState>(),
             ConvertNetworkCombatTracesToArray(_world.CombatTraces, _world.Snapshots),
             ConvertToArray(_world.SniperAimIndicators, indicator => _world.Snapshots.ToSnapshotSniperAimIndicatorState(indicator)),
@@ -534,11 +534,11 @@ sealed class SnapshotBroadcaster
             ConvertToArray(_world.Mines, mine => _world.Snapshots.ToSnapshotMineState(mine)),
             ConvertToArray(_world.DeadBodies, body => _world.Snapshots.ToSnapshotDeadBodyState(body)),
             _world.ControlPointSetupTicksRemaining,
-            _world.KothUnlockTicksRemaining,
-            _world.KothRedTimerTicksRemaining,
-            _world.KothBlueTimerTicksRemaining,
+            _world.ObjectiveRules.KothUnlockTicksRemaining,
+            _world.ObjectiveRules.KothRedTimerTicksRemaining,
+            _world.ObjectiveRules.KothBlueTimerTicksRemaining,
             ConvertToArray(_world.ControlPoints, point => _world.Snapshots.ToSnapshotControlPointState(point)),
-            ConvertToArray(_world.Generators, generator => _world.Snapshots.ToSnapshotGeneratorState(generator)),
+            ConvertToArray(_world.ObjectiveRules.Generators, generator => _world.Snapshots.ToSnapshotGeneratorState(generator)),
             LocalDeathCam: null,
             ConvertToArray(_world.KillFeed, entry => _world.Snapshots.ToSnapshotKillFeedEntry(entry)),
             visualEvents,
@@ -558,15 +558,15 @@ sealed class SnapshotBroadcaster
             ArenaCappers = _world.ArenaCappers,
             ArenaRedConsecutiveWins = _world.ArenaRedConsecutiveWins,
             ArenaBlueConsecutiveWins = _world.ArenaBlueConsecutiveWins,
-            CompetitiveReadyUpPhase = (byte)_world.CompetitiveReadyUpPhase,
-            CompetitiveReadyUpTicksRemaining = _world.CompetitiveReadyUpTicksRemaining,
+            CompetitiveReadyUpPhase = (byte)_world.ReadyUp.CompetitiveReadyUpPhase,
+            CompetitiveReadyUpTicksRemaining = _world.ReadyUp.CompetitiveReadyUpTicksRemaining,
             CapLimit = _world.MatchRules.CapLimit,
             SentryGibs = ConvertToArray(_world.SentryGibs, sentryGib => _world.Snapshots.ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, jumpPad => _world.Snapshots.ToSnapshotJumpPadState(jumpPad)),
             CivilDefenseTurrets = ConvertToArray(_world.CivilDefenseTurrets, turret => _world.Snapshots.ToSnapshotCivilDefenseTurretState(turret)),
             JumpPadGibs = ConvertToArray(_world.JumpPadGibs, jumpPadGib => _world.Snapshots.ToSnapshotJumpPadGibState(jumpPadGib)),
             Grenades = ConvertToArray(_world.Grenades, grenade => _world.Snapshots.ToSnapshotGrenadeState(grenade)),
-            HealthPacks = _world.Snapshots.ToSnapshotHealthPackStates(_world.HealthPacks, _world.Level.HealthPackSpawns, _world.GetHealthPackSpawnRespawnTicksRemaining),
+            HealthPacks = _world.Snapshots.ToSnapshotHealthPackStates(_world.HealthPacks, _world.Level.HealthPackSpawns, _world.Pickups.GetHealthPackSpawnRespawnTicksRemaining),
             GibSpawnEvents = gibSpawnEvents,
             RocketSpawnEvents = rocketSpawnEvents,
         };
@@ -577,9 +577,9 @@ sealed class SnapshotBroadcaster
     private SnapshotMessage CaptureFullSnapshot(ClientSession client, SharedSnapshotData sharedSnapshot)
     {
         PlayerEntity? viewer = null;
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
-            && !_world.IsNetworkPlayerAwaitingJoin(client.Slot)
-            && _world.TryGetNetworkPlayer(client.Slot, out var viewerPlayer))
+        if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(client.Slot)
+            && !_world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot)
+            && _world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var viewerPlayer))
         {
             viewer = viewerPlayer;
         }
@@ -600,7 +600,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            if (!_world.TryGetNetworkPlayer(entry.Slot, out var player))
+            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Slot, out var player))
             {
                 continue;
             }
@@ -620,7 +620,7 @@ sealed class SnapshotBroadcaster
         // Add server bot players
         foreach (var (botSlot, botState) in _botManager.BotSlots)
         {
-            if (!_world.TryGetNetworkPlayer(botSlot, out var botPlayer))
+            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var botPlayer))
             {
                 continue;
             }
@@ -1125,7 +1125,7 @@ sealed class SnapshotBroadcaster
                 continue;
             }
 
-            if (_world.TryGetNetworkPlayer(entry.Slot, out var player))
+            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Slot, out var player))
             {
                 players.Add(_world.Snapshots.ToSnapshotPlayerState(entry.Slot, player, null, value => _stringCache.GetOrAddCacheId(value), entry.PingMilliseconds));
             }
@@ -1133,7 +1133,7 @@ sealed class SnapshotBroadcaster
 
         foreach (var (botSlot, _) in _botManager.BotSlots)
         {
-            if (_world.TryGetNetworkPlayer(botSlot, out var botPlayer))
+            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var botPlayer))
             {
                 players.Add(_world.Snapshots.ToSnapshotPlayerState(botSlot, botPlayer, null, value => _stringCache.GetOrAddCacheId(value), isBot: true));
             }

@@ -132,8 +132,8 @@ public sealed class ProjectilePresentationCollisionTests
         // authoritative lifecycle reaches this hook. It must not leave a
         // renderer-only proxy behind beneath the immediate local effect.
         var locallyResolvedState = state with { EntityId = 8 };
-        Assert.True(world.ApplyProtocol64ProjectileState(locallyResolvedState));
-        Assert.True(world.RemoveProtocol64Projectile(8));
+        Assert.True(world.SnapshotApply.ApplyProtocol64ProjectileState(locallyResolvedState));
+        Assert.True(world.SnapshotApply.RemoveProtocol64Projectile(8));
         InvokePrivate(
             game,
             "CaptureProtocol64RemovedProjectilePresentationEntities",

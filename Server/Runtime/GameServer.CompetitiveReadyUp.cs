@@ -6,7 +6,7 @@ partial class GameServer
 {
     private void ProcessCompetitiveReadyUpBeforeSimulationTick()
     {
-        if (!_world.CompetitiveReadyUpEnabled)
+        if (!_world.ReadyUp.CompetitiveReadyUpEnabled)
         {
             _competitiveReadyButtonDownSlots.Clear();
             return;
@@ -14,7 +14,7 @@ partial class GameServer
 
         var playableSlots = GetCompetitiveReadyUpPlayableSlots();
         ProcessCompetitiveReadyButtonEdges(playableSlots);
-        _world.AdvanceCompetitiveReadyUp(playableSlots);
+        _world.ReadyUp.AdvanceCompetitiveReadyUp(playableSlots);
     }
 
     private List<byte> GetCompetitiveReadyUpPlayableSlots()
@@ -24,8 +24,8 @@ partial class GameServer
         {
             if (!client.IsAuthorized
                 || client.IsWatchOnly
-                || !SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
-                || _world.IsNetworkPlayerAwaitingJoin(client.Slot))
+                || !NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(client.Slot)
+                || _world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot))
             {
                 continue;
             }
@@ -54,7 +54,7 @@ partial class GameServer
                 _competitiveReadyButtonDownSlots.Add(slot);
                 if (!wasDown)
                 {
-                    _world.TryToggleNetworkPlayerReady(slot);
+                    _world.ReadyUp.TryToggleNetworkPlayerReady(slot);
                 }
 
                 continue;

@@ -11,7 +11,7 @@ public sealed class LastToDieCaptureTheFlagRulesTests
     {
         var world = CreateJoinedEngineerWorld();
 
-        Assert.True(world.TryMoveLocalPlayerToIntelSpawn());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToIntelSpawn());
         var ownIntelBase = world.Level.GetIntelBase(PlayerTeam.Red);
         Assert.True(ownIntelBase.HasValue);
         Assert.InRange(DistanceBetween(world.LocalPlayer.X, world.LocalPlayer.Y, ownIntelBase.Value.X, ownIntelBase.Value.Y), 0f, 128f);
@@ -21,10 +21,10 @@ public sealed class LastToDieCaptureTheFlagRulesTests
     public void SpecialCaptureRuleEndsMatchImmediatelyWhenRedCaps()
     {
         var world = CreateJoinedEngineerWorld();
-        world.ConfigureSpecialCaptureTheFlagRules(endMatchOnRedTeamIntelCapture: true);
+        world.ObjectiveRules.ConfigureSpecialCaptureTheFlagRules(endMatchOnRedTeamIntelCapture: true);
 
-        Assert.True(world.TryMoveLocalPlayerToIntelSpawn());
-        Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
+        Assert.True(world.Spawns.TryMoveLocalPlayerToIntelSpawn());
+        Assert.True(world.ObjectiveRules.ForceGiveEnemyIntelToLocalPlayer());
 
         world.AdvanceOneTick();
 
@@ -37,13 +37,13 @@ public sealed class LastToDieCaptureTheFlagRulesTests
     public void BlueMustCaptureThreeTimesToEndTheStage()
     {
         var world = CreateJoinedEngineerWorld();
-        world.ConfigureSpecialCaptureTheFlagRules(true);
-        world.SetLocalPlayerTeam(PlayerTeam.Blue);
-        world.ForceRespawnLocalPlayer();
+        world.ObjectiveRules.ConfigureSpecialCaptureTheFlagRules(true);
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Blue);
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         for (var captures = 1; captures <= 3; captures++)
         {
-            Assert.True(world.TryMoveLocalPlayerToIntelSpawn());
-            Assert.True(world.ForceGiveEnemyIntelToLocalPlayer());
+            Assert.True(world.Spawns.TryMoveLocalPlayerToIntelSpawn());
+            Assert.True(world.ObjectiveRules.ForceGiveEnemyIntelToLocalPlayer());
             world.AdvanceOneTick();
             Assert.Equal(captures, world.BlueCaps);
             Assert.Equal(captures == 3, world.MatchState.IsEnded);
@@ -56,11 +56,11 @@ public sealed class LastToDieCaptureTheFlagRulesTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("Harvest"));
-        Assert.False(world.CanCompleteLastToDieStageOnTimeout);
+        Assert.False(world.LastToDieRules.CanCompleteLastToDieStageOnTimeout);
         world.Spawns.CombatTestSetControlPointOwner(1, PlayerTeam.Blue);
-        Assert.False(world.CanCompleteLastToDieStageOnTimeout);
+        Assert.False(world.LastToDieRules.CanCompleteLastToDieStageOnTimeout);
         world.Spawns.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
-        Assert.True(world.CanCompleteLastToDieStageOnTimeout);
+        Assert.True(world.LastToDieRules.CanCompleteLastToDieStageOnTimeout);
     }
 
     private static SimulationWorld CreateJoinedEngineerWorld()
@@ -68,9 +68,9 @@ public sealed class LastToDieCaptureTheFlagRulesTests
         var world = new SimulationWorld();
         Assert.True(world.TryLoadLevel("TwodFortTwo"));
         world.ConfigureMatchDefaults(capLimit: 3);
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         return world;
     }
 

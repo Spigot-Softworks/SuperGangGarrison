@@ -186,8 +186,8 @@ public sealed partial class SimulationWorld
         }
 
         MatchState = CreateInitialMatchState(MatchRules);
-        RedIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Red);
-        BlueIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Blue);
+        ObjectiveRules.RedIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Red);
+        ObjectiveRules.BlueIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Blue);
         ResetModeStateForNewRound();
         ObjectiveRules.FinalizeScrRoundStart();
         if (MapRuntime.LogicActivatorStartApplied.Length > 0)
@@ -257,7 +257,7 @@ public sealed partial class SimulationWorld
             ObjectiveRules.ResetControlPointStateForNewRound();
         }
 
-        if (IsVipModeActive)
+        if (VipRules.IsVipModeActive)
         {
             VipRules.ResetVipStateForNewRound();
         }

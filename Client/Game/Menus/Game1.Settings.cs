@@ -80,8 +80,8 @@ public partial class Game1
         _audioManager.RuntimeSettings.SoundEffectsVolumePercent = Math.Clamp(_clientSettings.SoundEffectsVolumePercent, 0, 100);
         ApplyAudioVolumeState();
 
-        _world.SetLocalPlayerName(_clientSettings.PlayerName);
-        _world.SetLocalPlayerBadgeMask(BadgeCatalog.ParseRewardString(_clientSettings.Rewards));
+        _world.NetworkPlayerRules.SetLocalPlayerName(_clientSettings.PlayerName);
+        _world.NetworkPlayerRules.SetLocalPlayerBadgeMask(BadgeCatalog.ParseRewardString(_clientSettings.Rewards));
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
 
         _inputManager.MenuTextInput.ConnectHostEdit.Text = SanitizeHost(_clientSettings.RecentConnection.Host);
@@ -180,7 +180,7 @@ public partial class Game1
 
     public void SetLocalPlayerNameFromSettings(string playerName)
     {
-        _world.SetLocalPlayerName(playerName);
+        _world.NetworkPlayerRules.SetLocalPlayerName(playerName);
         _playerNameEditBuffer = _world.LocalPlayer.DisplayName;
         _networkClient.UpdatePlayerProfile(_world.LocalPlayer.DisplayName, _world.LocalPlayer.BadgeMask);
         PersistClientSettings();

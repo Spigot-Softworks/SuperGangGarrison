@@ -75,7 +75,7 @@ public sealed class CivilDefenseTurretRegressionTests
     public void RepeatedDeploymentAndRespawnKeepOneTurretAndRejectionDoesNotSpendCooldown()
     {
         var world = CreateWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot,
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Soldier.CivilDefenseTurret]));
         Assert.True(world.PlayerInput.TryHandleExperimentalSoldierCivilDefenseTurret(world.LocalPlayer));
         for (var tick = 0; tick < 120; tick++) world.AdvanceOneTick();
@@ -84,7 +84,7 @@ public sealed class CivilDefenseTurretRegressionTests
             Assert.False(world.PlayerInput.TryHandleExperimentalSoldierCivilDefenseTurret(world.LocalPlayer));
         Assert.Single(world.CivilDefenseTurrets);
         Assert.Equal(0, world.LocalPlayer.PrimaryCooldownTicks);
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         Assert.False(world.PlayerInput.TryHandleExperimentalSoldierCivilDefenseTurret(world.LocalPlayer));
         Assert.Single(world.CivilDefenseTurrets);
     }
@@ -110,8 +110,8 @@ public sealed class CivilDefenseTurretRegressionTests
         world.CombatTestSetLevel(new SimpleLevel("turret_regression", GameModeKind.CaptureTheFlag,
             new WorldBounds(1600, 600), 1, null, 1, 1, new(400, 100), [new(400, 100)], [new(1400, 100)],
             [], [], 550, solids, false));
-        world.SetPendingLocalPlayerClass(PlayerClass.Soldier);
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.SetPendingLocalPlayerClass(PlayerClass.Soldier);
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         for (var tick = 0; tick < 90; tick++) world.AdvanceOneTick();
         return world;
     }

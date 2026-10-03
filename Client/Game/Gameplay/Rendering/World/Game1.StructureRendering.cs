@@ -242,7 +242,7 @@ public partial class Game1
             return false;
         }
 
-        var drawBaseChassis = !(sentry.IsBuilt && _world.IsExperimentalEngineerFloatingSentry(sentry));
+        var drawBaseChassis = !(sentry.IsBuilt && _world.ExperimentalRules.IsExperimentalEngineerFloatingSentry(sentry));
         if (drawBaseChassis)
         {
             var baseFrameIndex = GetSentryBaseFrameIndex(sentry, baseSprite.Frames.Count);
@@ -330,7 +330,7 @@ public partial class Game1
                 continue;
             }
 
-            var currentHealth = _world.GetDamageableZoneHealth(index);
+            var currentHealth = _world.MapLogic.GetDamageableZoneHealth(index);
             if (currentHealth <= 0f)
             {
                 continue;
@@ -397,7 +397,7 @@ public partial class Game1
 
         if (sentry.IsBuilt)
         {
-            if (_world.IsExperimentalEngineerFloatingSentry(sentry))
+            if (_world.ExperimentalRules.IsExperimentalEngineerFloatingSentry(sentry))
             {
                 return 0;
             }

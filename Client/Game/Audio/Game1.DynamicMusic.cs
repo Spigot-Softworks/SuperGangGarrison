@@ -335,7 +335,7 @@ public partial class Game1
             return DynamicMusicEventState.Uber;
         }
 
-        if ((_world.RedIntel.IsCarried || _world.BlueIntel.IsCarried || _world.RedIntel.IsDropped || _world.BlueIntel.IsDropped)
+        if ((_world.ObjectiveRules.RedIntel.IsCarried || _world.ObjectiveRules.BlueIntel.IsCarried || _world.ObjectiveRules.RedIntel.IsDropped || _world.ObjectiveRules.BlueIntel.IsDropped)
             && _world.RedCaps == 0
             && _world.BlueCaps == 0)
         {

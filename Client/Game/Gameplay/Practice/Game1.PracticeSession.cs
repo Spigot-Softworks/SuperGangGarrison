@@ -66,9 +66,9 @@ public partial class Game1
             return;
         }
 
-        _world.DespawnEnemyDummy();
+        _world.PracticeDummies.DespawnEnemyDummy();
         SyncPracticeBotRoster(localTeam);
-        _world.DespawnFriendlyDummy();
+        _world.PracticeDummies.DespawnFriendlyDummy();
     }
 
     public void ApplyPracticeDummyPreferencesBeforeJoin()
@@ -78,8 +78,8 @@ public partial class Game1
             return;
         }
 
-        _world.DespawnEnemyDummy();
-        _world.DespawnFriendlyDummy();
+        _world.PracticeDummies.DespawnEnemyDummy();
+        _world.PracticeDummies.DespawnFriendlyDummy();
     }
 
     private void ApplyPracticeDummyPreferencesAfterJoin()
@@ -90,8 +90,8 @@ public partial class Game1
         }
 
         SyncPracticeBotRoster(_world.LocalPlayerTeam);
-        _world.DespawnEnemyDummy();
-        _world.DespawnFriendlyDummy();
+        _world.PracticeDummies.DespawnEnemyDummy();
+        _world.PracticeDummies.DespawnFriendlyDummy();
     }
 
     public string GetGameplayExitStatusMessage()

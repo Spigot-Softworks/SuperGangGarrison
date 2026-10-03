@@ -29,7 +29,7 @@ public partial class Game1
         }
 
         _mapBotDeathLogicPulseSeenSlots.Clear();
-        foreach (var (slot, player) in _world.EnumerateReplicatedNetworkPlayers())
+        foreach (var (slot, player) in _world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers())
         {
             if (!player.TryGetReplicatedStateInt(
                     BotSpawnMetadata.VisualReplicatedStateOwnerId,
@@ -47,7 +47,7 @@ public partial class Game1
             if (_mapBotDeathLogicPulseAliveBySlot.TryGetValue(slot, out var wasAlive)
                 && wasAlive
                 && !alive
-                && _world.PulseMapLogicNode(nodeIndex)
+                && _world.MapLogic.PulseMapLogicNode(nodeIndex)
                 && _garrisonBuilderQuickTestActive)
             {
                 AddConsoleLine($"builder bot diag: death pulse slot={slot} node={nodeIndex}");

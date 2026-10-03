@@ -110,8 +110,8 @@ public partial class Game1
 
         DrawScorePanelCapLimit(panelOrigin, panelScale);
 
-        DrawIntelPanelElement(_world.RedIntel, PanelPoint(-65f, -50f), panelScale);
-        DrawIntelPanelElement(_world.BlueIntel, PanelPoint(60f, -50f), panelScale);
+        DrawIntelPanelElement(_world.ObjectiveRules.RedIntel, PanelPoint(-65f, -50f), panelScale);
+        DrawIntelPanelElement(_world.ObjectiveRules.BlueIntel, PanelPoint(60f, -50f), panelScale);
         DrawMatchTimerHud(ViewportWidth / 2f);
     }
 }

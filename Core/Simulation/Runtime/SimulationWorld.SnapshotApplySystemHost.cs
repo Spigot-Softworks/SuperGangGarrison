@@ -5,7 +5,7 @@ public sealed partial class SimulationWorld : ISnapshotApplyHost
     GameplayAbilitySystem ISnapshotApplyHost.Abilities => Abilities;
     IReadOnlyList<BladeProjectileEntity> ISnapshotApplyHost.Blades => Blades;
     int ISnapshotApplyHost.BlueCaps { get => BlueCaps; set => BlueCaps = value; }
-    TeamIntelligenceState ISnapshotApplyHost.BlueIntel => BlueIntel;
+    TeamIntelligenceState ISnapshotApplyHost.BlueIntel => ObjectiveRules.BlueIntel;
     IReadOnlyList<BubbleProjectileEntity> ISnapshotApplyHost.Bubbles => Bubbles;
     bool ISnapshotApplyHost.ClientPredictionMode => ClientPredictionMode;
     ClientSnapshotState ISnapshotApplyHost.ClientSnapshots => ClientSnapshots;
@@ -34,7 +34,7 @@ public sealed partial class SimulationWorld : ISnapshotApplyHost
     ProjectileSystem ISnapshotApplyHost.Projectiles => Projectiles;
     ReadyUpSystem ISnapshotApplyHost.ReadyUp => ReadyUp;
     int ISnapshotApplyHost.RedCaps { get => RedCaps; set => RedCaps = value; }
-    TeamIntelligenceState ISnapshotApplyHost.RedIntel => RedIntel;
+    TeamIntelligenceState ISnapshotApplyHost.RedIntel => ObjectiveRules.RedIntel;
     RemoteSnapshotPlayerRegistry ISnapshotApplyHost.RemoteSnapshots => RemoteSnapshots;
     IReadOnlyList<RevolverProjectileEntity> ISnapshotApplyHost.RevolverShots => RevolverShots;
     IReadOnlyList<RocketProjectileEntity> ISnapshotApplyHost.Rockets => Rockets;

@@ -305,11 +305,11 @@ public partial class Game1
 
     private void PrepareJumpSoloWorld(PlayerClass playerClass)
     {
-        _world.DespawnEnemyDummy();
-        _world.DespawnFriendlyDummy();
-        _world.SetLocalPlayerTeam(PlayerTeam.Red);
-        _world.PrepareLocalPlayerJoin();
-        _world.CompleteLocalPlayerJoin(playerClass);
+        _world.PracticeDummies.DespawnEnemyDummy();
+        _world.PracticeDummies.DespawnFriendlyDummy();
+        _world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        _world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        _world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
     }
 
     public void DrawJumpMenu()

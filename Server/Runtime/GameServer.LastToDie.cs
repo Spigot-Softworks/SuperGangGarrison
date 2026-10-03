@@ -52,7 +52,7 @@ partial class GameServer
         _teamShuffleAfterWins = 0;
         _botAutofillEnabled = false;
         _competitiveReadyUpEnabled = false;
-        _world.SetCompetitiveReadyUpEnabled(false);
+        _world.ReadyUp.SetCompetitiveReadyUpEnabled(false);
         _botManager.SeekEnemyPlayersAfterOwningControlPoint = true;
         _world.ConfigureExperimentalGameplaySettings(
             _world.ExperimentalGameplaySettings with
@@ -64,7 +64,7 @@ partial class GameServer
             });
 
         var seed = _lastToDieSeed ?? unchecked((ulong)Random.Shared.NextInt64());
-        _world.ConfigureLastToDieCombatSeed(seed);
+        _world.LastToDieRules.ConfigureLastToDieCombatSeed(seed);
         _lastToDieEnemySpawnRandom = new LastToDieRandom(
             seed ^ 0x4C5444535041574EUL,
             sequence: 0x535041574EUL);
@@ -92,7 +92,7 @@ partial class GameServer
             () => _world.Frame,
             _outboundMessaging.SendMessage,
             _config.TicksPerSecond,
-            _world.ConsumeLastToDieSpyAfterlifeDisconnectFailure,
+            _world.LastToDieRules.ConsumeLastToDieSpyAfterlifeDisconnectFailure,
             (client, reason) => _sessionManager.RemoveClient(client.Slot, reason),
             () => _lastToDieLeaderboardRunId,
             GetPublishedLastToDieCompletedRounds,
@@ -349,7 +349,7 @@ partial class GameServer
         var previousAreaIndex = _world.Level.MapAreaIndex;
         var previousAreaCount = _world.Level.MapAreaCount;
         var previousMode = _world.MatchRules.Mode;
-        _world.ConfigureSpecialCaptureTheFlagRules(endMatchOnRedTeamIntelCapture: true);
+        _world.ObjectiveRules.ConfigureSpecialCaptureTheFlagRules(endMatchOnRedTeamIntelCapture: true);
         _world.ConfigureMatchDefaults(capLimit: 3);
         if (!_world.TryLoadLevel(
                 directorSnapshot.CurrentMap,
@@ -364,7 +364,7 @@ partial class GameServer
         }
 
         _mapRotationManager.AlignExternalMapChange(_world.Level.Name);
-        _world.ConfigureLastToDieStage(directorSnapshot.StageNumber);
+        _world.LastToDieRules.ConfigureLastToDieStage(directorSnapshot.StageNumber);
         ConfigureLastToDieParticipants(session);
         ConfigureLastToDieStageBots(
             session,
@@ -441,16 +441,16 @@ partial class GameServer
 
         var survivors = LastToDieSurvivorCatalog.CreateStock();
         var survivor = survivors.GetRequired(new LastToDieSurvivorId(participant.SurvivorId));
-        _world.TrySetNetworkPlayerAutomaticRespawnSuppressed(participant.Slot, suppressed: true);
-        _world.TrySetNetworkPlayerTeam(
+        _world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(participant.Slot, suppressed: true);
+        _world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
             participant.Slot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true);
-        _world.TryForceNetworkPlayerClassSelectionAndRespawn(
+        _world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(
             participant.Slot,
             survivor.GameplayClassId);
-        _world.TryMoveNetworkPlayerToLastToDieObjectiveSpawn(participant.Slot);
-        if (!_world.TryGetNetworkPlayer(participant.Slot, out var player))
+        _world.Spawns.TryMoveNetworkPlayerToLastToDieObjectiveSpawn(participant.Slot);
+        if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(participant.Slot, out var player))
         {
             return;
         }
@@ -458,7 +458,7 @@ partial class GameServer
         var baseMaximumHealth = _lastToDieDifficulty == LastToDieDifficulty.Hardcore
             ? 25
             : player.ClassDefinition.MaxHealth;
-        _world.TryConfigureLastToDiePlayerBuild(
+        _world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             participant.Slot,
             participant.OwnedPerkIds.Select(perkId => new LastToDiePerkId(perkId)),
             baseMaximumHealth,
@@ -466,8 +466,8 @@ partial class GameServer
             resetDynamicState: true,
             runKills: participant.Kills,
             secondChanceConsumed: participant.SecondChanceConsumed);
-        _world.TrySetLastToDieSurvivorBuff(participant.Slot, enabled: true);
-        _world.TryRestoreLastToDieSniperConquistadorStacks(
+        _world.LastToDieRules.TrySetLastToDieSurvivorBuff(participant.Slot, enabled: true);
+        _world.LastToDieRules.TryRestoreLastToDieSniperConquistadorStacks(
             participant.Slot,
             participant.ConquistadorStacks);
         _lastToDieObservedKillsBySlot[participant.Slot] = Math.Max(0, player.Kills);
@@ -515,7 +515,7 @@ partial class GameServer
                     out var slot))
             {
                 var spawnSide = spawnSides[classIndex];
-                if (!_world.TryMoveNetworkPlayerToLastToDieEnemySpawn(
+                if (!_world.Spawns.TryMoveNetworkPlayerToLastToDieEnemySpawn(
                         slot,
                         spawnSide))
                 {
@@ -530,11 +530,11 @@ partial class GameServer
                 var scaledMaximumHealth = Math.Max(
                     1,
                     (int)MathF.Round(baseMaximumHealth * enemyStatMultiplier));
-                _world.TrySetNetworkPlayerMaxHealthOverride(
+                _world.ServerTuning.TrySetNetworkPlayerMaxHealthOverride(
                     slot,
                     enemiesHaveGutsAndGlory ? 50 : scaledMaximumHealth,
                     refillHealth: true);
-                _world.TrySetNetworkPlayerLastToDieEnemyScaling(
+                _world.ServerTuning.TrySetNetworkPlayerLastToDieEnemyScaling(
                     slot,
                     enemyStatMultiplier,
                     enemyDamageMultiplier);
@@ -595,7 +595,7 @@ partial class GameServer
                 var inheritedPerks = participant.OwnedPerkIds
                     .Where(perkId => !companionAndDraftPerks.Contains(perkId))
                     .Select(static perkId => new LastToDiePerkId(perkId));
-                _ = _world.TryConfigureLastToDiePlayerBuild(
+                _ = _world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
                     mimicSlot,
                     inheritedPerks,
                     refillHealth: true,
@@ -603,7 +603,7 @@ partial class GameServer
                     runKills: participant.Kills,
                     secondChanceConsumed: false,
                     runKillProgressionOwner: false);
-                _world.TrySetLastToDieSurvivorBuff(mimicSlot, enabled: true);
+                _world.LastToDieRules.TrySetLastToDieSurvivorBuff(mimicSlot, enabled: true);
             }
 
             if (owned.Contains(LastToDiePerkIds.Rare.Triage.Value))
@@ -640,7 +640,7 @@ partial class GameServer
 
             if (owned.Contains(LastToDiePerkIds.Ultra.DefenseBattery.Value))
             {
-                _ = _world.TryDeployLastToDieDefenseBattery(participant.Slot);
+                _ = _world.Structures.TryDeployLastToDieDefenseBattery(participant.Slot);
             }
         }
     }
@@ -704,7 +704,7 @@ partial class GameServer
         foreach (var participant in session.GetParticipants())
         {
             var scoreUnits = 0;
-            if (_world.TryGetNetworkPlayer(participant.Slot, out var player))
+            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(participant.Slot, out var player))
             {
                 var scaledScore = player.Points * 100f;
                 scoreUnits = !float.IsFinite(scaledScore) || scaledScore <= 0f
@@ -776,7 +776,7 @@ partial class GameServer
                 or LastToDiePhase.RewardChoice
                 or LastToDiePhase.Won
                 or LastToDiePhase.Lost
-            && _world.TryGetNetworkPlayer(slot, out var player))
+            && _world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             var scaledScore = player.Points * 100f;
             if (float.IsFinite(scaledScore) && scaledScore > 0f)
@@ -806,7 +806,7 @@ partial class GameServer
             }
 
             var slot = entry.Key;
-            if (!_world.TryGetNetworkPlayer(slot, out var enemy))
+            if (!_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var enemy))
             {
                 _lastToDieEnemySpawnPreparedWhileDead.Remove(slot);
                 continue;
@@ -826,7 +826,7 @@ partial class GameServer
             var spawnSide = _lastToDieEnemySpawnRandom.NextInt32(2) == 0
                 ? PlayerTeam.Red
                 : PlayerTeam.Blue;
-            if (_world.TryConfigureNetworkPlayerLastToDieEnemySpawn(
+            if (_world.Spawns.TryConfigureNetworkPlayerLastToDieEnemySpawn(
                     slot,
                     spawnSide,
                     repositionAlivePlayer: false))
@@ -877,7 +877,7 @@ partial class GameServer
         foreach (var participant in session.GetParticipants().Where(participant => participant.IsConnected))
         {
             if (!playersById.TryGetValue(participant.PlayerId, out var directorPlayer)
-                || !_world.TryGetNetworkPlayer(participant.Slot, out var worldPlayer))
+                || !_world.NetworkPlayerRules.TryGetNetworkPlayer(participant.Slot, out var worldPlayer))
             {
                 continue;
             }
@@ -903,9 +903,9 @@ partial class GameServer
             }
 
             _lastToDieObservedKillsBySlot[participant.Slot] = observedKills;
-            _world.TrySetLastToDiePlayerRunKills(participant.Slot, runKills);
+            _world.LastToDieRules.TrySetLastToDiePlayerRunKills(participant.Slot, runKills);
 
-            if (_world.TryGetLastToDieSecondChanceConsumed(participant.Slot, out var secondChanceConsumed)
+            if (_world.LastToDieRules.TryGetLastToDieSecondChanceConsumed(participant.Slot, out var secondChanceConsumed)
                 && secondChanceConsumed
                 && !directorPlayer.SecondChanceConsumed
                 && director.TryConsumeSecondChance(participant.PlayerId, out _))
@@ -913,7 +913,7 @@ partial class GameServer
                 stateChanged = true;
             }
 
-            var conquistadorStacks = _world.TryGetLastToDieSniperConquistadorStacks(
+            var conquistadorStacks = _world.LastToDieRules.TryGetLastToDieSniperConquistadorStacks(
                 participant.Slot,
                 out var worldConquistadorStacks)
                 ? worldConquistadorStacks
@@ -937,10 +937,10 @@ partial class GameServer
             blueObjectiveWon: winner == PlayerTeam.Blue,
             anyAfterlifeWindowActive: session.GetParticipants().Any(participant =>
                 participant.IsConnected
-                && _world.IsLastToDieSpyAfterlifeWindowActive(participant.Slot))
+                && _world.LastToDieRules.IsLastToDieSpyAfterlifeWindowActive(participant.Slot))
                 || session.HasActiveReconnectGrace(),
             out _,
-            canCompleteStageOnTimeout: _world.CanCompleteLastToDieStageOnTimeout,
+            canCompleteStageOnTimeout: _world.LastToDieRules.CanCompleteLastToDieStageOnTimeout,
             redControlPointOwned: _world.ControlPoints.Any(point => point.Team == PlayerTeam.Red));
         stateChanged |= revisionBeforeAdvance != director.StructuralRevision
             || phaseBeforeAdvance != director.Phase;

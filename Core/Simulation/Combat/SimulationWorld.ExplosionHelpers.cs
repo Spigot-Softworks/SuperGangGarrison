@@ -18,7 +18,7 @@ public sealed partial class SimulationWorld
 
     private static float GetExplosionDistanceToPlayer(SimulationWorld world, PlayerEntity player, float originX, float originY)
     {
-        world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+        world.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
         return ExplosionGeometry.GetDistanceToBounds(left, top, right, bottom, originX, originY);
     }
 }

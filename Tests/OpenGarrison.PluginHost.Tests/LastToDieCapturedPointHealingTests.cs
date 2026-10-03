@@ -22,10 +22,10 @@ public sealed class LastToDieCapturedPointHealingTests
                 EnableCapturedPointHealingAura = true,
             });
 
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(2, out var remotePlayer));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var remotePlayer));
 
         var point = Assert.Single(world.ControlPoints);
         point.Team = PlayerTeam.Red;
@@ -34,7 +34,7 @@ public sealed class LastToDieCapturedPointHealingTests
         remotePlayer.ForceSetHealth(remotePlayer.MaxHealth - 20);
         var healthBefore = remotePlayer.Health;
 
-        Assert.True(world.IsPlayerInsideCapturedPointHealingAuraForVisuals(remotePlayer));
+        Assert.True(world.ExperimentalRules.IsPlayerInsideCapturedPointHealingAuraForVisuals(remotePlayer));
         for (var tick = 0; tick < world.Config.TicksPerSecond; tick += 1)
         {
             world.ExperimentalRules.ApplyExperimentalPassivePlayerEffects(remotePlayer);
@@ -99,10 +99,10 @@ public sealed class LastToDieCapturedPointHealingTests
             DamageEvents: [],
             SoundEvents: []);
 
-        Assert.True(world.ApplySnapshot(snapshot));
+        Assert.True(world.SnapshotApply.ApplySnapshot(snapshot));
 
         Assert.True(Assert.Single(world.ControlPoints).HasHealingAura);
-        Assert.True(world.IsPlayerInsideCapturedPointHealingAuraForVisuals(world.LocalPlayer));
+        Assert.True(world.ExperimentalRules.IsPlayerInsideCapturedPointHealingAuraForVisuals(world.LocalPlayer));
     }
 
     private static SimulationWorld CreateKothWorld()

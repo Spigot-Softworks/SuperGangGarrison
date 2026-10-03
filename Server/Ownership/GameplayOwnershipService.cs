@@ -16,8 +16,8 @@ internal sealed class GameplayOwnershipService(
 
     public void ApplyClientProfile(byte slot, string? playerName, ulong badgeMask)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            || !worldGetter().TryGetNetworkPlayer(slot, out var player))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            || !worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             _identitiesBySlot.Remove(slot);
             return;
@@ -42,8 +42,8 @@ internal sealed class GameplayOwnershipService(
     public void ReleaseSlot(byte slot)
     {
         _identitiesBySlot.Remove(slot);
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().TryGetNetworkPlayer(slot, out var player))
+        if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             player.ClearTrackedOwnedGameplayItems();
         }
@@ -51,8 +51,8 @@ internal sealed class GameplayOwnershipService(
 
     public bool TryGrantItem(byte slot, string itemId)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            || !worldGetter().TryGetNetworkPlayer(slot, out var player)
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            || !worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             || !player.TryGrantGameplayItem(itemId))
         {
             return false;
@@ -64,8 +64,8 @@ internal sealed class GameplayOwnershipService(
 
     public bool TryRevokeItem(byte slot, string itemId)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            || !worldGetter().TryGetNetworkPlayer(slot, out var player)
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            || !worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             || !player.TryRevokeGameplayItem(itemId))
         {
             return false;

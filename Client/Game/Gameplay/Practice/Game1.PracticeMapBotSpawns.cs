@@ -273,31 +273,31 @@ public partial class Game1
         var isDummy = marker.Kind == BotSpawnKind.Dummy;
         var displayName = ResolvePracticeMapBotDisplayName(marker, slot, teamBotCount, isDummy);
 
-        _world.TrySetNetworkPlayerSpawnOverride(slot, marker.X, marker.Y);
-        _world.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, true);
+        _world.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(slot, marker.X, marker.Y);
+        _world.ClassRules.SetNetworkPlayerMapSpawnClassBehaviorBypass(slot, true);
         try
         {
-            if (!_world.TryPrepareNetworkPlayerJoin(slot))
+            if (!_world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot))
             {
                 return FailPracticeMapBotSpawn(slot, "prepare join failed");
             }
 
-            if (!_world.TrySetNetworkPlayerName(slot, displayName))
+            if (!_world.NetworkPlayerRules.TrySetNetworkPlayerName(slot, displayName))
             {
                 return FailPracticeMapBotSpawn(slot, "set name failed");
             }
 
-            if (!_world.TrySetNetworkPlayerTeam(slot, marker.Team))
+            if (!_world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, marker.Team))
             {
                 return FailPracticeMapBotSpawn(slot, "set team failed");
             }
 
-            if (!_world.TryApplyNetworkPlayerClassSelection(slot, playerClass))
+            if (!_world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass))
             {
                 return FailPracticeMapBotSpawn(slot, $"class selection failed class={playerClass}");
             }
 
-            if (_world.TryGetNetworkPlayer(slot, out var spawnedBot))
+            if (_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var spawnedBot))
             {
                 ApplyPracticeMapBotReplicatedStates(spawnedBot, marker);
             }
@@ -318,10 +318,10 @@ public partial class Game1
             _practiceBotInputCacheAgeTicks.Remove(slot);
             if (marker.Respawn && marker.RespawnMode == BotSpawnRespawnMode.Node)
             {
-                _world.TrySetNetworkPlayerSpawnOverride(slot, marker.X, marker.Y);
+                _world.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(slot, marker.X, marker.Y);
             }
 
-            if (_garrisonBuilderQuickTestActive && _world.TryGetNetworkPlayer(slot, out var bot))
+            if (_garrisonBuilderQuickTestActive && _world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot))
             {
                 AddConsoleLine(
                     $"builder bot diag: spawn succeeded slot={slot} name=\"{bot.DisplayName}\" team={bot.Team} class={bot.ClassId} alive={bot.IsAlive} " +
@@ -335,7 +335,7 @@ public partial class Game1
         {
             if (!marker.Respawn || marker.RespawnMode != BotSpawnRespawnMode.Node)
             {
-                _world.TryClearNetworkPlayerSpawnOverride(slot);
+                _world.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot);
             }
         }
     }
@@ -399,7 +399,7 @@ public partial class Game1
             var state = entry.Value;
             if (!state.IsMapSpawned
                 || state.Respawn
-                || !_world.TryGetNetworkPlayer(entry.Key, out var bot)
+                || !_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var bot)
                 || bot.IsAlive)
             {
                 continue;
@@ -411,8 +411,8 @@ public partial class Game1
         for (var index = 0; index < slotsToRelease.Count; index += 1)
         {
             var slot = slotsToRelease[index];
-            _world.TryClearNetworkPlayerSpawnOverride(slot);
-            _world.TryReleaseNetworkPlayerSlot(slot);
+            _world.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot);
+            _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(slot);
             _practiceBotSlots.Remove(slot);
             _practiceBotDisplayNamePool.ReleaseSlot(slot);
             _practiceBotInputCache.Remove(slot);
@@ -426,7 +426,7 @@ public partial class Game1
 
     private bool FailPracticeMapBotSpawn(byte slot, string reason)
     {
-        _world.TryReleaseNetworkPlayerSlot(slot);
+        _world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(slot);
         _practiceBotDisplayNamePool.ReleaseSlot(slot);
         if (_garrisonBuilderQuickTestActive)
         {

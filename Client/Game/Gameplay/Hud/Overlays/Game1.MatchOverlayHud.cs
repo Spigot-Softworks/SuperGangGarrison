@@ -142,7 +142,7 @@ public partial class Game1
         if (_world.ControlPointSetupActive && _world.ControlPointSetupTicksRemaining > 0)
         {
             TryDrawScreenSprite("TimerHudS", teamOffset, timerPosition, Color.White, new Vector2(3f, 3f));
-            var setupDurationTicks = Math.Max(1, _world.ControlPointSetupDurationTicks);
+            var setupDurationTicks = Math.Max(1, _world.ObjectiveRules.ControlPointSetupDurationTicks);
             var setupFrame = Math.Clamp((int)MathF.Floor((_world.ControlPointSetupTicksRemaining / (float)setupDurationTicks) * 12f), 0, 12);
             TryDrawScreenSprite("TimerS", setupFrame, new Vector2(centerX + 39f, 30f), Color.White, new Vector2(3f, 3f));
 
@@ -262,8 +262,8 @@ public partial class Game1
 
         TryDrawScreenSprite("GeneratorHUDS", 0, new Vector2(centerX, hudY), Color.White, new Vector2(2f, 2f));
 
-        DrawGeneratorHudElement(_world.GetGenerator(PlayerTeam.Red), new Vector2(centerX - 50f, hudY), alignLeft: true);
-        DrawGeneratorHudElement(_world.GetGenerator(PlayerTeam.Blue), new Vector2(centerX + 50f, hudY), alignLeft: false);
+        DrawGeneratorHudElement(_world.ObjectiveRules.GetGenerator(PlayerTeam.Red), new Vector2(centerX - 50f, hudY), alignLeft: true);
+        DrawGeneratorHudElement(_world.ObjectiveRules.GetGenerator(PlayerTeam.Blue), new Vector2(centerX + 50f, hudY), alignLeft: false);
     }
 
     private void DrawGeneratorHudElement(GeneratorState? generator, Vector2 position, bool alignLeft)

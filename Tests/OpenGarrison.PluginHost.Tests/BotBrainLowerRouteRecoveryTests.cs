@@ -24,9 +24,9 @@ public sealed class BotBrainLowerRouteRecoveryTests
             EnableFriendlySupportDummy = false,
         });
         Assert.True(world.TryLoadLevel(levelName, 1, preservePlayerStats: false));
-        world.SetPendingLocalPlayerClass(PlayerClass.Scout);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, team));
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.SetPendingLocalPlayerClass(PlayerClass.Scout);
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, team));
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         foreach (var point in world.ControlPoints)
         {
             point.Team = null;
@@ -53,7 +53,7 @@ public sealed class BotBrainLowerRouteRecoveryTests
                 activeTicks += 1;
             }
 
-            Assert.True(world.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, input));
+            Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, input));
             world.AdvanceOneTick();
         }
 

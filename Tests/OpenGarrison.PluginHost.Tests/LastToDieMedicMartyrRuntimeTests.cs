@@ -16,8 +16,8 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         var target = world.LocalPlayer;
         var lowerSlotMedic = AddPlayer(world, 2, PlayerClass.Medic, PlayerTeam.Red);
         var higherSlotMedic = AddPlayer(world, 3, PlayerClass.Medic, PlayerTeam.Red);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, [LastToDiePerkIds.Medic.Martyr]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(2, [LastToDiePerkIds.Medic.Martyr]));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Medic.Martyr]));
         // Configure first: its live-scale fallback relocates players whose test
         // coordinates are not occupiable, which would break the medic link.
         target.TeleportTo(10f, 0f);
@@ -56,10 +56,10 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         protector.TeleportTo(0f, 0f);
         target.TeleportTo(10f, 0f);
         attacker.TeleportTo(20f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Martyr]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Medic.SpikedVest]));
         protector.SetMedicHealingTarget(target);
@@ -130,7 +130,7 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         var protector = world.LocalPlayer;
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Red);
         var attacker = AddPlayer(world, 3, PlayerClass.Sniper, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Martyr]));
         // Configure first: its live-scale fallback relocates players whose test
@@ -198,10 +198,10 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         var protector = world.LocalPlayer;
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Red);
         var attacker = AddPlayer(world, 3, PlayerClass.Spy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Martyr]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Spy.Vampire]));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(3, [LastToDiePerkIds.Spy.Vampire]));
         // Configure first: its live-scale fallback relocates players whose test
         // coordinates are not occupiable, which would break the medic link.
         protector.TeleportTo(0f, 0f);
@@ -249,7 +249,7 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         var protocolState = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(1).Players);
         Assert.Equal((byte)15, protocolState.LastToDieMedicLinkState);
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(protocolState));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(protocolState));
         Assert.True(receiver.LocalPlayer.LastToDieMedicMartyrProtectedLinkActive);
         Assert.True(receiver.LocalPlayer.LastToDieMedicMartyrProtectorLinkActive);
     }
@@ -262,12 +262,12 @@ public sealed class LastToDieMedicMartyrRuntimeTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.PrepareLocalPlayerJoin();
-        Assert.True(world.TrySetNetworkPlayerTeam(
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
-        world.CompleteLocalPlayerJoin(localClass);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(localClass);
         return world;
     }
 
@@ -277,10 +277,10 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 

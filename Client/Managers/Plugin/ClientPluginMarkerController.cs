@@ -94,7 +94,7 @@ public sealed class ClientPluginMarkerController
                     }
                     break;
                 case GameModeKind.Generator:
-                    foreach (var generator in _context._world.Generators)
+                    foreach (var generator in _context._world.ObjectiveRules.Generators)
                     {
                         markers.Add(new ClientObjectiveMarker(
                             ClientObjectiveMarkerKind.Generator,
@@ -129,8 +129,8 @@ public sealed class ClientPluginMarkerController
         {
             var ownBase = _context._world.Level.GetIntelBase(localTeam);
             var enemyBase = _context._world.Level.GetIntelBase(localTeam == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red);
-            var ownIntel = localTeam == PlayerTeam.Red ? _context._world.RedIntel : _context._world.BlueIntel;
-            var enemyIntel = localTeam == PlayerTeam.Red ? _context._world.BlueIntel : _context._world.RedIntel;
+            var ownIntel = localTeam == PlayerTeam.Red ? _context._world.ObjectiveRules.RedIntel : _context._world.ObjectiveRules.BlueIntel;
+            var enemyIntel = localTeam == PlayerTeam.Red ? _context._world.ObjectiveRules.BlueIntel : _context._world.ObjectiveRules.RedIntel;
 
             var defendPosition = ownBase.HasValue
                 ? new Vector2(ownBase.Value.X, ownBase.Value.Y)

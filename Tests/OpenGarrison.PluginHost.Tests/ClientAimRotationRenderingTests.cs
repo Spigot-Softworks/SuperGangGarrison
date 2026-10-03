@@ -22,7 +22,7 @@ public sealed class ClientAimRotationRenderingTests
         player.ApplyPredictionAimWorld(player.X - 100f, player.Y);
         var currentCursorX = player.X + 100f;
         var currentCursorY = player.Y + 100f;
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             AimWorldX = currentCursorX,

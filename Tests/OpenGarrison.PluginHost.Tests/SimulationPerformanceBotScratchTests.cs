@@ -33,10 +33,10 @@ public sealed class SimulationPerformanceBotScratchTests
             importedFromSource: false));
 
         const byte botSlot = 2;
-        Assert.True(world.TryPrepareNetworkPlayerJoin(botSlot));
-        Assert.True(world.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(botSlot, out var bot));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot));
         bot.TeleportTo(64f, 64f);
         bot.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
 

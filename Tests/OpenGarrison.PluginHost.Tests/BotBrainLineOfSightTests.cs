@@ -72,8 +72,8 @@ public sealed class BotBrainLineOfSightTests
                 new RoomObjectMarker(RoomObjectType.TeamGate, 200f, 90f, 32f, 60f, "RedGate", PlayerTeam.Red),
             ],
             solids: []);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.ForceRespawnLocalPlayer();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.LocalPlayer.TeleportTo(100f, 100f);
         world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: 1f);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 400f, 100f);
@@ -99,8 +99,8 @@ public sealed class BotBrainLineOfSightTests
     public void BotPursuesDistantEnemyWithoutFiringUntilWithinPracticalRange()
     {
         var world = CreateWorld(roomObjects: [], solids: []);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.ForceRespawnLocalPlayer();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.LocalPlayer.TeleportTo(100f, 100f);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 700f, 100f);
 
@@ -124,8 +124,8 @@ public sealed class BotBrainLineOfSightTests
     public void BotFiresWhenEnemyIsVisibleAndWithinPracticalRange()
     {
         var world = CreateWorld(roomObjects: [], solids: []);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.ForceRespawnLocalPlayer();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.LocalPlayer.TeleportTo(100f, 100f);
         _ = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue, 400f, 100f);
 
@@ -150,8 +150,8 @@ public sealed class BotBrainLineOfSightTests
                 new RoomObjectMarker(RoomObjectType.TeamGate, 200f, 90f, 32f, 60f, "RedGate", PlayerTeam.Red),
             ],
             solids: []);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.ForceRespawnLocalPlayer();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.LocalPlayer.TeleportTo(100f, 100f);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 400f, 100f);
         var method = typeof(BotBrainController).GetMethod("TryFindNearestEnemyPlayer", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
@@ -174,8 +174,8 @@ public sealed class BotBrainLineOfSightTests
                 new RoomObjectMarker(RoomObjectType.BulletWall, 200f, 90f, 32f, 60f, "KulayBulletWall"),
             ],
             solids: []);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.ForceRespawnLocalPlayer();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.LocalPlayer.TeleportTo(100f, 100f);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, 400f, 100f);
 
@@ -227,10 +227,10 @@ public sealed class BotBrainLineOfSightTests
         float x,
         float y)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         player.RestoreMovementProbeState(isGrounded: true, remainingAirJumps: null, facingDirectionX: -1f);
         return player;

@@ -31,7 +31,7 @@ public partial class Game1
             return (1f + ((0.42f - 1f) * trailAlpha)) * bodyVisibilityScale;
         }
 
-        if (_world.IsPlayerInsideExperimentalEngineerMisdirectionFieldForVisuals(player))
+        if (_world.ExperimentalRules.IsPlayerInsideExperimentalEngineerMisdirectionFieldForVisuals(player))
         {
             return 0.72f * bodyVisibilityScale;
         }

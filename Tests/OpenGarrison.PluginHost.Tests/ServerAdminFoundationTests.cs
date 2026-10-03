@@ -207,7 +207,7 @@ public sealed class ServerAdminFoundationTests
             "Player scale",
             world.ConfiguredPlayerScale,
             () => world.ConfiguredPlayerScale,
-            world.SetPlayerScale,
+            world.ServerTuning.SetPlayerScale,
             minValue: PlayerEntity.MinPlayerScale,
             maxValue: PlayerEntity.MaxPlayerScale);
         registry.RegisterFloat(
@@ -223,7 +223,7 @@ public sealed class ServerAdminFoundationTests
             "Movement speed scale",
             world.ConfiguredMovementSpeedScale,
             () => world.ConfiguredMovementSpeedScale,
-            world.SetMovementSpeedScale,
+            world.ServerTuning.SetMovementSpeedScale,
             minValue: 0.1f,
             maxValue: 4f);
         registry.RegisterFloat(
@@ -231,7 +231,7 @@ public sealed class ServerAdminFoundationTests
             "Projectile speed scale",
             world.ConfiguredProjectileSpeedScale,
             () => world.ConfiguredProjectileSpeedScale,
-            world.SetProjectileSpeedScale,
+            world.ServerTuning.SetProjectileSpeedScale,
             minValue: 0.1f,
             maxValue: 4f);
         registry.RegisterFloat(
@@ -239,7 +239,7 @@ public sealed class ServerAdminFoundationTests
             "Damage scale",
             world.ConfiguredDamageScale,
             () => world.ConfiguredDamageScale,
-            world.SetDamageScale,
+            world.ServerTuning.SetDamageScale,
             minValue: 0f,
             maxValue: 10f);
         registry.RegisterFloat(
@@ -247,7 +247,7 @@ public sealed class ServerAdminFoundationTests
             "Gravity scale",
             world.ConfiguredGravityScale,
             () => world.ConfiguredGravityScale,
-            world.SetGravityScale,
+            world.ServerTuning.SetGravityScale,
             minValue: 0f,
             maxValue: 4f);
         registry.RegisterFloat(
@@ -255,7 +255,7 @@ public sealed class ServerAdminFoundationTests
             "Horizontal clamp",
             world.ConfiguredHorizontalSpeedClampPerTick,
             () => world.ConfiguredHorizontalSpeedClampPerTick,
-            world.SetHorizontalSpeedClampPerTick,
+            world.ServerTuning.SetHorizontalSpeedClampPerTick,
             minValue: 1f,
             maxValue: 60f);
         registry.RegisterFloat(
@@ -263,7 +263,7 @@ public sealed class ServerAdminFoundationTests
             "Vertical clamp",
             world.ConfiguredVerticalSpeedClampPerTick,
             () => world.ConfiguredVerticalSpeedClampPerTick,
-            world.SetVerticalSpeedClampPerTick,
+            world.ServerTuning.SetVerticalSpeedClampPerTick,
             minValue: 1f,
             maxValue: 60f);
         registry.RegisterBoolean(
@@ -271,7 +271,7 @@ public sealed class ServerAdminFoundationTests
             "Round-end friendly fire",
             world.RoundEndFriendlyFireEnabled,
             () => world.RoundEndFriendlyFireEnabled,
-            world.SetRoundEndFriendlyFire);
+            world.ServerTuning.SetRoundEndFriendlyFire);
 
         var originalWorldWidth = world.Bounds.Width;
         var originalWorldHeight = world.Bounds.Height;
@@ -343,7 +343,7 @@ public sealed class ServerAdminFoundationTests
     {
         var defaultDamageWorld = new SimulationWorld();
         var boostedDamageWorld = new SimulationWorld();
-        boostedDamageWorld.SetDamageScale(2f);
+        boostedDamageWorld.ServerTuning.SetDamageScale(2f);
 
         defaultDamageWorld.LocalPlayer.IgniteAfterburn(2, 30f, PlayerEntity.BurnMaxIntensity, afterburnFalloff: false, burnFalloffAmount: 0f);
         boostedDamageWorld.LocalPlayer.IgniteAfterburn(2, 30f, PlayerEntity.BurnMaxIntensity, afterburnFalloff: false, burnFalloffAmount: 0f);
@@ -358,7 +358,7 @@ public sealed class ServerAdminFoundationTests
 
         var defaultGravityWorld = new SimulationWorld();
         var zeroGravityWorld = new SimulationWorld();
-        zeroGravityWorld.SetGravityScale(0f);
+        zeroGravityWorld.ServerTuning.SetGravityScale(0f);
 
         defaultGravityWorld.LocalPlayer.TeleportTo(defaultGravityWorld.LocalPlayer.X, defaultGravityWorld.LocalPlayer.Y - 192f);
         zeroGravityWorld.LocalPlayer.TeleportTo(zeroGravityWorld.LocalPlayer.X, zeroGravityWorld.LocalPlayer.Y - 192f);
@@ -402,28 +402,28 @@ public sealed class ServerAdminFoundationTests
     {
         var world = new SimulationWorld();
 
-        Assert.True(world.TrySetNetworkPlayerMovementSpeedScale(SimulationWorld.LocalPlayerSlot, 2.5f));
-        Assert.True(world.TrySetNetworkPlayerGravityScale(SimulationWorld.LocalPlayerSlot, 0.5f));
+        Assert.True(world.ServerTuning.TrySetNetworkPlayerMovementSpeedScale(SimulationWorld.LocalPlayerSlot, 2.5f));
+        Assert.True(world.ServerTuning.TrySetNetworkPlayerGravityScale(SimulationWorld.LocalPlayerSlot, 0.5f));
         Assert.Equal(2.5f, world.LocalPlayer.ServerMovementSpeedScale);
         Assert.Equal(0.5f, world.LocalPlayer.ServerGravityScale);
-        Assert.True(world.HasNetworkPlayerMovementSpeedScaleOverride(SimulationWorld.LocalPlayerSlot));
-        Assert.True(world.HasNetworkPlayerGravityScaleOverride(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.ServerTuning.HasNetworkPlayerMovementSpeedScaleOverride(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.ServerTuning.HasNetworkPlayerGravityScaleOverride(SimulationWorld.LocalPlayerSlot));
         Assert.True(world.LocalPlayer.TryGetReplicatedStateFloat(PlayerEntity.ServerTuningReplicatedStateOwnerId, PlayerEntity.MovementSpeedScaleReplicatedStateKey, out var replicatedMovementSpeedScale));
         Assert.True(world.LocalPlayer.TryGetReplicatedStateFloat(PlayerEntity.ServerTuningReplicatedStateOwnerId, PlayerEntity.GravityScaleReplicatedStateKey, out var replicatedGravityScale));
         Assert.Equal(2.5f, replicatedMovementSpeedScale);
         Assert.Equal(0.5f, replicatedGravityScale);
 
-        world.SetMovementSpeedScale(1.5f);
-        world.SetGravityScale(1.25f);
+        world.ServerTuning.SetMovementSpeedScale(1.5f);
+        world.ServerTuning.SetGravityScale(1.25f);
         Assert.Equal(2.5f, world.LocalPlayer.ServerMovementSpeedScale);
         Assert.Equal(0.5f, world.LocalPlayer.ServerGravityScale);
         Assert.Equal(1.5f, world.EnemyPlayer.ServerMovementSpeedScale);
         Assert.Equal(1.25f, world.EnemyPlayer.ServerGravityScale);
 
-        Assert.True(world.TryClearNetworkPlayerMovementSpeedScale(SimulationWorld.LocalPlayerSlot));
-        Assert.True(world.TryClearNetworkPlayerGravityScale(SimulationWorld.LocalPlayerSlot));
-        Assert.False(world.HasNetworkPlayerMovementSpeedScaleOverride(SimulationWorld.LocalPlayerSlot));
-        Assert.False(world.HasNetworkPlayerGravityScaleOverride(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.ServerTuning.TryClearNetworkPlayerMovementSpeedScale(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.ServerTuning.TryClearNetworkPlayerGravityScale(SimulationWorld.LocalPlayerSlot));
+        Assert.False(world.ServerTuning.HasNetworkPlayerMovementSpeedScaleOverride(SimulationWorld.LocalPlayerSlot));
+        Assert.False(world.ServerTuning.HasNetworkPlayerGravityScaleOverride(SimulationWorld.LocalPlayerSlot));
         Assert.Equal(1.5f, world.LocalPlayer.ServerMovementSpeedScale);
         Assert.Equal(1.25f, world.LocalPlayer.ServerGravityScale);
     }
@@ -433,7 +433,7 @@ public sealed class ServerAdminFoundationTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableDemoknightKit: true,
             EnableDemoknightFullControlDuringCharge: false));
@@ -478,7 +478,7 @@ public sealed class ServerAdminFoundationTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableDemoknightKit: true,
             EnableDemoknightFullControlDuringCharge: true));
@@ -537,7 +537,7 @@ public sealed class ServerAdminFoundationTests
     {
         var world = new SimulationWorld();
         Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableDemoknightKit: true,
             EnableDemoknightFullControlDuringCharge: true));
@@ -988,7 +988,7 @@ public sealed class ServerAdminFoundationTests
         var clients = new Dictionary<byte, ClientSession> { [client.Slot] = client };
         var sentMessages = new List<IProtocolMessage>();
         var sessionManager = CreateSessionManager(world, clients, (_, message) => sentMessages.Add(message));
-        world.TryPrepareNetworkPlayerJoin(client.Slot);
+        world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(client.Slot);
 
         sessionManager.HandleControlCommand(client, new ControlCommandMessage(10, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Red));
         sessionManager.HandleControlCommand(client, new ControlCommandMessage(9, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Blue));
@@ -999,7 +999,7 @@ public sealed class ServerAdminFoundationTests
         Assert.Equal(9u, delayedRetryAck.Sequence);
         Assert.False(delayedRetryAck.Accepted);
         Assert.Equal(10u, client.LastTeamCommandSequence);
-        Assert.True(world.TryGetNetworkPlayer(client.Slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var player));
         Assert.Equal(PlayerTeam.Red, player.Team);
     }
 
@@ -1014,7 +1014,7 @@ public sealed class ServerAdminFoundationTests
         var clients = new Dictionary<byte, ClientSession> { [client.Slot] = client };
         var sentMessages = new List<IProtocolMessage>();
         var sessionManager = CreateSessionManager(world, clients, (_, message) => sentMessages.Add(message));
-        world.TryPrepareNetworkPlayerJoin(client.Slot);
+        world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(client.Slot);
 
         sessionManager.HandleControlCommand(client, new ControlCommandMessage(uint.MaxValue - 1, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Red));
         sessionManager.HandleControlCommand(client, new ControlCommandMessage(1, ControlCommandKind.SelectTeam, (byte)PlayerTeam.Blue));
@@ -1024,7 +1024,7 @@ public sealed class ServerAdminFoundationTests
         Assert.True(Assert.IsType<ControlAckMessage>(sentMessages[1]).Accepted);
         Assert.False(Assert.IsType<ControlAckMessage>(sentMessages[2]).Accepted);
         Assert.Equal(1u, client.LastTeamCommandSequence);
-        Assert.Equal(PlayerTeam.Blue, world.GetNetworkPlayerConfiguredTeam(client.Slot));
+        Assert.Equal(PlayerTeam.Blue, world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(client.Slot));
     }
 
     [Fact]
@@ -1223,7 +1223,7 @@ public sealed class ServerAdminFoundationTests
         var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         Assert.True(botManager.TryAddBot(2, PlayerTeam.Red, PlayerClass.Pyro, "Pyro Bot"));
-        Assert.True(world.TryGetNetworkPlayer(2, out var bot));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var bot));
         Assert.Equal(PlayerTeam.Red, bot.Team);
         Assert.Equal(PlayerClass.Pyro, bot.ClassId);
         Assert.Equal(PlayerClass.Pyro, botManager.BotSlots[2].ClassId);
@@ -1258,7 +1258,7 @@ public sealed class ServerAdminFoundationTests
             () => botManager);
 
         Assert.True(operations.TrySetClass(2, PlayerClass.Demoman));
-        Assert.True(world.TryGetNetworkPlayer(2, out var bot));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var bot));
         Assert.Equal(PlayerClass.Demoman, bot.ClassId);
         Assert.Equal(PlayerClass.Demoman, botManager.BotSlots[2].ClassId);
         Assert.True(bot.IsAlive);
@@ -1396,7 +1396,7 @@ public sealed class ServerAdminFoundationTests
     public void LastToDieBotsLeaveEmptyHumanSeatsReserved()
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
         var manager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController())
         {
             LastToDieReservedPlayerSlots = 4,
@@ -1412,9 +1412,9 @@ public sealed class ServerAdminFoundationTests
     public void LastToDieFriendlyCompanionsForceHealthBarsAndMimicUsesOwnersCloneName()
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerName(2, "Alex"));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerName(2, "Alex"));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
         var botManager = new ServerBotManager(world, new SimulationConfig(), new BotBrainPracticeBotController());
 
         Assert.True(botManager.TryAddLastToDieMimicBot(2, out var mimicSlot));
@@ -1427,11 +1427,11 @@ public sealed class ServerAdminFoundationTests
         Assert.True(botManager.BotSlots[reinforcementSlot].ForceHealthBar);
 
         botManager.FeedBotInputsBeforeSimulationAdvance();
-        Assert.True(world.TryGetNetworkPlayerInput(healerSlot, out var healerInput));
+        Assert.True(world.AdminCommands.TryGetNetworkPlayerInput(healerSlot, out var healerInput));
         Assert.True(healerInput.FirePrimary);
         Assert.False(healerInput.FireSecondary);
 
-        Assert.True(world.TrySetNetworkPlayerName(2, "Very Long Survivor Name"));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerName(2, "Very Long Survivor Name"));
         Assert.True(botManager.TryAddLastToDieMimicBot(2, out var longNameMimicSlot));
         var longNameMimic = botManager.BotSlots[longNameMimicSlot];
         Assert.EndsWith("'s Clone", longNameMimic.DisplayName, StringComparison.Ordinal);
@@ -1439,7 +1439,7 @@ public sealed class ServerAdminFoundationTests
 
         foreach (var slot in new[] { mimicSlot, healerSlot, reinforcementSlot, longNameMimicSlot })
         {
-            Assert.True(world.TryGetNetworkPlayer(slot, out var companion));
+            Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var companion));
             Assert.True(companion.TryGetReplicatedStateBool(
                 BotSpawnMetadata.VisualReplicatedStateOwnerId,
                 BotSpawnMetadata.ForceHealthBarReplicatedStateKey,
@@ -1678,14 +1678,14 @@ public sealed class ServerAdminFoundationTests
             new ServerMapMetadataResolver(world),
             (_, message, payload) => sentSnapshots.Add((message, payload)));
 
-        Assert.True(world.TrySetNetworkPlayerName(2, "EnemyViewer"));
-        Assert.True(world.TrySetNetworkPlayerName(3, "HiddenSpy"));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Spy));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
-        Assert.True(world.TryGetNetworkPlayer(2, out var viewer));
-        Assert.True(world.TryGetNetworkPlayer(3, out var spy));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerName(2, "EnemyViewer"));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerName(3, "HiddenSpy"));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Spy));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var viewer));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var spy));
 
         spy.Spawn(PlayerTeam.Red, 40f, 0f);
         Assert.True(spy.TryToggleSpyCloak());
@@ -1704,7 +1704,7 @@ public sealed class ServerAdminFoundationTests
             AimWorldX: 60f,
             AimWorldY: 0f,
             DebugKill: false);
-        Assert.True(world.TrySetNetworkPlayerInput(client.Slot, viewerInput));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(client.Slot, viewerInput));
 
         world.AdvanceOneTick();
         broadcaster.BroadcastSnapshot();
@@ -1739,14 +1739,14 @@ public sealed class ServerAdminFoundationTests
             new ServerMapMetadataResolver(world),
             (_, message, payload) => sentSnapshots.Add((message, payload)));
 
-        Assert.True(world.TrySetNetworkPlayerName(2, "EnemyViewer"));
-        Assert.True(world.TrySetNetworkPlayerName(3, "HiddenSpy"));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Spy));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
-        Assert.True(world.TryGetNetworkPlayer(2, out var viewer));
-        Assert.True(world.TryGetNetworkPlayer(3, out var spy));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerName(2, "EnemyViewer"));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerName(3, "HiddenSpy"));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Spy));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var viewer));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var spy));
 
         spy.Spawn(PlayerTeam.Red, 40f, 0f);
         Assert.False(spy.IsSpyCloaked);
@@ -1766,7 +1766,7 @@ public sealed class ServerAdminFoundationTests
             AimWorldX: 60f,
             AimWorldY: 0f,
             DebugKill: false);
-        Assert.True(world.TrySetNetworkPlayerInput(client.Slot, viewerInput));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(client.Slot, viewerInput));
 
         world.AdvanceOneTick();
         broadcaster.BroadcastSnapshot();
@@ -1801,14 +1801,14 @@ public sealed class ServerAdminFoundationTests
             new ServerMapMetadataResolver(world),
             (_, message, payload) => sentSnapshots.Add((message, payload)));
 
-        Assert.True(world.TrySetNetworkPlayerName(2, "EnemyViewer"));
-        Assert.True(world.TrySetNetworkPlayerName(3, "BackstabSpy"));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Spy));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
-        Assert.True(world.TryGetNetworkPlayer(2, out var viewer));
-        Assert.True(world.TryGetNetworkPlayer(3, out var spy));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerName(2, "EnemyViewer"));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerName(3, "BackstabSpy"));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(3, PlayerClass.Spy));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(3, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var viewer));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(3, out var spy));
 
         spy.Spawn(PlayerTeam.Red, 40f, 0f);
         Assert.True(spy.TryToggleSpyCloak());
@@ -1828,7 +1828,7 @@ public sealed class ServerAdminFoundationTests
             AimWorldX: 60f,
             AimWorldY: 0f,
             DebugKill: false);
-        Assert.True(world.TrySetNetworkPlayerInput(client.Slot, viewerInput));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerInput(client.Slot, viewerInput));
 
         world.AdvanceOneTick();
         broadcaster.BroadcastSnapshot();

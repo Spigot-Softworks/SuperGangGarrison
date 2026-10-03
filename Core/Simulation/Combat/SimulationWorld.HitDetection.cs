@@ -159,7 +159,7 @@ public sealed partial class SimulationWorld
 
     internal (float Left, float Top, float Right, float Bottom) CombatTestGetPlayerPresentationHitBounds(PlayerEntity player)
     {
-        GetPlayerPresentationHitBounds(this, player, out var left, out var top, out var right, out var bottom);
+        PresentationBounds.GetPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
         return (left, top, right, bottom);
     }
 

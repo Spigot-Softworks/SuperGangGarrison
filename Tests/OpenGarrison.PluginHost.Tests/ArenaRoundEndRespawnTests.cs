@@ -10,16 +10,16 @@ public sealed class ArenaRoundEndRespawnTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         world.CombatTestSetLevel(CreateArenaLevel());
-        world.PrepareLocalPlayerJoin();
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red, respawnLivePlayerImmediately: true));
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red, respawnLivePlayerImmediately: true));
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
 
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(2, out var bluePlayer));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var bluePlayer));
 
-        Assert.True(world.ForceKillNetworkPlayer(2));
+        Assert.True(world.NetworkPlayerRules.ForceKillNetworkPlayer(2));
         world.AdvanceOneTick();
 
         Assert.True(world.MatchState.IsEnded);
@@ -32,7 +32,7 @@ public sealed class ArenaRoundEndRespawnTests
         }
 
         Assert.False(bluePlayer.IsAlive);
-        Assert.Equal(0, world.GetNetworkPlayerRespawnTicks(2));
+        Assert.Equal(0, world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(2));
     }
 
     private static SimpleLevel CreateArenaLevel()

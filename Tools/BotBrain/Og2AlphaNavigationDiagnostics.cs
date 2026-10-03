@@ -1006,15 +1006,15 @@ internal static class Og2AlphaNavigationDiagnostics
             return CaptureTrialResult.Failed(expectedMode, "world_load_failed");
         }
 
-        world.DespawnEnemyDummy();
-        world.DespawnFriendlyDummy();
+        world.PracticeDummies.DespawnEnemyDummy();
+        world.PracticeDummies.DespawnFriendlyDummy();
         world.LocalPlayer.Kill();
 
         const byte botSlot = 2;
-        if (!world.TryPrepareNetworkPlayerJoin(botSlot)
-            || !world.TrySetNetworkPlayerTeam(botSlot, team)
-            || !world.TryForceNetworkPlayerClassSelectionAndRespawn(botSlot, playerClass)
-            || !world.TryGetNetworkPlayer(botSlot, out var bot))
+        if (!world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot)
+            || !world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, team)
+            || !world.NetworkPlayerRules.TryForceNetworkPlayerClassSelectionAndRespawn(botSlot, playerClass)
+            || !world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot))
         {
             return CaptureTrialResult.Failed(world.MatchRules.Mode, "bot_setup_failed");
         }
@@ -1041,7 +1041,7 @@ internal static class Og2AlphaNavigationDiagnostics
 
         for (var tick = 1; tick <= maxTicks; tick += 1)
         {
-            if (!world.TryGetNetworkPlayer(botSlot, out bot))
+            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out bot))
             {
                 return CaptureTrialResult.Failed(world.MatchRules.Mode, "bot_removed", startX, startY);
             }
@@ -1074,7 +1074,7 @@ internal static class Og2AlphaNavigationDiagnostics
             if (bot.IsAlive)
             {
                 var input = controller.Think(bot, world, team);
-                world.TrySetNetworkPlayerInput(botSlot, input);
+                world.NetworkPlayerRules.TrySetNetworkPlayerInput(botSlot, input);
 
                 if (traceInputs
                     && (traceAllInputs || bot.IsCarryingIntel)
@@ -1134,7 +1134,7 @@ internal static class Og2AlphaNavigationDiagnostics
             }
             else
             {
-                world.TrySetNetworkPlayerInput(botSlot, default);
+                world.NetworkPlayerRules.TrySetNetworkPlayerInput(botSlot, default);
             }
 
             world.AdvanceOneTick();
@@ -1209,7 +1209,7 @@ internal static class Og2AlphaNavigationDiagnostics
             .OrderBy(point => point.Index)
             .FirstOrDefault();
         return defensiveFrontier is not null
-            && world.IsPlayerInControlPointCaptureZone(bot, defensiveFrontier.Index);
+            && world.ObjectiveRules.IsPlayerInControlPointCaptureZone(bot, defensiveFrontier.Index);
     }
 
     private static int GetTeamCaps(SimulationWorld world, PlayerTeam team)

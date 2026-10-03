@@ -184,14 +184,14 @@ public partial class Game1
 
     private void DrawGenerators(Vector2 cameraPosition)
     {
-        if (_world.Generators.Count == 0)
+        if (_world.ObjectiveRules.Generators.Count == 0)
         {
             return;
         }
 
-        for (var index = 0; index < _world.Generators.Count; index += 1)
+        for (var index = 0; index < _world.ObjectiveRules.Generators.Count; index += 1)
         {
-            var generator = _world.Generators[index];
+            var generator = _world.ObjectiveRules.Generators[index];
             if (generator.IsDestroyed)
             {
                 continue;

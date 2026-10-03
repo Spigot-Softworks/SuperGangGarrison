@@ -221,7 +221,7 @@ internal sealed class ServerAdminOperations(
 
     public bool TrySetGameplayLoadout(byte slot, string loadoutId)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
             || string.IsNullOrWhiteSpace(loadoutId))
         {
             return false;
@@ -233,7 +233,7 @@ internal sealed class ServerAdminOperations(
         }
 
         var world = worldGetter();
-        if (!world.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -243,137 +243,137 @@ internal sealed class ServerAdminOperations(
             return false;
         }
 
-        return world.TrySetNetworkPlayerGameplayLoadout(slot, resolvedLoadoutId);
+        return world.NetworkPlayerRules.TrySetNetworkPlayerGameplayLoadout(slot, resolvedLoadoutId);
     }
 
     public bool TrySetGameplaySecondaryItem(byte slot, string? itemId)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().TrySetNetworkPlayerGameplaySecondaryItem(slot, itemId);
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().NetworkPlayerRules.TrySetNetworkPlayerGameplaySecondaryItem(slot, itemId);
     }
 
     public bool TrySetGameplayAcquiredItem(byte slot, string? itemId)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().TrySetNetworkPlayerGameplayAcquiredItem(slot, itemId);
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().NetworkPlayerRules.TrySetNetworkPlayerGameplayAcquiredItem(slot, itemId);
     }
 
     public bool TryGrantGameplayItem(byte slot, string itemId)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
             && !string.IsNullOrWhiteSpace(itemId)
-            && (gameplayOwnershipServiceGetter()?.TryGrantItem(slot, itemId) ?? worldGetter().TryGrantNetworkPlayerGameplayItem(slot, itemId));
+            && (gameplayOwnershipServiceGetter()?.TryGrantItem(slot, itemId) ?? worldGetter().NetworkPlayerRules.TryGrantNetworkPlayerGameplayItem(slot, itemId));
     }
 
     public bool TryRevokeGameplayItem(byte slot, string itemId)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
             && !string.IsNullOrWhiteSpace(itemId)
-            && (gameplayOwnershipServiceGetter()?.TryRevokeItem(slot, itemId) ?? worldGetter().TryRevokeNetworkPlayerGameplayItem(slot, itemId));
+            && (gameplayOwnershipServiceGetter()?.TryRevokeItem(slot, itemId) ?? worldGetter().NetworkPlayerRules.TryRevokeNetworkPlayerGameplayItem(slot, itemId));
     }
 
     public bool TrySetGameplayEquippedSlot(byte slot, GameplayEquipmentSlot equippedSlot)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().TrySetNetworkPlayerGameplayEquippedSlot(slot, equippedSlot);
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(slot, equippedSlot);
     }
 
     public bool TryForceKill(byte slot)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot))
         {
             return false;
         }
 
-        return worldGetter().ForceKillNetworkPlayer(slot);
+        return worldGetter().NetworkPlayerRules.ForceKillNetworkPlayer(slot);
     }
 
     public bool TryExplodePlayer(byte slot)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().TryExplodeNetworkPlayer(slot);
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().AdminCommands.TryExplodeNetworkPlayer(slot);
     }
 
     public bool TryBuildJumpPad(byte slot)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().TryBuildNetworkJumpPad(slot);
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().AdminCommands.TryBuildNetworkJumpPad(slot);
     }
 
     public bool TrySetPlayerNoclip(byte slot, bool enabled)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().TrySetNetworkPlayerNoclip(slot, enabled);
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().AdminCommands.TrySetNetworkPlayerNoclip(slot, enabled);
     }
 
     public bool TryTogglePlayerNoclip(byte slot, out bool enabled)
     {
         enabled = false;
         var world = worldGetter();
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            || !world.TryGetNetworkPlayer(slot, out var player))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            || !world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
 
         enabled = !player.IsServerNoclip;
-        return world.TrySetNetworkPlayerNoclip(slot, enabled);
+        return world.AdminCommands.TrySetNetworkPlayerNoclip(slot, enabled);
     }
 
     public bool TrySetPlayerFrozen(byte slot, bool frozen)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().TrySetNetworkPlayerFrozen(slot, frozen);
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().AdminCommands.TrySetNetworkPlayerFrozen(slot, frozen);
     }
 
     public bool TryTogglePlayerFrozen(byte slot, out bool frozen)
     {
         frozen = false;
         var world = worldGetter();
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            || !world.TryGetNetworkPlayer(slot, out var player))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            || !world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
 
         frozen = !player.IsServerFrozen;
-        return world.TrySetNetworkPlayerFrozen(slot, frozen);
+        return world.AdminCommands.TrySetNetworkPlayerFrozen(slot, frozen);
     }
 
     public bool TryStunPlayer(byte slot, float durationSeconds)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot))
         {
             return false;
         }
 
         var world = worldGetter();
         var ticks = Math.Max(1, (int)MathF.Round(float.Clamp(durationSeconds, 0.1f, 60f) * world.Config.TicksPerSecond));
-        return world.TryStunNetworkPlayer(slot, ticks);
+        return world.AdminCommands.TryStunNetworkPlayer(slot, ticks);
     }
 
     public bool TryTeleportPlayerToPlayer(byte sourceSlot, byte targetSlot)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(sourceSlot)
-            && SimulationWorld.IsPlayableNetworkPlayerSlot(targetSlot)
-            && worldGetter().TryTeleportNetworkPlayerToPlayer(sourceSlot, targetSlot);
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(sourceSlot)
+            && NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(targetSlot)
+            && worldGetter().AdminCommands.TryTeleportNetworkPlayerToPlayer(sourceSlot, targetSlot);
     }
 
     public bool TrySetPlayerRespawnPosition(byte slot, float x, float y)
     {
-        return SimulationWorld.IsPlayableNetworkPlayerSlot(slot)
-            && worldGetter().TrySetNetworkPlayerRespawnOverride(slot, x, y);
+        return NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot)
+            && worldGetter().AdminCommands.TrySetNetworkPlayerRespawnOverride(slot, x, y);
     }
 
     public bool TryIgnitePlayer(byte slot, float durationSeconds)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot))
         {
             return false;
         }
 
         var world = worldGetter();
-        if (!world.TryGetNetworkPlayer(slot, out var player)
+        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             || !player.IsAlive
             || player.IsUbered)
         {
@@ -398,13 +398,13 @@ internal sealed class ServerAdminOperations(
 
     public bool TrySetPlayerScale(byte slot, float scale)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot))
         {
             return false;
         }
 
         var world = worldGetter();
-        if (!world.TrySetNetworkPlayerScale(slot, scale))
+        if (!world.ServerTuning.TrySetNetworkPlayerScale(slot, scale))
         {
             return false;
         }
@@ -415,30 +415,30 @@ internal sealed class ServerAdminOperations(
 
     public bool TrySetPlayerMovementSpeedScale(byte slot, float scale)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot))
         {
             return false;
         }
 
         var world = worldGetter();
-        if (!world.TrySetNetworkPlayerMovementSpeedScale(slot, scale))
+        if (!world.ServerTuning.TrySetNetworkPlayerMovementSpeedScale(slot, scale))
         {
             return false;
         }
 
-        log($"[server] movement speed scale for slot {slot} set to {world.GetNetworkPlayerMovementSpeedScale(slot):G9}");
+        log($"[server] movement speed scale for slot {slot} set to {world.ServerTuning.GetNetworkPlayerMovementSpeedScale(slot):G9}");
         return true;
     }
 
     public bool TryClearPlayerMovementSpeedScale(byte slot)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot))
         {
             return false;
         }
 
         var world = worldGetter();
-        if (!world.TryClearNetworkPlayerMovementSpeedScale(slot))
+        if (!world.ServerTuning.TryClearNetworkPlayerMovementSpeedScale(slot))
         {
             return false;
         }
@@ -449,30 +449,30 @@ internal sealed class ServerAdminOperations(
 
     public bool TrySetPlayerGravityScale(byte slot, float scale)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot))
         {
             return false;
         }
 
         var world = worldGetter();
-        if (!world.TrySetNetworkPlayerGravityScale(slot, scale))
+        if (!world.ServerTuning.TrySetNetworkPlayerGravityScale(slot, scale))
         {
             return false;
         }
 
-        log($"[server] gravity scale for slot {slot} set to {world.GetNetworkPlayerGravityScale(slot):G9}");
+        log($"[server] gravity scale for slot {slot} set to {world.ServerTuning.GetNetworkPlayerGravityScale(slot):G9}");
         return true;
     }
 
     public bool TryClearPlayerGravityScale(byte slot)
     {
-        if (!SimulationWorld.IsPlayableNetworkPlayerSlot(slot))
+        if (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(slot))
         {
             return false;
         }
 
         var world = worldGetter();
-        if (!world.TryClearNetworkPlayerGravityScale(slot))
+        if (!world.ServerTuning.TryClearNetworkPlayerGravityScale(slot))
         {
             return false;
         }

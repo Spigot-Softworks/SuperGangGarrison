@@ -95,12 +95,12 @@ public static class TraversalLabRunner
             return CreateLoadFailure(variant, $"failed_to_load_level:{scenario.LevelName}:a{scenario.MapAreaIndex}");
         }
 
-        world.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
         const byte botSlot = 2;
-        if (!world.TryPrepareNetworkPlayerJoin(botSlot)
-            || !world.TrySetNetworkPlayerTeam(botSlot, scenario.Team)
-            || !world.TryApplyNetworkPlayerClassSelection(botSlot, scenario.ClassId)
-            || !world.TryGetNetworkPlayer(botSlot, out var player))
+        if (!world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot)
+            || !world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, scenario.Team)
+            || !world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, scenario.ClassId)
+            || !world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var player))
         {
             return CreateLoadFailure(variant, "failed_to_prepare_player");
         }
@@ -114,7 +114,7 @@ public static class TraversalLabRunner
             scenario.Team,
             runTick: input =>
             {
-                if (!world.TrySetNetworkPlayerInput(botSlot, input))
+                if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(botSlot, input))
                 {
                     return false;
                 }

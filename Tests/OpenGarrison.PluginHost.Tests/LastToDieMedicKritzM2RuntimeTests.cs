@@ -12,7 +12,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
     public void KritzM2CapturesHailAndNeuroPayloadAtSpawn()
     {
         var world = CreateWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.HailMary, LastToDiePerkIds.Medic.Neurotoxin]));
 
@@ -22,7 +22,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
         Assert.True(needle.AppliesLastToDieNeurotoxin);
         Assert.Equal(0b111, needle.LastToDiePayload.Encode());
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             []));
 
@@ -65,7 +65,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
         Assert.Equal(expectedTicks, target.LastToDieMedicHailMaryTicksRemaining);
         Assert.True(target.IsLastToDieMedicHailMaryInvulnerable);
         Assert.False(target.IsUbered);
-        Assert.True(world.CanPlayerContributeToControlPoint(target));
+        Assert.True(world.LastToDieRules.CanPlayerContributeToControlPoint(target));
 
         var healthBefore = target.Health;
         Assert.False(target.ApplyDamage(50));
@@ -105,7 +105,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
         var enemy = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         world.LocalPlayer.TeleportTo(100f, 100f);
         enemy.TeleportTo(180f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Neurotoxin]));
 
@@ -117,7 +117,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
             MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit,
             healthBefore - enemy.Health);
         Assert.True(enemy.IsServerStunned);
-        var firstStatus = Assert.Single(world.GetLastToDieStatusEffects(enemy.Id));
+        var firstStatus = Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id));
         Assert.Equal(LastToDieStatusEffectIds.MedicNeurotoxinStun, firstStatus.Id);
         Assert.Equal(world.LocalPlayer.Id, firstStatus.SourcePlayerId);
 
@@ -129,7 +129,7 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
             MedicHealNeedleProjectileEntity.DefaultEnemyDamagePerHit
                 * LastToDieDerivedModifiers.MedicNeurotoxinPreStunnedDamageMultiplier,
             healthBeforeSecondHit - enemy.Health);
-        var refreshed = Assert.Single(world.GetLastToDieStatusEffects(enemy.Id));
+        var refreshed = Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id));
         Assert.InRange(
             refreshed.RemainingTicks,
             (world.Config.TicksPerSecond * LastToDieDerivedModifiers.MedicNeurotoxinStunSeconds) - 1,
@@ -147,34 +147,34 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
             PlayerTeam.Blue);
         invulnerableWorld.LocalPlayer.TeleportTo(100f, 100f);
         invulnerable.TeleportTo(180f, 100f);
-        Assert.True(invulnerableWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(invulnerableWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Neurotoxin]));
         invulnerable.RefreshUber(invulnerableWorld.Config.TicksPerSecond);
         _ = SpawnKritzM2(invulnerableWorld, x: 120f, y: 100f, velocityX: 20f);
         AdvanceUntilNeedlesAreGone(invulnerableWorld);
         Assert.False(invulnerable.IsServerStunned);
-        Assert.Empty(invulnerableWorld.GetLastToDieStatusEffects(invulnerable.Id));
+        Assert.Empty(invulnerableWorld.LastToDieRules.GetLastToDieStatusEffects(invulnerable.Id));
 
         var shieldWorld = CreateWorld();
         var shielded = AddPlayer(shieldWorld, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         shieldWorld.LocalPlayer.TeleportTo(100f, 100f);
         shielded.TeleportTo(180f, 100f);
         shielded.SetExperimentalShieldHealth(100f);
-        Assert.True(shieldWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(shieldWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Neurotoxin]));
         _ = SpawnKritzM2(shieldWorld, x: 120f, y: 100f, velocityX: 20f);
         AdvanceUntilNeedlesAreGone(shieldWorld);
         Assert.False(shielded.IsServerStunned);
-        Assert.Empty(shieldWorld.GetLastToDieStatusEffects(shielded.Id));
+        Assert.Empty(shieldWorld.LastToDieRules.GetLastToDieStatusEffects(shielded.Id));
     }
 
     [Fact]
     public void Protocol64CarriesKritzPayloadHailAndStunThroughStateLifecycleAndResync()
     {
         var source = CreateWorld();
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.HailMary, LastToDiePerkIds.Medic.Neurotoxin]));
         Assert.True(source.LocalPlayer.RefreshLastToDieMedicHailMaryInvulnerability(15));
@@ -193,8 +193,8 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
         {
             EnableLocalDummies = false,
         });
-        Assert.True(receiver.ApplyProtocol64PlayerState(playerState));
-        Assert.True(receiver.ApplyProtocol64ProjectileState(projectileState));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(playerState));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64ProjectileState(projectileState));
         Assert.Equal(15, receiver.LocalPlayer.LastToDieMedicHailMaryTicksRemaining);
         Assert.Equal(60, receiver.LocalPlayer.ServerStunTicksRemaining);
         var recreated = Assert.IsType<MedicHealNeedleProjectileEntity>(
@@ -246,8 +246,8 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
             floorY: 400f,
             solids: [new LevelSolid(0f, 400f, 640f, 80f)],
             importedFromSource: false));
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }
@@ -258,10 +258,10 @@ public sealed class LastToDieMedicKritzM2RuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         player.SetSpawnRoomState(false);
         return player;
     }

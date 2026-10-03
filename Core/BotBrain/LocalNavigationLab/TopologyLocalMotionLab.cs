@@ -266,11 +266,11 @@ public static class TopologyLocalMotionLab
         var enemyIntel = world.Level.GetIntelBase(enemyTeam);
         var ownIntel = world.Level.GetIntelBase(options.Team);
         const byte botSlot = 2;
-        world.PrepareLocalPlayerJoin();
-        if (!world.TryPrepareNetworkPlayerJoin(botSlot)
-            || !world.TrySetNetworkPlayerTeam(botSlot, options.Team)
-            || !world.TryApplyNetworkPlayerClassSelection(botSlot, options.ClassId)
-            || !world.TryGetNetworkPlayer(botSlot, out var bot))
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        if (!world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(botSlot)
+            || !world.NetworkPlayerRules.TrySetNetworkPlayerTeam(botSlot, options.Team)
+            || !world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(botSlot, options.ClassId)
+            || !world.NetworkPlayerRules.TryGetNetworkPlayer(botSlot, out var bot))
         {
             return CreateLoadFailure(options, caseIndex, "spawn_failed");
         }
@@ -388,7 +388,7 @@ public static class TopologyLocalMotionLab
                 break;
             }
 
-            if (!world.TrySetNetworkPlayerInput(botSlot, input))
+            if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(botSlot, input))
             {
                 noPlanTick = tick;
                 break;

@@ -164,10 +164,10 @@ internal sealed class ServerIncomingMessageDispatcher(
                     inputClient.PingMilliseconds = input.PingMilliseconds;
                     if (input.ChatBubbleFrameIndex >= 0)
                     {
-                        world.TryTriggerNetworkPlayerChatBubble(inputClient.Slot, input.ChatBubbleFrameIndex);
+                        world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(inputClient.Slot, input.ChatBubbleFrameIndex);
                     }
 
-                    world.SetNetworkPlayerIsTypingChatMessage(inputClient.Slot, input.Buttons.HasFlag(InputButtons.IsTypingChatMessage));
+                    world.NetworkPlayerRules.SetNetworkPlayerIsTypingChatMessage(inputClient.Slot, input.Buttons.HasFlag(InputButtons.IsTypingChatMessage));
                 }
                 break;
             case ControlCommandMessage command:
@@ -408,7 +408,7 @@ internal sealed class ServerIncomingMessageDispatcher(
             : (byte)0;
         if (managedParticipant is not null) reconnectSlot = managedParticipant.Slot;
         if (reconnectSlot != 0
-            && (!SimulationWorld.IsPlayableNetworkPlayerSlot(reconnectSlot)
+            && (!NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(reconnectSlot)
                 || reconnectSlot > maxPlayableClients
                 || reconnectSlot > maxTotalClients
                 || isPlayableSlotAvailable?.Invoke(reconnectSlot) == false))
@@ -465,9 +465,9 @@ internal sealed class ServerIncomingMessageDispatcher(
             Protocol64Enabled = remotePeer.IsProtocol64,
         };
         clientsBySlot[assignedSlot] = client;
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(assignedSlot))
+        if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(assignedSlot))
         {
-            world.TryPrepareNetworkPlayerJoin(assignedSlot);
+            world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(assignedSlot);
         }
         sessionManager.ApplyClientProfile(assignedSlot, clientName, hello.BadgeMask, hello.FriendCode, hello.PlayerCardJson);
 

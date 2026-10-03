@@ -79,7 +79,7 @@ public sealed class ReplayHarnessTests
         {
             foreach (var (slot, input) in scenario.Inputs(tick))
             {
-                if (!world.TrySetNetworkPlayerInput(slot, input))
+                if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(slot, input))
                 {
                     throw new InvalidOperationException($"Replay input could not be applied to slot {slot} at tick {tick}.");
                 }

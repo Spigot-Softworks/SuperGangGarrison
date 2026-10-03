@@ -263,7 +263,7 @@ public partial class Game1
         var wasLocalPlayerAlive = _world.LocalPlayer.IsAlive;
         var previousLocalClassId = _world.LocalPlayer.ClassId;
         CaptureRemovedProjectilePresentationEntities(rawSnapshot, snapshot.Frame);
-        if (!_world.ApplySnapshot(snapshot, _networkClient.LocalPlayerSlot))
+        if (!_world.SnapshotApply.ApplySnapshot(snapshot, _networkClient.LocalPlayerSlot))
         {
             if (_networkDiagnosticsEnabled)
             {

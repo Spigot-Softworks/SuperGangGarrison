@@ -134,14 +134,14 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Agent],
             refillHealth: true));
         Assert.Equal(9, world.LocalPlayer.MaxShells);
         Assert.Equal(9, world.LocalPlayer.CurrentShells);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Blunderbuss1],
             refillHealth: true));
@@ -159,7 +159,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void AgentProfileHydratesBeforePredictionAmmoClamp()
     {
         var world = CreateWorld(PlayerClass.Spy);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Agent, LastToDiePerkIds.Spy.LuckyStrike],
             refillHealth: true));
@@ -215,7 +215,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void LuckyStrikeCountsAcceptedTriggersAndTagsWholeThirdBlunderbussVolley()
     {
         var world = CreateSpyCombatWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Blunderbuss1, LastToDiePerkIds.Spy.LuckyStrike],
             refillHealth: true));
@@ -242,19 +242,19 @@ public sealed class LastToDiePerkRuntimeTests
     public void LuckyStrikeProgressPersistsAcrossBuildRefreshAndResetsAtRunAndDeathBoundaries()
     {
         var world = CreateSpyCombatWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.LuckyStrike],
             refillHealth: true));
         Assert.False(world.LocalPlayer.AdvanceLastToDieLuckyStrikeTrigger());
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.LuckyStrike, LastToDiePerkIds.Spy.Ricochet],
             refillHealth: true));
         Assert.Equal(1, world.LocalPlayer.LastToDieLuckyStrikeTriggerProgress);
 
-        world.ConfigureLastToDieCombatSeed(99);
+        world.LastToDieRules.ConfigureLastToDieCombatSeed(99);
         Assert.Equal(0, world.LocalPlayer.LastToDieLuckyStrikeTriggerProgress);
         Assert.False(world.LocalPlayer.AdvanceLastToDieLuckyStrikeTrigger());
 
@@ -266,7 +266,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void LuckyStrikeCountsAcceptedSpyRevolverOffhandTriggersWithoutReusingAStaleProc()
     {
         var world = CreateSpyCombatWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.LuckyStrike],
             refillHealth: true));
@@ -289,7 +289,7 @@ public sealed class LastToDiePerkRuntimeTests
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         world.LocalPlayer.TeleportTo(0f, 0f);
         enemy.TeleportTo(80f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.LuckyStrike],
             refillHealth: true));
@@ -299,7 +299,7 @@ public sealed class LastToDiePerkRuntimeTests
         _ = FireAcceptedRevolverTrigger(world, enemy.X, enemy.Y);
         AdvanceRevolverShots(world, 6);
 
-        var stun = Assert.Single(world.GetLastToDieStatusEffects(enemy.Id));
+        var stun = Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id));
         Assert.Equal(LastToDieStatusEffectIds.SpyLuckyStrikeStun, stun.Id);
         Assert.Equal(world.LocalPlayer.Id, stun.SourcePlayerId);
         Assert.Equal(world.Config.TicksPerSecond, stun.RemainingTicks);
@@ -314,7 +314,7 @@ public sealed class LastToDiePerkRuntimeTests
         world.LocalPlayer.TeleportTo(0f, 0f);
         enemy.TeleportTo(80f, 0f);
         enemy.RefreshUber();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.LuckyStrike],
             refillHealth: true));
@@ -324,7 +324,7 @@ public sealed class LastToDiePerkRuntimeTests
         _ = FireAcceptedRevolverTrigger(world, enemy.X, enemy.Y);
         AdvanceRevolverShots(world, 6);
 
-        Assert.Empty(world.GetLastToDieStatusEffects(enemy.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id));
         Assert.False(enemy.IsServerStunned);
     }
 
@@ -344,7 +344,7 @@ public sealed class LastToDiePerkRuntimeTests
         {
             enemies[index].TeleportTo(80f + (index * 60f), 0f);
         }
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Ricochet],
             refillHealth: true));
@@ -372,7 +372,7 @@ public sealed class LastToDiePerkRuntimeTests
         initial.TeleportTo(80f, 0f);
         blocked.TeleportTo(140f, 0f);
         visible.TeleportTo(20f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Ricochet],
             refillHealth: true));
@@ -396,7 +396,7 @@ public sealed class LastToDiePerkRuntimeTests
         initial.TeleportTo(80f, 0f);
         lowerIdCandidate.TeleportTo(80f, 60f);
         higherIdCandidate.TeleportTo(80f, -60f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Ricochet],
             refillHealth: true));
@@ -431,7 +431,7 @@ public sealed class LastToDiePerkRuntimeTests
             world.AdvanceOneTick();
         }
         Assert.False(cloaked.IsSpyVisibleToEnemies);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Ricochet],
             refillHealth: true));
@@ -453,7 +453,7 @@ public sealed class LastToDiePerkRuntimeTests
         invulnerable.TeleportTo(80f, 0f);
         next.TeleportTo(140f, 0f);
         invulnerable.RefreshUber();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Ricochet],
             refillHealth: true));
@@ -475,7 +475,7 @@ public sealed class LastToDiePerkRuntimeTests
         lowHealth.TeleportTo(80f, 0f);
         fullHealth.TeleportTo(140f, 0f);
         lowHealth.ForceSetHealth(79);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Ricochet, LastToDiePerkIds.Spy.Executioner],
             refillHealth: true));
@@ -504,7 +504,7 @@ public sealed class LastToDiePerkRuntimeTests
         world.LocalPlayer.TeleportTo(0f, 0f);
         first.TeleportTo(80f, 0f);
         second.TeleportTo(140f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.LuckyStrike, LastToDiePerkIds.Spy.Ricochet],
             refillHealth: true));
@@ -517,18 +517,18 @@ public sealed class LastToDiePerkRuntimeTests
 
         Assert.Equal(
             LastToDieStatusEffectIds.SpyLuckyStrikeStun,
-            Assert.Single(world.GetLastToDieStatusEffects(first.Id)).Id);
+            Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(first.Id)).Id);
         Assert.Equal(
             LastToDieStatusEffectIds.SpyLuckyStrikeStun,
-            Assert.Single(world.GetLastToDieStatusEffects(second.Id)).Id);
+            Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(second.Id)).Id);
     }
 
     [Fact]
     public void BlunderbussTriggerCapturesOneAtomicProfileAcrossAllPellets()
     {
         var world = CreateSpyCombatWorld();
-        world.ConfigureLastToDieCombatSeed(0xB10DUL);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        world.LastToDieRules.ConfigureLastToDieCombatSeed(0xB10DUL);
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [
                 LastToDiePerkIds.Spy.Blunderbuss1,
@@ -571,7 +571,7 @@ public sealed class LastToDiePerkRuntimeTests
                 LastToDiePerkIds.Spy.Blunderbuss3,
             }
             : new[] { LastToDiePerkIds.Spy.Blunderbuss1 };
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             perks,
             refillHealth: true));
@@ -602,8 +602,8 @@ public sealed class LastToDiePerkRuntimeTests
         var procTarget = AddNetworkPlayer(procWorld, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         procWorld.LocalPlayer.TeleportTo(0f, 0f);
         procTarget.TeleportTo(80f, 0f);
-        procWorld.ConfigureLastToDieCombatSeed(0UL);
-        Assert.True(procWorld.TryConfigureLastToDiePlayerBuild(
+        procWorld.LastToDieRules.ConfigureLastToDieCombatSeed(0UL);
+        Assert.True(procWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Deadly],
             refillHealth: true));
@@ -639,8 +639,8 @@ public sealed class LastToDiePerkRuntimeTests
         var missTarget = AddNetworkPlayer(missWorld, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         missWorld.LocalPlayer.TeleportTo(0f, 0f);
         missTarget.TeleportTo(80f, 0f);
-        missWorld.ConfigureLastToDieCombatSeed(1UL);
-        Assert.True(missWorld.TryConfigureLastToDiePlayerBuild(
+        missWorld.LastToDieRules.ConfigureLastToDieCombatSeed(1UL);
+        Assert.True(missWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Deadly],
             refillHealth: true));
@@ -666,7 +666,7 @@ public sealed class LastToDiePerkRuntimeTests
         world.LocalPlayer.TeleportTo(0f, 0f);
         enemy.TeleportTo(80f, 0f);
         enemy.ForceSetHealth(79);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Executioner],
             refillHealth: true));
@@ -690,7 +690,7 @@ public sealed class LastToDiePerkRuntimeTests
         world.LocalPlayer.TeleportTo(0f, 0f);
         enemy.TeleportTo(80f, 0f);
         enemy.ForceSetHealth((int)(enemy.MaxHealth * LastToDieSpyRevolverProfile.ExecutionerHealthThreshold));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Executioner],
             refillHealth: true));
@@ -713,7 +713,7 @@ public sealed class LastToDiePerkRuntimeTests
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         world.LocalPlayer.TeleportTo(0f, 0f);
         enemy.TeleportTo(80f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RubberBullets],
             refillHealth: true));
@@ -723,7 +723,7 @@ public sealed class LastToDiePerkRuntimeTests
         AdvanceRevolverShots(world, 6);
 
         Assert.True(enemy.VerticalSpeed < 0f);
-        var slow = Assert.Single(world.GetLastToDieStatusEffects(enemy.Id));
+        var slow = Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id));
         Assert.Equal(LastToDieStatusEffectIds.SpyRubberBulletsSlow, slow.Id);
         Assert.Equal(world.LocalPlayer.Id, slow.SourcePlayerId);
         Assert.Equal(0.6f, slow.MovementSpeedMultiplier);
@@ -736,7 +736,7 @@ public sealed class LastToDiePerkRuntimeTests
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         world.LocalPlayer.TeleportTo(0f, 0f);
         enemy.TeleportTo(80f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [
                 LastToDiePerkIds.Spy.Blunderbuss1,
@@ -748,7 +748,7 @@ public sealed class LastToDiePerkRuntimeTests
         InvokeFirePrimaryWeapon(world, world.LocalPlayer, enemy.X, enemy.Y);
         AdvanceRevolverShots(world, 6);
 
-        var bleed = Assert.Single(world.GetLastToDieStatusEffects(enemy.Id));
+        var bleed = Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id));
         Assert.Equal(LastToDieStatusEffectIds.SpyBlunderbussBleed, bleed.Id);
         Assert.Equal(world.LocalPlayer.Id, bleed.SourcePlayerId);
         Assert.Equal(8f, bleed.DamagePerSecond);
@@ -764,7 +764,7 @@ public sealed class LastToDiePerkRuntimeTests
         enemy.TeleportTo(80f, 0f);
         enemy.RefreshUber();
         var verticalSpeedBefore = enemy.VerticalSpeed;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RubberBullets],
             refillHealth: true));
@@ -774,7 +774,7 @@ public sealed class LastToDiePerkRuntimeTests
         AdvanceRevolverShots(world, 6);
 
         Assert.Equal(verticalSpeedBefore, enemy.VerticalSpeed);
-        Assert.Empty(world.GetLastToDieStatusEffects(enemy.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id));
     }
 
     [Fact]
@@ -783,11 +783,11 @@ public sealed class LastToDiePerkRuntimeTests
         var world = CreateWorld(PlayerClass.Medic);
         var teammate = AddNetworkPlayer(world, 2, PlayerClass.Medic, PlayerTeam.Red);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.VitalityTrinket],
             refillHealth: true));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(2, []));
 
         Assert.Equal(CharacterClassCatalog.Medic.MaxHealth + 40 + 75, world.LocalPlayer.MaxHealth);
         Assert.Equal(world.LocalPlayer.MaxHealth, world.LocalPlayer.Health);
@@ -802,24 +802,24 @@ public sealed class LastToDiePerkRuntimeTests
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 50);
         enemy.ForceSetHealth(enemy.MaxHealth);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Vampire]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(2, []));
 
         var healthBefore = world.LocalPlayer.Health;
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 100f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 100f, world.LocalPlayer.Id, null));
 
         Assert.Equal(healthBefore + 11, world.LocalPlayer.Health);
         Assert.Equal(enemy.MaxHealth - 100, enemy.Health);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, [LastToDiePerkIds.Spy.Vampire]));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(2, [LastToDiePerkIds.Spy.Vampire]));
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
         enemy.ForceSetHealth(enemy.MaxHealth - 50);
 
         var remoteHealthBefore = enemy.Health;
-        Assert.True(world.TryApplyGameplayDamage(world.LocalPlayer.Id, 90f, enemy.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(world.LocalPlayer.Id, 90f, enemy.Id, null));
 
         Assert.Equal(remoteHealthBefore + 9, enemy.Health);
     }
@@ -829,31 +829,31 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Grounded, LastToDiePerkIds.Spy.Acrobat]));
 
         world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, null, null);
         enemy.RestoreMovementProbeState(isGrounded: false, null, null);
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 25f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 25f, world.LocalPlayer.Id, null));
         Assert.Equal(enemy.MaxHealth - 40, enemy.Health);
 
         enemy.ForceSetHealth(enemy.MaxHealth);
         world.LocalPlayer.RestoreMovementProbeState(isGrounded: false, null, null);
         enemy.RestoreMovementProbeState(isGrounded: true, null, null);
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 25f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 25f, world.LocalPlayer.Id, null));
         Assert.Equal(enemy.MaxHealth - 40, enemy.Health);
 
         enemy.ForceSetHealth(enemy.MaxHealth);
         world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, null, null);
         enemy.RestoreMovementProbeState(isGrounded: true, null, null);
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 25f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 25f, world.LocalPlayer.Id, null));
         Assert.Equal(enemy.MaxHealth - 25, enemy.Health);
 
         enemy.ForceSetHealth(enemy.MaxHealth);
         world.LocalPlayer.RestoreMovementProbeState(isGrounded: false, null, null);
         enemy.RestoreMovementProbeState(isGrounded: false, null, null);
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 25f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 25f, world.LocalPlayer.Id, null));
         Assert.Equal(enemy.MaxHealth - 25, enemy.Health);
     }
 
@@ -866,7 +866,7 @@ public sealed class LastToDiePerkRuntimeTests
         enemy.TeleportTo(80f, 0f);
         world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, null, null);
         enemy.RestoreMovementProbeState(isGrounded: false, null, null);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Acrobat],
             refillHealth: true));
@@ -887,10 +887,10 @@ public sealed class LastToDiePerkRuntimeTests
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 10);
         world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, null, null);
         enemy.RestoreMovementProbeState(isGrounded: false, null, null);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Grounded, LastToDiePerkIds.Spy.Vampire]));
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             enemy.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Bleed(
@@ -917,15 +917,15 @@ public sealed class LastToDiePerkRuntimeTests
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 10);
         firstEnemy.ForceSetHealth(5);
         secondEnemy.ForceSetHealth(5);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Vampire]));
 
         var healthBefore = world.LocalPlayer.Health;
-        Assert.True(world.TryApplyGameplayDamage(firstEnemy.Id, 100f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(firstEnemy.Id, 100f, world.LocalPlayer.Id, null));
         Assert.Equal(healthBefore, world.LocalPlayer.Health);
 
-        Assert.True(world.TryApplyGameplayDamage(secondEnemy.Id, 100f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(secondEnemy.Id, 100f, world.LocalPlayer.Id, null));
         Assert.Equal(healthBefore + 1, world.LocalPlayer.Health);
     }
 
@@ -936,15 +936,15 @@ public sealed class LastToDiePerkRuntimeTests
         const int expectedHealing = 14_208;
         var world = CreateWorld(PlayerClass.Spy);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Vampire],
             baseMaximumHealthOverride: 20_000,
             refillHealth: true));
-        Assert.True(world.TrySetNetworkPlayerMaxHealthOverride(2, 200_000, refillHealth: true));
+        Assert.True(world.ServerTuning.TrySetNetworkPlayerMaxHealthOverride(2, 200_000, refillHealth: true));
         world.LocalPlayer.ForceSetHealth(1);
 
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, appliedDamage, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, appliedDamage, world.LocalPlayer.Id, null));
 
         Assert.Equal(200_000 - appliedDamage, enemy.Health);
         Assert.Equal(1 + expectedHealing, world.LocalPlayer.Health);
@@ -955,25 +955,25 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Vampire]));
 
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 100f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 100f, world.LocalPlayer.Id, null));
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 10);
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 9f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 9f, world.LocalPlayer.Id, null));
         Assert.Equal(world.LocalPlayer.MaxHealth - 10, world.LocalPlayer.Health);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Vampire]));
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 1f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 1f, world.LocalPlayer.Id, null));
         Assert.Equal(world.LocalPlayer.MaxHealth - 10, world.LocalPlayer.Health);
 
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 8f, world.LocalPlayer.Id, null));
-        world.ConfigureLastToDieCombatSeed(0x51CEUL);
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 1f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 8f, world.LocalPlayer.Id, null));
+        world.LastToDieRules.ConfigureLastToDieCombatSeed(0x51CEUL);
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 1f, world.LocalPlayer.Id, null));
         Assert.Equal(world.LocalPlayer.MaxHealth - 10, world.LocalPlayer.Health);
     }
 
@@ -982,22 +982,22 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Vampire]));
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 10);
 
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 9f, world.LocalPlayer.Id, null));
-        Assert.True(world.TryApplyGameplayDamage(
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 9f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(
             world.LocalPlayer.Id,
             world.LocalPlayer.MaxHealth,
             enemy.Id,
             null));
         Assert.False(world.LocalPlayer.IsAlive);
 
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 10);
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 1f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 1f, world.LocalPlayer.Id, null));
 
         Assert.Equal(world.LocalPlayer.MaxHealth - 10, world.LocalPlayer.Health);
     }
@@ -1007,7 +1007,7 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Vampire]));
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 10);
@@ -1039,7 +1039,7 @@ public sealed class LastToDiePerkRuntimeTests
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 20);
         world.LocalPlayer.RestoreMovementProbeState(isGrounded: true, null, null);
         enemy.RestoreMovementProbeState(isGrounded: false, null, null);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Grounded, LastToDiePerkIds.Spy.Vampire]));
 
@@ -1067,13 +1067,13 @@ public sealed class LastToDiePerkRuntimeTests
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         world.ConfigureExperimentalGameplaySettings(
             new ExperimentalGameplaySettings(PassiveThornsFraction: 1f));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Vampire]));
         enemy.ForceSetHealth(enemy.MaxHealth);
 
         var localHealthBefore = world.LocalPlayer.Health;
-        Assert.True(world.TryApplyGameplayDamage(world.LocalPlayer.Id, 100f, enemy.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(world.LocalPlayer.Id, 100f, enemy.Id, null));
 
         Assert.Equal(localHealthBefore - 100, world.LocalPlayer.Health);
         Assert.Equal(enemy.MaxHealth - 100, enemy.Health);
@@ -1091,12 +1091,12 @@ public sealed class LastToDiePerkRuntimeTests
         world.LocalPlayer.RegisterKillStreakKill(multiKillWindowTicks: 0);
         world.LocalPlayer.ForceSetHealth(50);
         vampire.ForceSetHealth(vampire.MaxHealth - 20);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Spy.Vampire]));
 
         var vampireHealthBefore = vampire.Health;
-        Assert.True(world.TryApplyGameplayDamage(
+        Assert.True(world.Abilities.TryApplyGameplayDamage(
             world.LocalPlayer.Id,
             100f,
             vampire.Id,
@@ -1115,7 +1115,7 @@ public sealed class LastToDiePerkRuntimeTests
         enemy.TeleportTo(80f, 0f);
         world.LocalPlayer.RestoreMovementProbeState(isGrounded: false, null, null);
         enemy.RestoreMovementProbeState(isGrounded: true, null, null);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Acrobat],
             refillHealth: true));
@@ -1133,7 +1133,7 @@ public sealed class LastToDiePerkRuntimeTests
         var world = CreateWorld(PlayerClass.Spy);
         var stockMaxRunSpeed = world.LocalPlayer.MaxRunSpeed;
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 20);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Rejuvenation]));
 
@@ -1165,7 +1165,7 @@ public sealed class LastToDiePerkRuntimeTests
         Assert.Equal(uncloakedHealthBefore, world.LocalPlayer.Health);
 
         Assert.True(world.LocalPlayer.TryToggleSpyCloak());
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
         Assert.Equal(stockMaxRunSpeed, world.LocalPlayer.MaxRunSpeed, precision: 3);
     }
 
@@ -1173,7 +1173,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void RejuvenationPredictionProfileSurvivesPredictionCaptureAndRestore()
     {
         var world = CreateWorld(PlayerClass.Spy);
-        Assert.True(world.TryApplyLastToDiePlayerPredictionProfile(
+        Assert.True(world.LastToDieRules.TryApplyLastToDiePlayerPredictionProfile(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Rejuvenation.Value]));
         Assert.True(world.LocalPlayer.TryToggleSpyCloak());
@@ -1187,7 +1187,7 @@ public sealed class LastToDiePerkRuntimeTests
             world.LocalPlayer.MaxRunSpeed,
             shadow.MaxRunSpeed,
             precision: 3);
-        Assert.False(world.TryGetLastToDiePlayerModifiers(
+        Assert.False(world.LastToDieRules.TryGetLastToDiePlayerModifiers(
             SimulationWorld.LocalPlayerSlot,
             out _));
     }
@@ -1197,12 +1197,12 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Pyro, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.ChameleonShell]));
         Assert.True(world.LocalPlayer.TryToggleSpyCloak());
 
-        Assert.True(world.TryApplyGameplayDamage(
+        Assert.True(world.Abilities.TryApplyGameplayDamage(
             world.LocalPlayer.Id,
             100f,
             enemy.Id,
@@ -1224,7 +1224,7 @@ public sealed class LastToDiePerkRuntimeTests
 
         world.LocalPlayer.ExtinguishAfterburn();
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             world.LocalPlayer.Id,
             enemy.Id,
             LastToDieStatusEffectSpec.Bleed(
@@ -1239,7 +1239,7 @@ public sealed class LastToDiePerkRuntimeTests
 
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth);
         world.LocalPlayer.ForceDecloak();
-        Assert.True(world.TryApplyGameplayDamage(
+        Assert.True(world.Abilities.TryApplyGameplayDamage(
             world.LocalPlayer.Id,
             100f,
             enemy.Id,
@@ -1252,7 +1252,7 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Shroud]));
         Assert.True(world.LocalPlayer.TryToggleSpyCloak());
@@ -1313,7 +1313,7 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Shroud]));
         Assert.True(world.LocalPlayer.TryToggleSpyCloak());
@@ -1323,24 +1323,24 @@ public sealed class LastToDiePerkRuntimeTests
             LastToDieDerivedModifiers.SpyShroudEvasionChance,
             InvokeGetLastToDieEvasionChance(world, world.LocalPlayer));
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
         Assert.Equal(0f, InvokeGetLastToDieEvasionChance(world, world.LocalPlayer));
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Shroud]));
         Assert.True(world.LocalPlayer.TryToggleSpyCloak());
         _ = InvokeGetLastToDieEvasionChance(world, world.LocalPlayer);
         for (var attempt = 0; attempt < 32 && world.LocalPlayer.IsAlive; attempt += 1)
         {
-            _ = world.TryApplyGameplayDamage(
+            _ = world.Abilities.TryApplyGameplayDamage(
                 world.LocalPlayer.Id,
                 world.LocalPlayer.MaxHealth,
                 enemy.Id,
                 null);
         }
         Assert.False(world.LocalPlayer.IsAlive);
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
 
         Assert.Equal(0f, InvokeGetLastToDieEvasionChance(world, world.LocalPlayer));
     }
@@ -1349,7 +1349,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void RogueCommanderMeterDrainsAndRechargesAtExactEightSecondBoundaries()
     {
         var world = CreateWorld(PlayerClass.Spy);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RogueCommander],
             resetDynamicState: true));
@@ -1383,7 +1383,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void ProfessionalSpendsExactlyTwentyPercentOnlyOnAcceptedCloakedTriggers()
     {
         var world = CreateWorld(PlayerClass.Spy);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Professional],
             refillHealth: true,
@@ -1398,7 +1398,7 @@ public sealed class LastToDiePerkRuntimeTests
         Assert.Equal(fullMeter - shotCost, player.LastToDieSpyCloakMeterUnits);
 
         var exactWorld = CreateWorld(PlayerClass.Spy);
-        Assert.True(exactWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(exactWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Professional],
             refillHealth: true,
@@ -1409,7 +1409,7 @@ public sealed class LastToDiePerkRuntimeTests
         Assert.Equal(0, exactWorld.LocalPlayer.LastToDieSpyCloakMeterUnits);
 
         var rejectedWorld = CreateWorld(PlayerClass.Spy);
-        Assert.True(rejectedWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(rejectedWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Professional],
             refillHealth: true,
@@ -1430,7 +1430,7 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RogueCommander],
             refillHealth: true,
@@ -1442,9 +1442,9 @@ public sealed class LastToDiePerkRuntimeTests
         }
 
         Assert.Equal(10, world.LocalPlayer.LastToDieSpyRogueRampStacks);
-        Assert.True(world.TryApplyGameplayDamage(enemy.Id, 100f, world.LocalPlayer.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(enemy.Id, 100f, world.LocalPlayer.Id, null));
         Assert.Equal(enemy.MaxHealth - 150, enemy.Health);
-        Assert.True(world.TryApplyGameplayDamage(world.LocalPlayer.Id, 100f, enemy.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(world.LocalPlayer.Id, 100f, enemy.Id, null));
         Assert.Equal(world.LocalPlayer.MaxHealth - 50, world.LocalPlayer.Health);
 
         Assert.True(world.LocalPlayer.TryToggleSpyCloak());
@@ -1456,7 +1456,7 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         var player = world.LocalPlayer;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RogueCommander],
             resetDynamicState: true));
@@ -1490,22 +1490,22 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Spy);
         Assert.True(world.LocalPlayer.TryToggleSpyCloak());
-        Assert.False(world.CanPlayerContributeToControlPoint(world.LocalPlayer));
+        Assert.False(world.LastToDieRules.CanPlayerContributeToControlPoint(world.LocalPlayer));
 
         world.LocalPlayer.ForceDecloak();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RogueCommander],
             resetDynamicState: true));
         Assert.True(world.LocalPlayer.TryToggleSpyCloak());
-        Assert.True(world.CanPlayerContributeToControlPoint(world.LocalPlayer));
+        Assert.True(world.LastToDieRules.CanPlayerContributeToControlPoint(world.LocalPlayer));
     }
 
     [Fact]
     public void MultistabRemovesTheDamageCapAndBackstabsNearbyVisibleEnemiesOnce()
     {
         var world = CreateSpyCombatWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Multistab],
             resetDynamicState: true));
@@ -1514,11 +1514,11 @@ public sealed class LastToDiePerkRuntimeTests
         var primary = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         var nearby = AddNetworkPlayer(world, 3, PlayerClass.Heavy, PlayerTeam.Blue);
         var distant = AddNetworkPlayer(world, 4, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Medic.VitalityTrinket],
             resetDynamicState: true));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             3,
             [LastToDiePerkIds.Medic.VitalityTrinket],
             resetDynamicState: true));
@@ -1545,7 +1545,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void SpringLoadedBackstabRestoresEveryJumpBootChargeAndSharedCooldown()
     {
         var world = CreateSpyCombatWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.SpringLoaded, LastToDiePerkIds.Spy.DoubleJump],
             resetDynamicState: true));
@@ -1573,7 +1573,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void HealstabHealsAnAllyOnlyWhenNoHostileStabTargetIsAvailable()
     {
         var allyOnlyWorld = CreateSpyCombatWorld();
-        Assert.True(allyOnlyWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(allyOnlyWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Healstab],
             resetDynamicState: true));
@@ -1589,7 +1589,7 @@ public sealed class LastToDiePerkRuntimeTests
         Assert.Equal(ally.MaxHealth - 20, ally.Health);
 
         var contestedWorld = CreateSpyCombatWorld();
-        Assert.True(contestedWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(contestedWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Healstab],
             resetDynamicState: true));
@@ -1613,7 +1613,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void HealingHarnessHealsAndExtinguishesOnlyOnAnActualBootLaunch()
     {
         var world = CreateSpyCombatWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.HealingHarness],
             resetDynamicState: true));
@@ -1690,7 +1690,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void InstastabAcceleratesBackstabWindupRecoveryAndVisualLifetime()
     {
         var world = CreateWorld(PlayerClass.Spy);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Instastab],
             resetDynamicState: true));
@@ -1769,7 +1769,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void DoubleJumpAllowsTwoLaunchesAndRefillsBothOnSharedCooldown()
     {
         var world = CreateWorld(PlayerClass.Spy);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.DoubleJump],
             resetDynamicState: true));
@@ -1822,7 +1822,7 @@ public sealed class LastToDiePerkRuntimeTests
     public void DoubleJumpBuildChangesPreserveSpentChargeCount()
     {
         var world = CreateWorld(PlayerClass.Spy);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.DoubleJump],
             resetDynamicState: true));
@@ -1834,7 +1834,7 @@ public sealed class LastToDiePerkRuntimeTests
             availableCharges: 1,
             maximumCharges: 2);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [],
             resetDynamicState: false));
@@ -1843,7 +1843,7 @@ public sealed class LastToDiePerkRuntimeTests
         Assert.Equal(0, player.SpySuperjumpAvailableCharges);
         Assert.Equal(120, player.SpySuperjumpCooldownTicksRemaining);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.DoubleJump],
             resetDynamicState: false));
@@ -1858,7 +1858,7 @@ public sealed class LastToDiePerkRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Sniper);
         world.LocalPlayer.ForceSetHealth(world.LocalPlayer.MaxHealth - 20);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Zen]));
         Assert.True(world.LocalPlayer.TryToggleSniperScope());
@@ -1882,7 +1882,7 @@ public sealed class LastToDiePerkRuntimeTests
         var world = CreateWorld(playerClass);
         var stockMaximumHealth = world.LocalPlayer.ClassDefinition.MaxHealth;
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
 
         Assert.Equal(stockMaximumHealth + 40, world.LocalPlayer.MaxHealth);
         Assert.Equal(world.LocalPlayer.MaxHealth, world.LocalPlayer.Health);
@@ -1891,8 +1891,8 @@ public sealed class LastToDiePerkRuntimeTests
     private static SimulationWorld CreateWorld(PlayerClass localClass)
     {
         var world = new SimulationWorld();
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(localClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(localClass);
         return world;
     }
 
@@ -1922,7 +1922,7 @@ public sealed class LastToDiePerkRuntimeTests
                 floorY: 2048f,
                 solids: solids ?? [],
                 importedFromSource: false));
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         return world;
     }
 
@@ -1932,10 +1932,10 @@ public sealed class LastToDiePerkRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 

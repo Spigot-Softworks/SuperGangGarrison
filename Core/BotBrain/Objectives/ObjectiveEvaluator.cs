@@ -174,12 +174,12 @@ public static class ObjectiveEvaluator
 
     private static TeamIntelligenceState GetEnemyIntelState(SimulationWorld world, PlayerTeam team)
     {
-        return team == PlayerTeam.Blue ? world.RedIntel : world.BlueIntel;
+        return team == PlayerTeam.Blue ? world.ObjectiveRules.RedIntel : world.ObjectiveRules.BlueIntel;
     }
 
     private static TeamIntelligenceState GetOwnIntelState(SimulationWorld world, PlayerTeam team)
     {
-        return team == PlayerTeam.Blue ? world.BlueIntel : world.RedIntel;
+        return team == PlayerTeam.Blue ? world.ObjectiveRules.BlueIntel : world.ObjectiveRules.RedIntel;
     }
 
     private static float Distance(float ax, float ay, float bx, float by)
@@ -367,7 +367,7 @@ public static class ObjectiveEvaluator
         PlayerTeam ownTeam)
     {
         var opposingTeam = GetOpposingTeam(ownTeam);
-        foreach (var generator in world.Generators)
+        foreach (var generator in world.ObjectiveRules.Generators)
         {
             if (generator.Team == opposingTeam && !generator.IsDestroyed)
             {
@@ -375,7 +375,7 @@ public static class ObjectiveEvaluator
             }
         }
 
-        foreach (var generator in world.Generators)
+        foreach (var generator in world.ObjectiveRules.Generators)
         {
             if (generator.Team == opposingTeam)
             {

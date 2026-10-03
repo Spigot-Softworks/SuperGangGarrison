@@ -827,10 +827,10 @@ public sealed class LastToDieStageSpecialRoundState
     {
         foreach (var slot in _practiceBotSlots.Keys)
         {
-            _world.TryClearNetworkPlayerLastToDieEnemyScaling(slot);
+            _world.ServerTuning.TryClearNetworkPlayerLastToDieEnemyScaling(slot);
         }
 
-        _world.ResetLastToDieClientSession();
+        _world.LastToDieRules.ResetLastToDieClientSession();
         StopLastToDieGameOverSound();
         PersistLastToDieRunStatsIfNeeded(_lastToDieRun);
         _hostedLastToDieObservedRunId = Guid.Empty;
@@ -853,11 +853,11 @@ public sealed class LastToDieStageSpecialRoundState
         _lastToDieTimerReductionPopupTicksRemaining = 0;
         _lastToDieTimerReductionPopupRise = 0f;
         _lastToDieTimerReductionPopupSeconds = 0;
-        _world.TrySetNetworkPlayerMaxHealthOverride(
+        _world.ServerTuning.TrySetNetworkPlayerMaxHealthOverride(
             SimulationWorld.LocalPlayerSlot,
             null,
             refillHealth: true);
-        _world.ClearLastToDieDroneSentries();
+        _world.Structures.ClearLastToDieDroneSentries();
     }
 
     private void TryStartLastToDieRun(LastToDieDifficulty difficulty)
@@ -1008,7 +1008,7 @@ public sealed class LastToDieStageSpecialRoundState
             return;
         }
 
-        _world.TrySetNetworkPlayerMaxHealthOverride(
+        _world.ServerTuning.TrySetNetworkPlayerMaxHealthOverride(
             SimulationWorld.LocalPlayerSlot,
             _lastToDieRun.Difficulty == LastToDieDifficulty.Hardcore ? LastToDieHardcoreMaxHealth : null,
             refillHealth: true);
@@ -1030,18 +1030,18 @@ public sealed class LastToDieStageSpecialRoundState
         {
             var slot = entry.Key;
             var slotState = entry.Value;
-            if (slotState.Team != enemyTeam || !_world.TryGetNetworkPlayer(slot, out var player))
+            if (slotState.Team != enemyTeam || !_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }
 
-            _world.TrySetNetworkPlayerScale(slot, 1f);
+            _world.ServerTuning.TrySetNetworkPlayerScale(slot, 1f);
             player.SetExperimentalDemoknightEnabled(false);
             player.SetExperimentalJumpHeightMultiplier(ExperimentalGameplaySettings.DefaultPassiveJumpHeightMultiplier);
             player.SetExperimentalDemoknightSwordBaseDamage(ExperimentalGameplaySettings.DefaultDemoknightSwordBaseDamage);
             player.SetExperimentalDemoknightSwordDamageMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordDamageMultiplier);
             player.SetExperimentalDemoknightSwordCooldownMultiplier(ExperimentalGameplaySettings.DefaultDemoknightSwordCooldownMultiplier);
-            _world.TrySetNetworkPlayerLastToDieEnemyScaling(
+            _world.ServerTuning.TrySetNetworkPlayerLastToDieEnemyScaling(
                 slot,
                 enemyStatMultiplier,
                 enemyStatMultiplier);
@@ -1056,7 +1056,7 @@ public sealed class LastToDieStageSpecialRoundState
             if (_lastToDieRun.CurrentSpecialRound.Kind == LastToDieSpecialRoundKind.Giga
                 && enemyIndex < _lastToDieRun.CurrentSpecialRound.GigaClasses.Length)
             {
-                _world.TrySetNetworkPlayerScale(slot, LastToDieGigaScale);
+                _world.ServerTuning.TrySetNetworkPlayerScale(slot, LastToDieGigaScale);
                 _lastToDieRun.CurrentSpecialRound.GigaSlots.Add(slot);
                 ApplyLastToDieEnemyMaxHealthOverride(
                     slot,
@@ -1069,8 +1069,8 @@ public sealed class LastToDieStageSpecialRoundState
                      && enemyIndex == 0)
             {
                 _lastToDieRun.CurrentSpecialRound.HaxtonSlot = slot;
-                _world.TrySetNetworkPlayerName(slot, "Haxton");
-                _world.TrySetNetworkPlayerScale(slot, LastToDieHaxtonScale);
+                _world.NetworkPlayerRules.TrySetNetworkPlayerName(slot, "Haxton");
+                _world.ServerTuning.TrySetNetworkPlayerScale(slot, LastToDieHaxtonScale);
                 ApplyLastToDieEnemyMaxHealthOverride(
                     slot,
                     ScaleLastToDieEnemyMaxHealth(
@@ -1113,7 +1113,7 @@ public sealed class LastToDieStageSpecialRoundState
 
     private void ApplyLastToDieEnemyMaxHealthOverride(byte slot, int? maxHealth)
     {
-        _world.TrySetNetworkPlayerMaxHealthOverride(slot, maxHealth, refillHealth: true);
+        _world.ServerTuning.TrySetNetworkPlayerMaxHealthOverride(slot, maxHealth, refillHealth: true);
     }
 
     private static int? ScaleLastToDieEnemyMaxHealth(
@@ -1134,7 +1134,7 @@ public sealed class LastToDieStageSpecialRoundState
     private void ApplyLastToDieSniperHuntsmanLoadout(byte slot, PlayerClass classId)
     {
         if (classId != PlayerClass.Sniper
-            || !_world.TryGetNetworkPlayer(slot, out var player)
+            || !_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             || player.IsSniperBowEquipped)
         {
             return;
@@ -1143,7 +1143,7 @@ public sealed class LastToDieStageSpecialRoundState
         // The stock Sniper loadout exposes the Huntsman as the secondary item. Keep
         // Last To Die enemy snipers on that slot; the normal bot input path then uses
         // primary fire to charge/release the bow and cannot scope the rifle.
-        _world.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Secondary);
+        _world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(slot, GameplayEquipmentSlot.Secondary);
     }
 
     private void EnforceLastToDieSniperHuntsmanLoadouts()
@@ -1168,7 +1168,7 @@ public sealed class LastToDieStageSpecialRoundState
 
     private bool IsLastToDieHaxtonPlayer(PlayerEntity player)
     {
-        return _world.TryGetPlayerNetworkSlot(player, out var slot)
+        return _world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
             && IsLastToDieHaxtonSlot(slot);
     }
 
@@ -1181,7 +1181,7 @@ public sealed class LastToDieStageSpecialRoundState
 
     private bool ShouldForceLastToDieSpecialEnemyHealthBar(PlayerEntity player)
     {
-        return _world.TryGetPlayerNetworkSlot(player, out var slot)
+        return _world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
             && (IsLastToDieHaxtonSlot(slot) || IsLastToDieGigaSlot(slot));
     }
 
@@ -1210,7 +1210,7 @@ public sealed class LastToDieStageSpecialRoundState
 
     public void SpawnLastToDieDroneSwarmForCurrentStage()
     {
-        _world.ClearLastToDieDroneSentries();
+        _world.Structures.ClearLastToDieDroneSentries();
         if (_lastToDieRun?.CurrentSpecialRound.Kind != LastToDieSpecialRoundKind.DroneSwarm)
         {
             return;
@@ -1230,7 +1230,7 @@ public sealed class LastToDieStageSpecialRoundState
                 : new SpawnPoint(_world.LocalPlayer.X + 240f, _world.LocalPlayer.Y - 60f);
             var offsetX = ((index % 3) - 1) * 46f;
             var offsetY = -36f - ((index / 3) * 18f);
-            _world.SpawnLastToDieDroneSentry(
+            _world.Structures.SpawnLastToDieDroneSentry(
                 PlayerTeam.Blue,
                 spawn.X + offsetX,
                 spawn.Y + offsetY,
@@ -1258,18 +1258,18 @@ public sealed class LastToDieStageSpecialRoundState
 
         var playerClass = GetLastToDieSurvivorPlayerClass(_lastToDieRun.SurvivorKind);
         var stageRules = ResolveLastToDieStageRuleProfile(_lastToDieRun.SurvivorKind, _lastToDieRun.CurrentLevelName);
-        _world.PrepareLocalPlayerJoin();
-        _world.SetLocalPlayerTeam(PlayerTeam.Red);
-        _world.CompleteLocalPlayerJoin(playerClass);
-        _world.ConfigureLastToDieStage(_lastToDieRun.StageNumber);
-        _world.TrySetLastToDieSurvivorBuff(SimulationWorld.LocalPlayerSlot, enabled: true);
+        _world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        _world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        _world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
+        _world.LastToDieRules.ConfigureLastToDieStage(_lastToDieRun.StageNumber);
+        _world.LastToDieRules.TrySetLastToDieSurvivorBuff(SimulationWorld.LocalPlayerSlot, enabled: true);
         if (stageRules.SpawnLocalPlayerAtOwnIntel)
         {
-            _world.TryMoveLocalPlayerToIntelSpawn();
+            _world.Spawns.TryMoveLocalPlayerToIntelSpawn();
         }
         else
         {
-            _world.TryMoveLocalPlayerToControlPointSpawn();
+            _world.Spawns.TryMoveLocalPlayerToControlPointSpawn();
         }
 
         ApplyLastToDieLocalPlayerDifficultyModifier();
@@ -1370,7 +1370,7 @@ public sealed class LastToDieStageSpecialRoundState
             return;
         }
 
-        if (_lastToDieRun.StageRemainingTicks <= 0 && _world.CanCompleteLastToDieStageOnTimeout)
+        if (_lastToDieRun.StageRemainingTicks <= 0 && _world.LastToDieRules.CanCompleteLastToDieStageOnTimeout)
         {
             HandleLastToDieStageClear();
         }
@@ -1380,7 +1380,7 @@ public sealed class LastToDieStageSpecialRoundState
     {
         return run.CurrentSpecialRound.Kind switch
         {
-            LastToDieSpecialRoundKind.DroneSwarm => _world.LastToDieDroneSentryCount <= 0,
+            LastToDieSpecialRoundKind.DroneSwarm => _world.Structures.LastToDieDroneSentryCount <= 0,
             LastToDieSpecialRoundKind.Haxton => IsLastToDieHaxtonEliminated(run),
             _ => false,
         };
@@ -1389,7 +1389,7 @@ public sealed class LastToDieStageSpecialRoundState
     private bool IsLastToDieHaxtonEliminated(LastToDieRunState run)
     {
         return run.CurrentSpecialRound.HaxtonSlot.HasValue
-            && (!_world.TryGetNetworkPlayer(run.CurrentSpecialRound.HaxtonSlot.Value, out var player) || !player.IsAlive);
+            && (!_world.NetworkPlayerRules.TryGetNetworkPlayer(run.CurrentSpecialRound.HaxtonSlot.Value, out var player) || !player.IsAlive);
     }
 
     private static bool IsLastToDieSpecialRoundClearByElimination(LastToDieRunState run)
@@ -2549,7 +2549,7 @@ public sealed class LastToDieStageSpecialRoundState
     {
         if (_world.LocalPlayer.IsAlive)
         {
-            _world.ForceKillLocalPlayer();
+            _world.NetworkPlayerRules.ForceKillLocalPlayer();
             TriggerLastToDieDeathFocusFailure();
             return;
         }

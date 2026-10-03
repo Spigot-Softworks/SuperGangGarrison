@@ -117,7 +117,7 @@ public sealed class Protocol64HeldInputOrderingTests
             floorY: 512, [], importedFromSource: false));
         world.TrySetLocalClass(playerClass);
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red,
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
         var client = new ClientSession(SimulationWorld.LocalPlayerSlot, 1,
             new IPEndPoint(IPAddress.Loopback, 8190), "Tester", TimeSpan.Zero)

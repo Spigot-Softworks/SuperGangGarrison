@@ -14,7 +14,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         var world = CreateJoinedWorld(PlayerClass.Pyro);
         var pyro = world.LocalPlayer;
         Assert.True(pyro.TrySelectGameplayPrimaryItem("weapon.dragon-rage"));
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true, AimWorldX = pyro.X + 300f, AimWorldY = pyro.Y,
         });
@@ -22,7 +22,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         Assert.Equal(pyro.PrimaryWeapon.MaxAmmo - 1, pyro.CurrentShells);
         pyro.EquipExperimentalOffhandWeapon();
         Assert.True(pyro.IsExperimentalOffhandEquipped);
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         // Exercise weapon timers without unrelated round transitions respawning
         // the player and resetting their selected slot.
         for (var tick = 0; tick < 600; tick++) pyro.AdvanceTickState(default, 1d / 30d);
@@ -55,7 +55,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         var world = CreateJoinedWorld(PlayerClass.Demoman);
         var detonator = world.LocalPlayer;
         Assert.True(detonator.TrySelectGameplayPrimaryItem("weapon.boomstick"));
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             AimWorldX = detonator.X + 300f,
@@ -77,7 +77,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         var receiver = CreateJoinedWorld(PlayerClass.Demoman);
         foreach (var state in networkStates)
         {
-            Assert.True(receiver.ApplyProtocol64ProjectileState(state, SimulationWorld.LocalPlayerSlot));
+            Assert.True(receiver.SnapshotApply.ApplyProtocol64ProjectileState(state, SimulationWorld.LocalPlayerSlot));
         }
         Assert.Equal(3, receiver.Shots.Count);
         Assert.All(receiver.Shots, shot => Assert.True(shot.IsBoomstickPellet));
@@ -120,7 +120,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         var world = CreateJoinedWorld(PlayerClass.Demoman, new LevelSolid(380f, 450f, 20f, 100f));
         var owner = world.LocalPlayer;
         Assert.True(owner.TrySelectGameplayPrimaryItem("weapon.boomstick"));
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             AimWorldX = owner.X + 300f,
@@ -130,7 +130,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         Assert.Equal(3, world.Shots.Count);
         var explosionCount = 0;
 
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         for (var tick = 0; tick < 12; tick += 1)
         {
             world.AdvanceOneTick();
@@ -149,7 +149,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         Assert.True(owner.TrySelectGameplayPrimaryItem("weapon.boomstick"));
         var target = AddEnemy(world, id: 2, x: owner.X + 50f, y: owner.Y);
         var initialHealth = target.Health;
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             AimWorldX = target.X,
@@ -157,7 +157,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         });
         world.AdvanceOneTick();
 
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         var explosionCount = 0;
         for (var tick = 0; tick < 8; tick += 1)
         {
@@ -183,7 +183,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
             AimWorldY = pyro.Y,
         };
 
-        world.SetLocalInput(input);
+        world.NetworkPlayerRules.SetLocalInput(input);
         world.AdvanceOneTick();
 
         var slug = Assert.Single(world.Flares);
@@ -201,7 +201,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         var networkState = Assert.Single(new Protocol64StatePublisher(world).BuildProjectileStates(1));
         Assert.Equal((byte)FlareProjectileStyle.DragonRageSlug, networkState.FlareStyle);
         var receiver = CreateJoinedWorld(PlayerClass.Pyro);
-        Assert.True(receiver.ApplyProtocol64ProjectileState(
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64ProjectileState(
             networkState,
             SimulationWorld.LocalPlayerSlot));
         var replicatedSlug = Assert.Single(receiver.Flares);
@@ -214,7 +214,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
     {
         var world = CreateJoinedWorld(PlayerClass.Pyro);
         var owner = world.LocalPlayer;
-        world.SpawnPracticeCombatDummy();
+        world.PracticeDummies.SpawnPracticeCombatDummy();
         var target = world.EnemyPlayer;
         owner.TeleportTo(200f, 500f);
         target.TeleportTo(300f, 500f);
@@ -275,7 +275,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         var world = CreateJoinedWorld(PlayerClass.Pyro);
         var pyro = world.LocalPlayer;
         Assert.True(pyro.TrySelectGameplayPrimaryItem("weapon.dragon-rage"));
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true, AimWorldX = pyro.X + 300f, AimWorldY = pyro.Y,
         });
@@ -299,7 +299,7 @@ public sealed class AlternatePrimaryWeaponBalanceTests
         var initialShells = pyro.CurrentShells;
 
         Assert.False(pyro.CanFirePyroAirblast(PlayerEntity.PyroAirburstCost));
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             UseAbility = true,
             AimWorldX = pyro.X + 96f,
@@ -367,14 +367,14 @@ public sealed class AlternatePrimaryWeaponBalanceTests
 
         for (var tick = 0; tick < 12; tick += 1)
         {
-            world.SetLocalInput(heldInput);
+            world.NetworkPlayerRules.SetLocalInput(heldInput);
             world.AdvanceOneTick();
         }
 
         Assert.Empty(world.Rockets);
         Assert.Equal(12, soldier.MortarLauncherChargeTicks);
 
-        world.SetLocalInput(heldInput with { FirePrimary = false });
+        world.NetworkPlayerRules.SetLocalInput(heldInput with { FirePrimary = false });
         world.AdvanceOneTick();
 
         var rocket = Assert.Single(world.Rockets);
@@ -449,10 +449,10 @@ public sealed class AlternatePrimaryWeaponBalanceTests
     private static PlayerEntity AddEnemy(SimulationWorld world, int id, float x, float y)
     {
         var networkId = checked((byte)id);
-        Assert.True(world.TryPrepareNetworkPlayerJoin(networkId));
-        Assert.True(world.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(networkId, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(networkId, out var enemy));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(networkId));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(networkId, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(networkId, out var enemy));
         enemy.TeleportTo(x, y);
         return enemy;
     }
@@ -478,12 +478,12 @@ public sealed class AlternatePrimaryWeaponBalanceTests
             floorY: 1024f,
             [new LevelSolid(0f, 1024f, 2048f, 1024f), .. additionalSolids],
             importedFromSource: false));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
-        world.SetLocalInput(default);
-        world.SetLocalPreviousInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalPreviousInput(default);
         _ = world.DrainPendingSoundEvents();
         return world;
     }

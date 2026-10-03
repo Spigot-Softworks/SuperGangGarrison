@@ -344,7 +344,7 @@ public sealed class OpenGarrisonDemoTransport : ISeekablePlaybackMessageTranspor
                         throw new InvalidDataException("Demo emitted a snapshot before the welcome message.");
                     }
 
-                    if (!world.ApplySnapshot(snapshot, welcome.PlayerSlot))
+                    if (!world.SnapshotApply.ApplySnapshot(snapshot, welcome.PlayerSlot))
                     {
                         throw new InvalidDataException($"Demo snapshot frame {snapshot.Frame} could not be applied to SimulationWorld.");
                     }

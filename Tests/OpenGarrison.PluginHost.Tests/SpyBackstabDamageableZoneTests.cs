@@ -61,8 +61,8 @@ public sealed class SpyBackstabDamageableZoneTests
         Assert.NotNull(hit);
         Assert.Equal(0, hit.Value.HitDamageableZoneRoomObjectIndex);
 
-        Assert.True(world.TryApplyDamageableZoneDamage(0, StabMaskEntity.DamagePerHit));
-        Assert.Equal(50f, world.GetDamageableZoneHealth(0));
+        Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, StabMaskEntity.DamagePerHit));
+        Assert.Equal(50f, world.MapLogic.GetDamageableZoneHealth(0));
     }
 
     private static RoomObjectMarker CreateDamageableZone(float maxHealth = 100f, bool stabbable = false)

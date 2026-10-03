@@ -298,9 +298,9 @@ public sealed class TeleportRuntimeTests
 
     private static void PreparePlayer(SimulationWorld world, PlayerTeam team, float x, float y)
     {
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(team);
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(team);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.LocalPlayer.TeleportTo(x, y);
     }
 

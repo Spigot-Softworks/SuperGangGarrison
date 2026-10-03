@@ -11,8 +11,8 @@ public sealed class BotSecondaryWeaponFiringTests
     public void MedicReturnsToMedigunWhenAHealingTargetBecomesAvailable()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
         var medic = world.LocalPlayer;
         medic.EquipExperimentalOffhandWeapon();
         var enemy = AddNetworkPlayer(world, 2, PlayerClass.Scout, PlayerTeam.Blue, medic.X + 140, medic.Y);
@@ -28,8 +28,8 @@ public sealed class BotSecondaryWeaponFiringTests
     public void SoldierFiresShotgunAfterBotCompletesSecondarySelection()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         world.LocalPlayer.SetSpawnRoomState(false);
 
         var soldier = world.LocalPlayer;
@@ -70,7 +70,7 @@ public sealed class BotSecondaryWeaponFiringTests
         Assert.True(selectionInput.ToggleSecondaryWeapon);
         Assert.False(selectionInput.FirePrimary);
 
-        world.SetLocalInput(selectionInput);
+        world.NetworkPlayerRules.SetLocalInput(selectionInput);
         world.AdvanceOneTick();
         Assert.True(soldier.IsExperimentalOffhandSelected);
 
@@ -93,7 +93,7 @@ public sealed class BotSecondaryWeaponFiringTests
         Assert.True(firingInput.FirePrimary);
         Assert.False(firingInput.ToggleSecondaryWeapon);
 
-        world.SetLocalInput(firingInput);
+        world.NetworkPlayerRules.SetLocalInput(firingInput);
         world.AdvanceOneTick();
 
         Assert.True(soldier.IsExperimentalOffhandSelected);
@@ -108,8 +108,8 @@ public sealed class BotSecondaryWeaponFiringTests
     public void SelectedStockSecondaryProducesM1FireIntent(PlayerClass playerClass)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
 
         var player = world.LocalPlayer;
@@ -152,7 +152,7 @@ public sealed class BotSecondaryWeaponFiringTests
         Assert.True(input.FirePrimary);
         Assert.False(input.ToggleSecondaryWeapon);
 
-        world.SetLocalInput(input);
+        world.NetworkPlayerRules.SetLocalInput(input);
         world.AdvanceOneTick();
 
         Assert.Equal(ammoBefore - 1, player.ExperimentalOffhandCurrentShells);
@@ -169,10 +169,10 @@ public sealed class BotSecondaryWeaponFiringTests
         float x,
         float y)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        world.TrySetNetworkPlayerTeam(slot, team);
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team);
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         Assert.Equal(team, player.Team);
         player.TeleportTo(x, y);
         player.SetSpawnRoomState(false);

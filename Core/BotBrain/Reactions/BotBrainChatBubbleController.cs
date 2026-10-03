@@ -237,7 +237,7 @@ public sealed class BotBrainChatBubbleController
         PruneObservedHumanTaunters(world, state, controlledTeamsBySlot);
 
         var shouldTaunt = false;
-        foreach (var (candidateSlot, candidate) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (candidateSlot, candidate) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             if (candidateSlot == slot
                 || controlledTeamsBySlot.ContainsKey(candidateSlot)
@@ -282,7 +282,7 @@ public sealed class BotBrainChatBubbleController
         IReadOnlyDictionary<byte, PlayerTeam> controlledTeamsBySlot,
         int playerId)
     {
-        foreach (var (slot, player) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (slot, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             if (!controlledTeamsBySlot.ContainsKey(slot)
                 && player.Id == playerId
@@ -488,7 +488,7 @@ public sealed class BotBrainChatBubbleController
             return false;
         }
 
-        return world.TryTriggerNetworkPlayerChatBubble(slot, reaction.Frame);
+        return world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(slot, reaction.Frame);
     }
 
     private static void MarkReaction(BotBrainChatBubbleState state, long frame, BotBrainChatBubbleReaction reaction)
@@ -752,7 +752,7 @@ public sealed class BotBrainChatBubbleController
                 return;
             }
 
-            if (!world.TryGetNetworkPlayer(entry.Key, out var ally) || !ally.IsAlive)
+            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var ally) || !ally.IsAlive)
             {
                 continue;
             }
@@ -894,7 +894,7 @@ public sealed class BotBrainChatBubbleController
             return;
         }
 
-        if (!world.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return;
         }
@@ -904,7 +904,7 @@ public sealed class BotBrainChatBubbleController
             return;
         }
 
-        if (!world.TryTriggerNetworkPlayerChatBubble(slot, FrameHappy))
+        if (!world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(slot, FrameHappy))
         {
             return;
         }
@@ -1012,7 +1012,7 @@ public sealed class BotBrainChatBubbleController
         foreach (var entry in controlledTeamsBySlot)
         {
             if (entry.Value != team
-                || !world.TryGetNetworkPlayer(entry.Key, out var candidate)
+                || !world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var candidate)
                 || !candidate.IsAlive
                 || candidate.Id != playerId)
             {
@@ -1102,12 +1102,12 @@ public sealed class BotBrainChatBubbleController
 
     private static TeamIntelligenceState GetEnemyIntelState(SimulationWorld world, PlayerTeam team)
     {
-        return team == PlayerTeam.Blue ? world.RedIntel : world.BlueIntel;
+        return team == PlayerTeam.Blue ? world.ObjectiveRules.RedIntel : world.ObjectiveRules.BlueIntel;
     }
 
     private static TeamIntelligenceState GetOwnIntelState(SimulationWorld world, PlayerTeam team)
     {
-        return team == PlayerTeam.Blue ? world.BlueIntel : world.RedIntel;
+        return team == PlayerTeam.Blue ? world.ObjectiveRules.BlueIntel : world.ObjectiveRules.RedIntel;
     }
 
     private static float DistanceSquared(float ax, float ay, float bx, float by)

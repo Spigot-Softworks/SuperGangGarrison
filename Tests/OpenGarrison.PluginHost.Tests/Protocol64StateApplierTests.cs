@@ -46,7 +46,7 @@ public sealed class Protocol64StateApplierTests
             21, 1, 1, 0, 0, 1, 0, 0, false, 0, 0));
         applier.ApplyToWorld(world, 1);
         Assert.Empty(world.Flames);
-        world.ApplyProtocol64ProjectileState(state, 1); // Delayed legacy state.
+        world.SnapshotApply.ApplyProtocol64ProjectileState(state, 1); // Delayed legacy state.
         applier.RestoreNewerProjectilesAfterSnapshot(world, 20, 1);
         Assert.Empty(world.Flames);
     }
@@ -216,7 +216,7 @@ public sealed class Protocol64StateApplierTests
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         applier.ApplyToWorld(world);
 
-        Assert.True(world.TryGetNetworkPlayer(2, out var player));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var player));
         Assert.Equal(StockGameplayModCatalog.GetClassId(PlayerClass.Scout), player.GameplayClassId);
         Assert.Equal(75, player.Health);
         Assert.Equal(123f, player.X);
@@ -250,7 +250,7 @@ public sealed class Protocol64StateApplierTests
         Assert.True(state.PrimaryReloadTicks > 0);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
         Assert.Equal(state.PrimaryCooldownTicks, receiver.LocalPlayer.PrimaryCooldownTicks);
         Assert.Equal(state.PrimaryReloadTicks, receiver.LocalPlayer.ReloadTicksUntilNextShell);
     }
@@ -266,8 +266,8 @@ public sealed class Protocol64StateApplierTests
         Assert.True(state.IsBot);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
-        Assert.True(receiver.IsNetworkPlayerBot(SimulationWorld.LocalPlayerSlot));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.NetworkPlayerRules.IsNetworkPlayerBot(SimulationWorld.LocalPlayerSlot));
     }
 
     [Fact]
@@ -275,12 +275,12 @@ public sealed class Protocol64StateApplierTests
     {
         var receiver = CreateProtocol64ClientWithRemoteDemoknight();
         var remote = Assert.Single(receiver.RemoteSnapshotPlayers);
-        Assert.True(receiver.TryGetPlayerNetworkSlot(remote, out var remoteServerSlot));
+        Assert.True(receiver.NetworkPlayerRules.TryGetPlayerNetworkSlot(remote, out var remoteServerSlot));
         Assert.Equal((byte)1, remoteServerSlot);
 
-        receiver.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 2 });
+        receiver.SnapshotApply.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 2 });
         Assert.False(remote.IsExperimentalDemoknightEnabled);
-        receiver.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 1 });
+        receiver.SnapshotApply.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 1 });
 
         Assert.True(remote.IsExperimentalDemoknightEnabled);
         Assert.False(receiver.LocalPlayer.IsExperimentalDemoknightEnabled);
@@ -291,10 +291,10 @@ public sealed class Protocol64StateApplierTests
     {
         var receiver = CreateProtocol64ClientWithRemoteDemoknight();
         var remote = Assert.Single(receiver.RemoteSnapshotPlayers);
-        receiver.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 1 });
+        receiver.SnapshotApply.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte> { 1 });
         Assert.True(remote.IsExperimentalDemoknightEnabled);
 
-        receiver.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte>());
+        receiver.SnapshotApply.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte>());
 
         Assert.False(remote.IsExperimentalDemoknightEnabled);
     }
@@ -314,7 +314,7 @@ public sealed class Protocol64StateApplierTests
         Assert.True(source.LocalPlayer.TrySelectGameplayPrimaryItem(selectedPrimaryItemId));
 
         Assert.Equal(selectedPrimaryItemId, source.LocalPlayer.GameplayLoadoutState.PrimaryItemId);
-        source.ForceKillLocalPlayer();
+        source.NetworkPlayerRules.ForceKillLocalPlayer();
         AdvanceUntilRespawn(source);
 
         var state = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(1).Players);
@@ -336,7 +336,7 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal((byte)3, state.LastToDieMedicLinkState);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
         Assert.True(receiver.LocalPlayer.LastToDieMedicStimulantDripLinkActive);
         Assert.True(receiver.LocalPlayer.LastToDieMedicAgilityDriveLinkActive);
     }
@@ -345,7 +345,7 @@ public sealed class Protocol64StateApplierTests
     public void Protocol64PublisherAndWorldHydrateExactSpyCloakRuntime()
     {
         var source = CreateJoinedWorld(PlayerClass.Spy);
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RogueCommander, LastToDiePerkIds.Spy.Professional],
             resetDynamicState: true));
@@ -361,9 +361,9 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal(source.LocalPlayer.LastToDieSpyCloakMeterUnits, state.LastToDieSpyCloakMeterUnits);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
         var hydratedMeter = receiver.LocalPlayer.LastToDieSpyCloakMeterUnits;
-        Assert.True(receiver.TryApplyLastToDiePlayerPredictionProfile(
+        Assert.True(receiver.LastToDieRules.TryApplyLastToDiePlayerPredictionProfile(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RogueCommander.Value, LastToDiePerkIds.Spy.Professional.Value]));
 
@@ -379,7 +379,7 @@ public sealed class Protocol64StateApplierTests
     public void Protocol64HydrationPreservesRogueRampTickRemainder()
     {
         var source = CreateJoinedWorld(PlayerClass.Spy);
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RogueCommander],
             resetDynamicState: true));
@@ -393,8 +393,8 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal((ushort)(source.Config.TicksPerSecond - 1), state.LastToDieSpyRogueRampTicks);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
-        Assert.True(receiver.TryApplyLastToDiePlayerPredictionProfile(
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.LastToDieRules.TryApplyLastToDiePlayerPredictionProfile(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.RogueCommander.Value]));
         Assert.Equal(source.Config.TicksPerSecond - 1, receiver.LocalPlayer.LastToDieSpyRogueRampTicks);
@@ -410,10 +410,10 @@ public sealed class Protocol64StateApplierTests
     {
         var world = CreateJoinedWorld(PlayerClass.Scout);
         world.LocalPlayer.Spawn(PlayerTeam.Red, 100f, 0f);
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
-        Assert.True(world.TryGetNetworkPlayer(2, out var enemySpy));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var enemySpy));
         enemySpy.Spawn(PlayerTeam.Blue, 50f, 0f);
         Assert.True(enemySpy.TryToggleSpyCloak());
         for (var tick = 0; tick < 20; tick += 1)
@@ -452,19 +452,19 @@ public sealed class Protocol64StateApplierTests
             Protocol64StateApplyStatus.Applied,
             applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(1, 1, [local, spy])).Status);
         applier.ApplyToWorld(world);
-        Assert.Contains(world.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
+        Assert.Contains(world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
 
         Assert.Equal(
             Protocol64StateApplyStatus.Applied,
             applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(2, 2, [local])).Status);
         applier.ApplyToWorld(world);
-        Assert.DoesNotContain(world.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
+        Assert.DoesNotContain(world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
 
         Assert.Equal(
             Protocol64StateApplyStatus.Applied,
             applier.ApplyPlayerStateBatch(new Protocol64PlayerStateBatch(3, 3, [local, spy])).Status);
         applier.ApplyToWorld(world);
-        var reapplied = Assert.Single(world.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
+        var reapplied = Assert.Single(world.NetworkPlayerRules.EnumerateReplicatedNetworkPlayers(), entry => entry.Slot == 2);
         Assert.Equal(PlayerClass.Spy, reapplied.Player.ClassId);
     }
 
@@ -472,9 +472,9 @@ public sealed class Protocol64StateApplierTests
     public void SameClassSlotReappearanceAdvancesGenerationPastRemovalTombstone()
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(source.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(source.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(source.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
+        Assert.True(source.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(source.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(source.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
         var publisher = new Protocol64StatePublisher(source);
         var applier = new Protocol64StateApplier();
 
@@ -484,14 +484,14 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyPlayerStateBatch(firstBatch).Status);
         _ = publisher.BuildRosterState(1);
 
-        Assert.True(source.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(source.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
         _ = publisher.BuildPlayerStateBatch(2);
         var removedRoster = publisher.BuildRosterState(2);
         Assert.Equal(Protocol64StateApplyStatus.Applied, applier.ApplyRosterState(removedRoster).Status);
 
-        Assert.True(source.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(source.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(source.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
+        Assert.True(source.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(source.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(source.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Spy));
         var rejoinedBatch = publisher.BuildPlayerStateBatch(3);
         var rejoined = Assert.Single(rejoinedBatch.Players, player => player.Slot == 2);
         Assert.Equal(2U, rejoined.Generation);
@@ -503,7 +503,7 @@ public sealed class Protocol64StateApplierTests
     public void Protocol64PlayerStateHydratesSpyProfileAndLuckyProgressBeforeAmmoClamp()
     {
         var source = CreateJoinedWorld(PlayerClass.Spy);
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Agent, LastToDiePerkIds.Spy.LuckyStrike],
             refillHealth: true));
@@ -524,7 +524,7 @@ public sealed class Protocol64StateApplierTests
         Assert.True(state.IsSpyCloaked);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
 
         Assert.True(receiver.LocalPlayer.LastToDieSpyRevolverProfile.AgentEnabled);
         Assert.True(receiver.LocalPlayer.LastToDieSpyRevolverProfile.LuckyStrikeEnabled);
@@ -540,7 +540,7 @@ public sealed class Protocol64StateApplierTests
     {
         var source = CreateJoinedWorld(PlayerClass.Spy);
         source.RandomSpreadEnabled = false;
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [
                 LastToDiePerkIds.Spy.Blunderbuss1,
@@ -574,7 +574,7 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal((uint)original.TicksRemaining, state.RemainingLifetimeTicks);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64ProjectileState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64ProjectileState(state));
         var recreated = Assert.Single(receiver.RevolverShots);
 
         Assert.Equal(original.DamageValue, recreated.DamageValue);
@@ -606,7 +606,7 @@ public sealed class Protocol64StateApplierTests
         Assert.Equal((uint)original.TicksRemaining, state.RemainingLifetimeTicks);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64ProjectileState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64ProjectileState(state));
         var recreated = Assert.Single(receiver.Shots);
 
         Assert.Equal(original.DamageValue, recreated.DamageValue);
@@ -672,18 +672,18 @@ public sealed class Protocol64StateApplierTests
     private static SimulationWorld CreateJoinedWorld(PlayerClass playerClass)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
         return world;
     }
 
     private static SimulationWorld CreateProtocol64ClientWithRemoteDemoknight()
     {
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(
             Player(2, 202, 1, CharacterClassCatalog.Scout.GameplayClassId, 100),
             clientLocalPlayerSlot: 2));
-        Assert.True(receiver.ApplyProtocol64PlayerState(
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(
             Player(1, 101, 1, CharacterClassCatalog.Demoman.GameplayClassId, 100),
             clientLocalPlayerSlot: 2));
         return receiver;
@@ -708,7 +708,7 @@ public sealed class Protocol64StateApplierTests
     {
         for (var tick = 0;
              tick < world.Config.TicksPerSecond * 6
-                && world.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 0;
+                && world.NetworkPlayerRules.GetNetworkPlayerRespawnTicks(SimulationWorld.LocalPlayerSlot) > 0;
              tick += 1)
         {
             world.AdvanceOneTick();

@@ -23,8 +23,8 @@ public sealed class SpecialAbilitiesHudRegressionTests
     {
         const BindingFlags instance = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         typeof(Game1).GetField("_world", instance)!.SetValue(game, world);
         var services = new ClientServiceContainer();

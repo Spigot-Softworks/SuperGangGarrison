@@ -39,7 +39,7 @@ public partial class Game1
             if (parts.Length >= 2)
             {
                 var name = commandText[command.Length..].Trim();
-                _world.SetEnemyPlayerName(name);
+                _world.PracticeDummies.SetEnemyPlayerName(name);
                 AddConsoleLine($"training dummy name set to {_world.EnemyPlayer.DisplayName}");
             }
             else
@@ -456,7 +456,7 @@ public partial class Game1
                 {
                     break;
                 }
-                _world.SpawnEnemyDummy();
+                _world.PracticeDummies.SpawnEnemyDummy();
                 AddConsoleLine("training dummy spawned");
                 break;
             case "despawn_dummy":
@@ -464,7 +464,7 @@ public partial class Game1
                 {
                     break;
                 }
-                _world.DespawnEnemyDummy();
+                _world.PracticeDummies.DespawnEnemyDummy();
                 AddConsoleLine("training dummy despawned");
                 break;
             case "spawn_combat_dummy":
@@ -480,12 +480,12 @@ public partial class Game1
                         break;
                     }
 
-                    _world.SpawnPracticeCombatDummy(combatDummyClass);
+                    _world.PracticeDummies.SpawnPracticeCombatDummy(combatDummyClass);
                     AddConsoleLine($"combat dummy spawned as {_world.EnemyPlayer.ClassName}");
                 }
                 else
                 {
-                    _world.SpawnPracticeCombatDummy();
+                    _world.PracticeDummies.SpawnPracticeCombatDummy();
                     AddConsoleLine("combat dummy spawned");
                 }
                 break;
@@ -494,7 +494,7 @@ public partial class Game1
                 {
                     break;
                 }
-                _world.SpawnPracticeDpsDummy();
+                _world.PracticeDummies.SpawnPracticeDpsDummy();
                 AddConsoleLine("DPS dummy spawned");
                 break;
             case "despawn_combat_dummy":
@@ -502,7 +502,7 @@ public partial class Game1
                 {
                     break;
                 }
-                _world.DespawnPracticeCombatDummy();
+                _world.PracticeDummies.DespawnPracticeCombatDummy();
                 AddConsoleLine("combat dummy despawned");
                 break;
             case "despawn_dps_dummy":
@@ -510,7 +510,7 @@ public partial class Game1
                 {
                     break;
                 }
-                _world.DespawnPracticeDpsDummy();
+                _world.PracticeDummies.DespawnPracticeDpsDummy();
                 AddConsoleLine("DPS dummy despawned");
                 break;
             case "spawn_friendly_dummy":
@@ -518,7 +518,7 @@ public partial class Game1
                 {
                     break;
                 }
-                _world.SpawnFriendlyDummy();
+                _world.PracticeDummies.SpawnFriendlyDummy();
                 AddConsoleLine("support dummy spawned");
                 break;
             case "despawn_friendly_dummy":
@@ -526,7 +526,7 @@ public partial class Game1
                 {
                     break;
                 }
-                _world.DespawnFriendlyDummy();
+                _world.PracticeDummies.DespawnFriendlyDummy();
                 AddConsoleLine("support dummy despawned");
                 break;
             case "set_friendly_dummy_hp":
@@ -536,7 +536,7 @@ public partial class Game1
                 }
                 if (TryParseSingleInt(parts, out var friendlyHp))
                 {
-                    _world.SetFriendlyDummyHealth(friendlyHp);
+                    _world.PracticeDummies.SetFriendlyDummyHealth(friendlyHp);
                     AddConsoleLine($"support dummy hp set to {_world.FriendlyDummy.Health}");
                 }
                 else
@@ -564,7 +564,7 @@ public partial class Game1
                 if (parts.Length >= 2)
                 {
                     var name = commandText[command.Length..].Trim();
-                    _world.SetEnemyPlayerName(name);
+                    _world.PracticeDummies.SetEnemyPlayerName(name);
                     AddConsoleLine($"training dummy name set to {_world.EnemyPlayer.DisplayName}");
                 }
                 else
@@ -580,7 +580,7 @@ public partial class Game1
                 if (parts.Length >= 2)
                 {
                     var name = commandText[command.Length..].Trim();
-                    _world.SetFriendlyDummyName(name);
+                    _world.PracticeDummies.SetFriendlyDummyName(name);
                     AddConsoleLine($"support dummy name set to {_world.FriendlyDummy.DisplayName}");
                 }
                 else
@@ -589,24 +589,24 @@ public partial class Game1
                 }
                 break;
             case "killme":
-                _world.ForceKillLocalPlayer();
+                _world.NetworkPlayerRules.ForceKillLocalPlayer();
                 AddConsoleLine("local player killed");
                 break;
             case "respawn_me":
-                _world.ForceRespawnLocalPlayer();
+                _world.NetworkPlayerRules.ForceRespawnLocalPlayer();
                 AddConsoleLine("local player respawned");
                 break;
             case "build_sentry":
-                AddConsoleLine(_world.TryBuildLocalSentry() ? "sentry build started" : "could not build sentry");
+                AddConsoleLine(_world.Structures.TryBuildLocalSentry() ? "sentry build started" : "could not build sentry");
                 break;
             case "destroy_sentry":
-                AddConsoleLine(_world.TryDestroyLocalSentry() ? "sentry destroyed" : "no owned sentry to destroy");
+                AddConsoleLine(_world.Structures.TryDestroyLocalSentry() ? "sentry destroyed" : "no owned sentry to destroy");
                 break;
             case "give_intel":
-                AddConsoleLine(_world.ForceGiveEnemyIntelToLocalPlayer() ? "enemy intel granted" : "could not grant enemy intel");
+                AddConsoleLine(_world.ObjectiveRules.ForceGiveEnemyIntelToLocalPlayer() ? "enemy intel granted" : "could not grant enemy intel");
                 break;
             case "drop_intel":
-                _world.ForceDropLocalIntel();
+                _world.ObjectiveRules.ForceDropLocalIntel();
                 AddConsoleLine("drop intel requested");
                 break;
             case "set_hp":
@@ -675,10 +675,10 @@ public partial class Game1
                 AddConsoleLine(_world.GetEngineerSummary());
                 break;
             case "show_medic":
-                AddConsoleLine(_world.GetMedicSummary());
+                AddConsoleLine(_world.SupportRules.GetMedicSummary());
                 break;
             case "fill_uber":
-                AddConsoleLine(_world.TryFillLocalMedicUber() ? "medic uber filled" : "local player is not medic");
+                AddConsoleLine(_world.SupportRules.TryFillLocalMedicUber() ? "medic uber filled" : "local player is not medic");
                 break;
             case "ltd_win":
                 if (IsHostedLastToDieActive())

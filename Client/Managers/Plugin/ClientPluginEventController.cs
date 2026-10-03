@@ -108,11 +108,11 @@ public sealed class ClientPluginEventController
                     point.IsLocked);
             }
 
-            _clientPluginPreviousRedIntelState = CaptureIntelState(_context._world.RedIntel, PlayerTeam.Red);
-            _clientPluginPreviousBlueIntelState = CaptureIntelState(_context._world.BlueIntel, PlayerTeam.Blue);
-            for (var index = 0; index < _context._world.Generators.Count; index += 1)
+            _clientPluginPreviousRedIntelState = CaptureIntelState(_context._world.ObjectiveRules.RedIntel, PlayerTeam.Red);
+            _clientPluginPreviousBlueIntelState = CaptureIntelState(_context._world.ObjectiveRules.BlueIntel, PlayerTeam.Blue);
+            for (var index = 0; index < _context._world.ObjectiveRules.Generators.Count; index += 1)
             {
-                var generator = _context._world.Generators[index];
+                var generator = _context._world.ObjectiveRules.Generators[index];
                 _clientPluginPreviousGeneratorStates[generator.Team] = (
                     generator.Health,
                     generator.MaxHealth,
@@ -140,7 +140,7 @@ public sealed class ClientPluginEventController
 
                 if (ShouldSpawnClientBloodFromDamage(damageEvent.TargetKind, damageEvent.Amount))
                 {
-                    _context._world.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+                    _context._world.PlayerRemains.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
                 }
             }
 
@@ -194,7 +194,7 @@ public sealed class ClientPluginEventController
         {
             if (ShouldSpawnClientBloodFromDamage((CoreDamageTargetKind)damageEvent.TargetKind, damageEvent.Amount))
             {
-                _context._world.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+                _context._world.PlayerRemains.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
             }
         }
 
@@ -503,12 +503,12 @@ public sealed class ClientPluginEventController
                 _clientPluginPreviousObjectiveStates[point.Index] = currentState;
             }
 
-            DispatchIntelStateEvent(pluginHost, _context._world.RedIntel, PlayerTeam.Red, ref _clientPluginPreviousRedIntelState);
-            DispatchIntelStateEvent(pluginHost, _context._world.BlueIntel, PlayerTeam.Blue, ref _clientPluginPreviousBlueIntelState);
+            DispatchIntelStateEvent(pluginHost, _context._world.ObjectiveRules.RedIntel, PlayerTeam.Red, ref _clientPluginPreviousRedIntelState);
+            DispatchIntelStateEvent(pluginHost, _context._world.ObjectiveRules.BlueIntel, PlayerTeam.Blue, ref _clientPluginPreviousBlueIntelState);
 
-            for (var index = 0; index < _context._world.Generators.Count; index += 1)
+            for (var index = 0; index < _context._world.ObjectiveRules.Generators.Count; index += 1)
             {
-                var generator = _context._world.Generators[index];
+                var generator = _context._world.ObjectiveRules.Generators[index];
                 var currentState = (
                     generator.Health,
                     generator.MaxHealth,

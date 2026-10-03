@@ -31,7 +31,7 @@ public sealed partial class SimulationWorld
     internal NetworkPlayerRegistry PlayerRegistry { get; } = new();
     internal RemoteSnapshotPlayerRegistry RemoteSnapshots { get; } = new();
     internal VipState VipState { get; } = new();
-    internal CompetitiveReadyUpState ReadyUpState { get; } = new(DefaultCompetitiveSetupSeconds);
+    internal CompetitiveReadyUpState ReadyUpState { get; } = new(ReadyUpSystem.DefaultCompetitiveSetupSeconds);
     internal PracticeDummyState DummyState { get; } = new();
     internal LastToDieState LastToDieState { get; } = new();
     internal MatchSettingsState MatchSettings { get; } = new(
@@ -365,8 +365,8 @@ public sealed partial class SimulationWorld
         Projectiles = new ProjectileSystem(EntityStore, Combat, this);
         Level = SimpleLevelFactory.CreateScoutPrototypeLevel(MatchSettings.MapScale);
         Movement = new MovementSystem(this);
-        RedIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Red);
-        BlueIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Blue);
+        ObjectiveRules.RedIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Red);
+        ObjectiveRules.BlueIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Blue);
         MatchRules = CreateDefaultMatchRules(Level.Mode);
         MatchState = CreateInitialMatchState(MatchRules);
         LocalPlayer = new PlayerEntity(AllocateEntityId(), LocalState.PlayerClassDefinition, DefaultLocalPlayerName);

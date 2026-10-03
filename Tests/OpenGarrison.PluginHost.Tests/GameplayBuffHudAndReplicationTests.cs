@@ -21,7 +21,7 @@ public sealed class GameplayBuffHudAndReplicationTests
         {
             source.ConfigureExperimentalGameplaySettings(new(EnableSecondaryAbilities: enabled));
             var state = Assert.Single(publisher.BuildPlayerStateBatch(1).Players);
-            Assert.True(receiver.ApplyProtocol64PlayerState(state, SimulationWorld.LocalPlayerSlot));
+            Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state, SimulationWorld.LocalPlayerSlot));
             Assert.Equal(enabled, receiver.ExperimentalGameplaySettings.EnableSecondaryAbilities);
             receiver.ConfigureExperimentalGameplaySettings(new(EnableSecondaryAbilities: !enabled));
             var player = source.Snapshots.ToSnapshotPlayerState(
@@ -32,7 +32,7 @@ public sealed class GameplayBuffHudAndReplicationTests
             var snapshot = CreateSnapshot(player);
             var bytes = ProtocolCodec.Serialize(snapshot, ProtocolCompressionSettings.Disabled);
             Assert.True(ProtocolCodec.TryDeserialize(bytes, out var message));
-            Assert.True(receiver.ApplySnapshot(Assert.IsType<SnapshotMessage>(message)));
+            Assert.True(receiver.SnapshotApply.ApplySnapshot(Assert.IsType<SnapshotMessage>(message)));
             Assert.Equal(enabled, receiver.ExperimentalGameplaySettings.EnableSecondaryAbilities);
         }
     }
@@ -73,7 +73,7 @@ public sealed class GameplayBuffHudAndReplicationTests
         Assert.Equal(191f / byte.MaxValue, decodedPlayer.ExperimentalGhostTrailAlpha);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplySnapshot(decoded));
+        Assert.True(receiver.SnapshotApply.ApplySnapshot(decoded));
         Assert.True(receiver.LocalPlayer.IsDispenserBuffed);
         Assert.Equal(1.25f, receiver.LocalPlayer.DispenserAttackReloadSpeedMultiplier);
         Assert.Equal(1, receiver.LocalPlayer.CurrentCombo);
@@ -148,7 +148,7 @@ public sealed class GameplayBuffHudAndReplicationTests
         Assert.InRange(mergedPlayer.ExperimentalCryoExposureFraction, 0.25f, 0.26f);
         Assert.Equal(18, mergedPlayer.ExperimentalGhostVisibilityTicksRemaining);
         Assert.InRange(mergedPlayer.ExperimentalGhostTrailAlpha, 0.25f, 0.26f);
-        Assert.True(receiver.ApplySnapshot(merged));
+        Assert.True(receiver.SnapshotApply.ApplySnapshot(merged));
         Assert.Equal(4, receiver.LocalPlayer.CurrentCombo);
         Assert.Equal(75, receiver.LocalPlayer.ComboTicksRemaining);
         Assert.True(receiver.LocalPlayer.IsExperimentalCryoFrozen);
@@ -182,7 +182,7 @@ public sealed class GameplayBuffHudAndReplicationTests
         Assert.Equal(120, decodedPlayer.ComboTicksRemaining);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(decodedPlayer));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(decodedPlayer));
         Assert.True(receiver.LocalPlayer.IsDispenserBuffed);
         Assert.Equal(1.25f, receiver.LocalPlayer.DispenserAttackReloadSpeedMultiplier);
         Assert.Equal(1, receiver.LocalPlayer.CurrentCombo);
@@ -217,7 +217,7 @@ public sealed class GameplayBuffHudAndReplicationTests
         var decodedPlayer = Assert.Single(decoded.Event!.Players);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(decodedPlayer));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(decodedPlayer));
         Assert.Equal(ExperimentalGameplaySettings.RageMaxCharge, receiver.LocalPlayer.RageCharge);
         Assert.True(receiver.LocalPlayer.IsRageReady);
         Assert.Equal(0, receiver.LocalPlayer.RageTicksRemaining);
@@ -252,7 +252,7 @@ public sealed class GameplayBuffHudAndReplicationTests
         Assert.Equal(0, decodedPlayer.RageTicksRemaining);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplySnapshot(decoded));
+        Assert.True(receiver.SnapshotApply.ApplySnapshot(decoded));
         Assert.Equal(250f, receiver.LocalPlayer.RageCharge);
         Assert.False(receiver.LocalPlayer.IsRageReady);
 
@@ -301,8 +301,8 @@ public sealed class GameplayBuffHudAndReplicationTests
     public void LegacySnapshotHydratesSpawnRoomEligibilityEvenWhenRuntimeStateIsFull()
     {
         var source = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        source.PrepareLocalPlayerJoin();
-        source.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        source.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        source.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
         var nextEntry = 0;
@@ -329,7 +329,7 @@ public sealed class GameplayBuffHudAndReplicationTests
         var encoded = ProtocolCodec.Serialize(CreateSnapshot(inSpawnPlayer), ProtocolCompressionSettings.Disabled);
         Assert.True(ProtocolCodec.TryDeserialize(encoded, out var decodedMessage));
         var decoded = Assert.IsType<SnapshotMessage>(decodedMessage);
-        Assert.True(receiver.ApplySnapshot(decoded));
+        Assert.True(receiver.SnapshotApply.ApplySnapshot(decoded));
         Assert.True(receiver.LocalPlayer.IsInSpawnRoom);
         Assert.Equal(decoded.Players[0].Metal, receiver.LocalPlayer.Metal);
 
@@ -348,7 +348,7 @@ public sealed class GameplayBuffHudAndReplicationTests
         var nextSnapshot = CreateSnapshot(outsideSpawnPlayer) with { Frame = decoded.Frame + 1 };
         encoded = ProtocolCodec.Serialize(nextSnapshot, ProtocolCompressionSettings.Disabled);
         Assert.True(ProtocolCodec.TryDeserialize(encoded, out decodedMessage));
-        Assert.True(receiver.ApplySnapshot(Assert.IsType<SnapshotMessage>(decodedMessage)));
+        Assert.True(receiver.SnapshotApply.ApplySnapshot(Assert.IsType<SnapshotMessage>(decodedMessage)));
         Assert.False(receiver.LocalPlayer.IsInSpawnRoom);
         Assert.True(outsideSpawnPlayer.Metal >= 100f);
         Assert.Equal(outsideSpawnPlayer.Metal, receiver.LocalPlayer.Metal);

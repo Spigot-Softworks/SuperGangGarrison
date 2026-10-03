@@ -43,7 +43,7 @@ internal sealed class ServerReadOnlyStateView(
             PlayerTeam? team = null;
             PlayerClass? playerClass = null;
             PlayerEntity? player = null;
-            if (!isSpectator && world.TryGetNetworkPlayer(client.Slot, out var networkPlayer))
+            if (!isSpectator && world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var networkPlayer))
             {
                 player = networkPlayer;
                 team = networkPlayer.Team;
@@ -62,10 +62,10 @@ internal sealed class ServerReadOnlyStateView(
                 Team: team,
                 PlayerClass: playerClass,
                 PlayerScale: player?.PlayerScale ?? 1f,
-                MovementSpeedScale: player?.ServerMovementSpeedScale ?? (!isSpectator ? world.GetNetworkPlayerMovementSpeedScale(client.Slot) : 1f),
-                HasMovementSpeedScaleOverride: !isSpectator && world.HasNetworkPlayerMovementSpeedScaleOverride(client.Slot),
-                GravityScale: player?.ServerGravityScale ?? (!isSpectator ? world.GetNetworkPlayerGravityScale(client.Slot) : 1f),
-                HasGravityScaleOverride: !isSpectator && world.HasNetworkPlayerGravityScaleOverride(client.Slot),
+                MovementSpeedScale: player?.ServerMovementSpeedScale ?? (!isSpectator ? world.ServerTuning.GetNetworkPlayerMovementSpeedScale(client.Slot) : 1f),
+                HasMovementSpeedScaleOverride: !isSpectator && world.ServerTuning.HasNetworkPlayerMovementSpeedScaleOverride(client.Slot),
+                GravityScale: player?.ServerGravityScale ?? (!isSpectator ? world.ServerTuning.GetNetworkPlayerGravityScale(client.Slot) : 1f),
+                HasGravityScaleOverride: !isSpectator && world.ServerTuning.HasNetworkPlayerGravityScaleOverride(client.Slot),
                 EndPoint: client.RemoteDescription,
                 GameplayLoadoutId: player?.GameplayLoadoutState.LoadoutId ?? string.Empty,
                 GameplaySecondaryItemId: player?.GameplayLoadoutState.SecondaryItemId ?? string.Empty,
@@ -111,7 +111,7 @@ internal sealed class ServerReadOnlyStateView(
                 point.Cappers,
                 point.IsLocked,
                 point.HasHealingAura)).ToArray(),
-            world.Generators.Select(static generator => new OpenGarrisonServerGeneratorInfo(
+            world.ObjectiveRules.Generators.Select(static generator => new OpenGarrisonServerGeneratorInfo(
                 generator.Team,
                 generator.Marker.CenterX,
                 generator.Marker.CenterY,
@@ -124,8 +124,8 @@ internal sealed class ServerReadOnlyStateView(
                 generator.DamageStage)).ToArray(),
             new[]
             {
-                ToIntelligenceInfo(world.RedIntel),
-                ToIntelligenceInfo(world.BlueIntel),
+                ToIntelligenceInfo(world.ObjectiveRules.RedIntel),
+                ToIntelligenceInfo(world.ObjectiveRules.BlueIntel),
             });
     }
 
@@ -379,7 +379,7 @@ internal sealed class ServerReadOnlyStateView(
     public IReadOnlyList<OpenGarrisonServerGameplayItemInfo> GetOwnedGameplayItems(byte slot)
     {
         var world = worldGetter();
-        if (!world.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return Array.Empty<OpenGarrisonServerGameplayItemInfo>();
         }
@@ -424,7 +424,7 @@ internal sealed class ServerReadOnlyStateView(
     public IReadOnlyList<OpenGarrisonServerGameplaySelectableItemInfo> GetAvailableGameplaySecondaryItems(byte slot)
     {
         var world = worldGetter();
-        if (!world.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return Array.Empty<OpenGarrisonServerGameplaySelectableItemInfo>();
         }
@@ -460,7 +460,7 @@ internal sealed class ServerReadOnlyStateView(
     public IReadOnlyList<OpenGarrisonServerGameplaySelectableItemInfo> GetAvailableGameplayAcquiredItems(byte slot)
     {
         var world = worldGetter();
-        if (!world.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return Array.Empty<OpenGarrisonServerGameplaySelectableItemInfo>();
         }
@@ -492,7 +492,7 @@ internal sealed class ServerReadOnlyStateView(
     public IReadOnlyList<OpenGarrisonServerGameplayLoadoutInfo> GetAvailableGameplayLoadouts(byte slot)
     {
         var world = worldGetter();
-        if (!world.TryGetNetworkPlayer(slot, out var player))
+        if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return Array.Empty<OpenGarrisonServerGameplayLoadoutInfo>();
         }
@@ -515,7 +515,7 @@ internal sealed class ServerReadOnlyStateView(
 
     public bool TryGetPlayerReplicatedStateInt(byte slot, string ownerPluginId, string stateKey, out int value)
     {
-        if (worldGetter().TryGetNetworkPlayer(slot, out var player))
+        if (worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return TryGetPlayerReplicatedStateInt(player, ownerPluginId, stateKey, out value);
         }
@@ -526,7 +526,7 @@ internal sealed class ServerReadOnlyStateView(
 
     public bool TryGetPlayerReplicatedStateFloat(byte slot, string ownerPluginId, string stateKey, out float value)
     {
-        if (worldGetter().TryGetNetworkPlayer(slot, out var player))
+        if (worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return TryGetPlayerReplicatedStateFloat(player, ownerPluginId, stateKey, out value);
         }
@@ -537,7 +537,7 @@ internal sealed class ServerReadOnlyStateView(
 
     public bool TryGetPlayerReplicatedStateBool(byte slot, string ownerPluginId, string stateKey, out bool value)
     {
-        if (worldGetter().TryGetNetworkPlayer(slot, out var player))
+        if (worldGetter().NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return TryGetPlayerReplicatedStateBool(player, ownerPluginId, stateKey, out value);
         }
@@ -712,7 +712,7 @@ internal sealed class ServerReadOnlyStateView(
 
     private static bool TryGetNetworkPlayerByPlayerId(SimulationWorld world, int playerId, out PlayerEntity player)
     {
-        foreach (var (_, networkPlayer) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (_, networkPlayer) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             if (networkPlayer.Id == playerId)
             {

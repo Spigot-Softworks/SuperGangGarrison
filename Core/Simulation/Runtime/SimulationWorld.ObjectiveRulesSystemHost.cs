@@ -8,7 +8,7 @@ public sealed partial class SimulationWorld : IObjectiveRulesHost
     int IObjectiveRulesHost.BlueCaps { get => BlueCaps; set => BlueCaps = value; }
     IReadOnlyList<BubbleProjectileEntity> IObjectiveRulesHost.Bubbles => Bubbles;
     CombatSystem IObjectiveRulesHost.Combat => Combat;
-    bool IObjectiveRulesHost.CompetitiveObjectivesLocked => CompetitiveObjectivesLocked;
+    bool IObjectiveRulesHost.CompetitiveObjectivesLocked => ReadyUp.CompetitiveObjectivesLocked;
     SimulationConfig IObjectiveRulesHost.Config => Config;
     float IObjectiveRulesHost.ConfiguredCaptureSpeedMultiplierPerPlayer => ConfiguredCaptureSpeedMultiplierPerPlayer;
     DecisionGate IObjectiveRulesHost.Decisions => Decisions;
@@ -17,7 +17,7 @@ public sealed partial class SimulationWorld : IObjectiveRulesHost
     ExplosionRulesSystem IObjectiveRulesHost.ExplosionRules => ExplosionRules;
     long IObjectiveRulesHost.Frame => Frame;
     PlayerTeam IObjectiveRulesHost.GetOpposingTeam(PlayerTeam team) => GetOpposingTeam(team);
-    bool IObjectiveRulesHost.IsVipModeActive => IsVipModeActive;
+    bool IObjectiveRulesHost.IsVipModeActive => VipRules.IsVipModeActive;
     KillFeedSystem IObjectiveRulesHost.KillFeedRules => KillFeedRules;
     LastToDieRulesSystem IObjectiveRulesHost.LastToDieRules => LastToDieRules;
     SimpleLevel IObjectiveRulesHost.Level => Level;

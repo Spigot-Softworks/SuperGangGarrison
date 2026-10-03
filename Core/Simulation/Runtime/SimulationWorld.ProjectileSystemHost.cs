@@ -52,7 +52,7 @@ public sealed partial class SimulationWorld
     bool IProjectileHitQueries.TryInterceptWithCivilDefenseTurret(PlayerTeam team, float x, float y, float directionX, float directionY, float distance)
         => Structures.TryInterceptWithCivilDefenseTurret(team, x, y, directionX, directionY, distance);
     void IProjectileHitQueries.GetCachedPlayerPresentationHitBounds(PlayerEntity player, out float left, out float top, out float right, out float bottom)
-        => GetPlayerPresentationHitBounds(this, player, out left, out top, out right, out bottom);
+        => PresentationBounds.GetPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
     float IProjectileHitQueries.GetExplosionDistanceToPlayer(PlayerEntity player, float x, float y)
         => GetExplosionDistanceToPlayer(this, player, x, y);
 
@@ -109,7 +109,7 @@ public sealed partial class SimulationWorld
     void IProjectileGameplayRules.TryApplyLastToDieSniperStatusPayload(PlayerEntity owner, PlayerEntity target, bool tranquilize, float poison)
         => LastToDieRules.TryApplyLastToDieSniperStatusPayload(owner, target, tranquilize, poison);
     bool IProjectileGameplayRules.TryApplyLastToDieStatusEffect(int targetId, int sourceId, LastToDieStatusEffectSpec spec)
-        => TryApplyLastToDieStatusEffect(targetId, sourceId, spec);
+        => LastToDieRules.TryApplyLastToDieStatusEffect(targetId, sourceId, spec);
     LastToDieMedicKritzM2Payload IProjectileGameplayRules.CaptureLastToDieMedicKritzM2Payload(PlayerEntity owner)
         => LastToDieRules.CaptureLastToDieMedicKritzM2Payload(owner);
     bool IProjectileGameplayRules.TryExplodeLastToDieSniperArrow(ArrowProjectileEntity arrow, float x, float y)

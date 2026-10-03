@@ -145,10 +145,10 @@ public sealed class SimulationWorldGrenadeDamageTests
     private static PlayerEntity AddEnemy(SimulationWorld world, int id, float x, float y)
     {
         var networkId = checked((byte)id);
-        Assert.True(world.TryPrepareNetworkPlayerJoin(networkId));
-        Assert.True(world.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(networkId, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(networkId, out var enemy));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(networkId));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(networkId, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(networkId, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(networkId, out var enemy));
         enemy.TeleportTo(x, y);
         return enemy;
     }

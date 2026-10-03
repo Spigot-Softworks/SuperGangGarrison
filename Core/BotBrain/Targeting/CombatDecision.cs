@@ -256,7 +256,7 @@ public static class CombatDecisionResolver
     {
         if (!candidate.IsChatBubbleVisible
             || candidate.ChatBubbleFrameIndex != ChatBubbleFrameCatalog.Medic
-            || !world.TryGetPlayerNetworkSlot(candidate, out var slot))
+            || !world.NetworkPlayerRules.TryGetPlayerNetworkSlot(candidate, out var slot))
         {
             return false;
         }
@@ -727,7 +727,7 @@ public static class CombatDecisionResolver
             return false;
         }
 
-        if (world.CanPlayerCaptureControlPointsWhileCloaked(self))
+        if (world.LastToDieRules.CanPlayerCaptureControlPointsWhileCloaked(self))
         {
             return false;
         }
@@ -743,7 +743,7 @@ public static class CombatDecisionResolver
             return false;
         }
 
-        if (world.CanPlayerCaptureControlPointsWhileCloaked(self))
+        if (world.LastToDieRules.CanPlayerCaptureControlPointsWhileCloaked(self))
         {
             return false;
         }
@@ -757,7 +757,7 @@ public static class CombatDecisionResolver
         {
             if (point.IsLocked
                 || point.Team == self.Team
-                || !world.IsPlayerInControlPointCaptureZone(self, point.Index))
+                || !world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index))
             {
                 continue;
             }
@@ -1599,7 +1599,7 @@ public static class CombatDecisionResolver
 
         foreach (var slot in SimulationWorld.NetworkPlayerSlots)
         {
-            if (world.TryGetNetworkPlayer(slot, out var player))
+            if (world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
             {
                 yield return player;
             }

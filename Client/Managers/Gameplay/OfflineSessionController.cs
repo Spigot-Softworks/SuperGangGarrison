@@ -119,8 +119,8 @@ public sealed class OfflineSessionController
             _context.SyncPracticeBotRoster(PlayerTeam.Red);
             _context.ApplyLastToDieStageEnemyModifiers();
             _context.SpawnLastToDieDroneSwarmForCurrentStage();
-            _context._world.DespawnEnemyDummy();
-            _context._world.DespawnFriendlyDummy();
+            _context._world.PracticeDummies.DespawnEnemyDummy();
+            _context._world.PracticeDummies.DespawnFriendlyDummy();
             _context.ObserveLastToDieBotReactionState();
             _context.ObserveLastToDieCombatFeedbackState();
             _context._lastToDieRun.ObservedStageKills = 0;
@@ -205,7 +205,7 @@ public sealed class OfflineSessionController
             _context.ReinitializeSimulationForTickRate(tickRate);
             _context.ResetGameplayRuntimeState();
             _context._world.ConfigureExperimentalGameplaySettings(experimentalSettings);
-            _context._world.ConfigureSpecialCaptureTheFlagRules(enableInstantRedTeamIntelCaptureWin);
+            _context._world.ObjectiveRules.ConfigureSpecialCaptureTheFlagRules(enableInstantRedTeamIntelCaptureWin);
             _context._world.ConfigureMatchDefaults(
                 timeLimitMinutes: timeLimitMinutes,
                 capLimit: capLimit,
@@ -244,7 +244,7 @@ public sealed class OfflineSessionController
 
             if (openJoinMenus)
             {
-                _context._world.PrepareLocalPlayerJoin();
+                _context._world.NetworkPlayerRules.PrepareLocalPlayerJoin();
                 _context.ApplyPracticeDummyPreferencesBeforeJoin();
                 LogBrowserPracticeStartupStep("prepare-local-join");
             }

@@ -224,9 +224,9 @@ public sealed class GameplayModPackLoaderTests
     public void StockQuoteCurlyHasBubbleAndBladeActionsWithoutCivilianAbilities()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin("quote");
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin("quote");
 
         var player = world.LocalPlayer;
         Assert.Equal(PlayerClass.Quote, player.ClassId);
@@ -242,7 +242,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(BuiltInGameplayBehaviorIds.Blade, player.PrimaryBehaviorId);
         Assert.Equal(BuiltInGameplayBehaviorIds.QuoteBladeThrow, player.SpecialAbilityBehaviorId);
 
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             AimWorldX = player.X + 96f,
@@ -267,21 +267,21 @@ public sealed class GameplayModPackLoaderTests
     public void CrewmateUseAbilityTauntHealsSelfAndEmitsMoneyBurst(int missingHealth, int expectedHealing)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin("quote");
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin("quote");
         var player = world.LocalPlayer;
         var startingHealth = player.MaxHealth - missingHealth;
         player.ForceSetHealth(startingHealth);
 
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(2, out var nearbyAlly));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var nearbyAlly));
         nearbyAlly.TeleportTo(player.X + 24f, player.Y);
         nearbyAlly.ForceSetHealth(50);
 
-        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
         world.AdvanceOneTick();
 
         Assert.True(player.IsTaunting);
@@ -303,12 +303,12 @@ public sealed class GameplayModPackLoaderTests
     public void CrewmateUseAbilityRequiresAReleaseAndFreshPressAfterTauntCooldown()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin("quote");
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin("quote");
         var player = world.LocalPlayer;
 
-        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
         world.AdvanceOneTick();
         Assert.True(player.IsTaunting);
         for (var tick = 0; tick < 40 && player.IsTaunting; tick += 1)
@@ -318,9 +318,9 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.False(player.IsTaunting);
         Assert.True(player.TauntRestartCooldownTicksRemaining > 0);
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         world.AdvanceOneTick();
-        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
         world.AdvanceOneTick();
         Assert.False(player.IsTaunting);
 
@@ -331,9 +331,9 @@ public sealed class GameplayModPackLoaderTests
 
         Assert.False(player.IsTaunting);
         Assert.Single(world.PendingVisualEvents.Where(static e => e.EffectName == "CivvieMoneyBurst"));
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         world.AdvanceOneTick();
-        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
         world.AdvanceOneTick();
         Assert.True(player.IsTaunting);
     }
@@ -342,12 +342,12 @@ public sealed class GameplayModPackLoaderTests
     public void CrewmatePendingTauntEffectClearsOnDeath()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin("quote");
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin("quote");
         var player = world.LocalPlayer;
 
-        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
         world.AdvanceOneTick();
         Assert.True(player.CivvieTauntHealPending);
         Assert.Equal("ability.quote-taunt", player.CivvieTauntHealAbilityItemId);
@@ -362,12 +362,12 @@ public sealed class GameplayModPackLoaderTests
     public void CrewmateUseAbilityTauntIsBlockedWhenSecondaryAbilitiesAreDisabled()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin("quote");
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin("quote");
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(EnableSecondaryAbilities: false));
 
-        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
         world.AdvanceOneTick();
 
         Assert.False(world.LocalPlayer.IsTaunting);
@@ -379,14 +379,14 @@ public sealed class GameplayModPackLoaderTests
     public void CivilianTauntKeepsFifteenPointHealingWithoutCrewMoneyBurst()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin("civilian");
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin("civilian");
         var player = world.LocalPlayer;
         var startingHealth = player.MaxHealth - 30;
         player.ForceSetHealth(startingHealth);
 
-        world.SetLocalInput(default(PlayerInputSnapshot) with { Taunt = true });
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { Taunt = true });
         world.AdvanceOneTick();
         Assert.True(player.CivvieTauntHealPending);
         for (var tick = 0; tick < 40 && player.CivvieTauntHealPending; tick += 1)
@@ -402,13 +402,13 @@ public sealed class GameplayModPackLoaderTests
     public void StockQuoteCurlyCanThrowItsBladeAndRecordsBladeKillFeedSprite()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin("quote");
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(2, out var target));
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin("quote");
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var target));
 
         var player = world.LocalPlayer;
         target.TeleportTo(player.X + 90f, player.Y);
@@ -419,7 +419,7 @@ public sealed class GameplayModPackLoaderTests
         }
 
         target.ForceSetHealth(1);
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FireSecondary = true,
             AimWorldX = target.X,
@@ -428,7 +428,7 @@ public sealed class GameplayModPackLoaderTests
         world.AdvanceOneTick();
         Assert.Single(world.Blades);
 
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         // An unattended network slot respawns immediately, so the kill feed (not IsAlive) records the kill.
         for (var tick = 0; tick < 20 && world.KillFeed.Count == 0; tick += 1)
         {
@@ -1544,9 +1544,9 @@ public sealed class GameplayModPackLoaderTests
         EnsureQuoteCurlyGameplayPackRegistered();
 
         var world = new SimulationWorld();
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin("plugin.quote-curly.quote");
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin("plugin.quote-curly.quote");
 
         var player = world.LocalPlayer;
         Assert.Equal(PlayerClass.Quote, player.ClassId);
@@ -1557,7 +1557,7 @@ public sealed class GameplayModPackLoaderTests
         Assert.Equal(BuiltInGameplayBehaviorIds.Blade, player.PrimaryBehaviorId);
         Assert.Equal(BuiltInGameplayBehaviorIds.QuoteBladeThrow, player.SpecialAbilityBehaviorId);
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -1575,14 +1575,14 @@ public sealed class GameplayModPackLoaderTests
         Assert.Single(world.Bubbles);
         Assert.Empty(world.Blades);
 
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         world.AdvanceOneTick();
         for (var tick = 0; tick < 10 && player.PrimaryCooldownTicks > 0; tick += 1)
         {
             world.AdvanceOneTick();
         }
 
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -1607,14 +1607,14 @@ public sealed class GameplayModPackLoaderTests
         EnsureQuoteCurlyGameplayPackRegistered();
 
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin("plugin.quote-curly.quote");
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin("plugin.quote-curly.quote");
         var player = world.LocalPlayer;
         var startingHealth = player.MaxHealth - 40;
         player.ForceSetHealth(startingHealth);
 
-        world.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { UseAbility = true });
         world.AdvanceOneTick();
         Assert.True(player.CivvieTauntHealPending);
 

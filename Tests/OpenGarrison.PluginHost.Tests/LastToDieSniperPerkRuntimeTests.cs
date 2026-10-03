@@ -61,7 +61,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
         var world = CreateSniperWorld();
         player = world.LocalPlayer;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Overcharged]));
         Assert.True(player.TryToggleSniperScope());
@@ -94,7 +94,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var perks = new List<LastToDiePerkId>();
         if (greasedBolt) perks.Add(LastToDiePerkIds.Sniper.GreasedBolt);
         if (lightMarksman) perks.Add(LastToDiePerkIds.Sniper.LightMarksman);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             perks));
         if (scoped)
@@ -120,7 +120,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var perks = new List<LastToDiePerkId> { LastToDiePerkIds.Sniper.FiftyCal };
         if (greasedBolt) perks.Add(LastToDiePerkIds.Sniper.GreasedBolt);
         if (lightMarksman) perks.Add(LastToDiePerkIds.Sniper.LightMarksman);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             perks));
 
@@ -137,7 +137,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var first = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
         var second = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 340f, 100f);
         var third = AddNetworkPlayer(world, 4, PlayerTeam.Blue, 460f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.FiftyCal]));
 
@@ -167,7 +167,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var first = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
         var second = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 340f, 100f);
         var third = AddNetworkPlayer(world, 4, PlayerTeam.Blue, 460f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.FiftyCal, LastToDiePerkIds.Sniper.Mechanica]));
         Assert.True(sniper.TryToggleSniperScope());
@@ -196,7 +196,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         fmjWorld.LocalPlayer.TeleportTo(100f, 100f);
         var firstEnemy = AddNetworkPlayer(fmjWorld, 2, PlayerTeam.Blue, 300f, 100f);
         var secondEnemy = AddNetworkPlayer(fmjWorld, 3, PlayerTeam.Blue, 420f, 100f);
-        Assert.True(fmjWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(fmjWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Fmj]));
 
@@ -215,14 +215,14 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var ally = AddNetworkPlayer(world, 2, PlayerTeam.Red, 220f, 100f);
         var enemy = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 340f, 100f);
         ally.ForceSetHealth(ally.MaxHealth - 100);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Guardian]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(2, []));
 
         FireRifle(world, sniper, enemy.X, enemy.Y);
 
-        var status = Assert.Single(world.GetLastToDieStatusEffects(ally.Id));
+        var status = Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(ally.Id));
         Assert.Equal(LastToDieStatusEffectKind.BeneficialBuff, status.Kind);
         Assert.Equal(LastToDieSniperProfile.GuardianHealingPerSecond, status.HealingPerSecond);
         Assert.Equal(LastToDieSniperProfile.GuardianEvasionChance, ally.LastToDieGuardianEvasionChance);
@@ -238,7 +238,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
         Assert.Equal(startingHealth + 36, ally.Health);
         Assert.Equal(0f, ally.LastToDieGuardianEvasionChance);
-        Assert.Empty(world.GetLastToDieStatusEffects(ally.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(ally.Id));
     }
 
     [Fact]
@@ -249,10 +249,10 @@ public sealed class LastToDieSniperPerkRuntimeTests
         sniper.TeleportTo(100f, 100f);
         var ally = AddNetworkPlayer(world, 2, PlayerTeam.Red, 200f, 100f);
         var enemy = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 300f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Guardian]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(2, []));
 
         var arrow = SpawnTestArrow(
             world,
@@ -278,7 +278,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var first = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 200f, 100f);
         var second = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 300f, 100f);
         var third = AddNetworkPlayer(world, 4, PlayerTeam.Blue, 400f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Mechanica]));
 
@@ -305,7 +305,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         sniper.TeleportTo(100f, 100f);
         var first = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 200f, 100f);
         var second = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 300f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Guardian, LastToDiePerkIds.Sniper.Mechanica]));
 
@@ -333,7 +333,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     public void Protocol64PublisherAndHydratorPreserveArrowKindAndPerkPayload()
     {
         var source = CreateSniperCombatWorld();
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [
                 LastToDiePerkIds.Sniper.Guardian,
@@ -367,7 +367,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.Equal((byte)PlayerTeam.Blue, state.LastToDieAttachedHeadTeam);
 
         var receiver = CreateSniperCombatWorld();
-        Assert.True(receiver.ApplyProtocol64ProjectileState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64ProjectileState(state));
         var hydratedArrow = Assert.IsType<ArrowProjectileEntity>(Assert.Single(receiver.Needles));
         Assert.Equal(sourceArrow.Damage, hydratedArrow.Damage);
         Assert.Equal(sourceArrow.FakeSpeedMultiplier, hydratedArrow.FakeSpeedMultiplier);
@@ -391,7 +391,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         AdvanceSourceTicks(player, 20);
         Assert.Equal(20, player.SniperChargeTicks);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.LightMarksman]));
 
@@ -414,7 +414,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.Equal(PlayerEntity.SniperScopedMoveScale, InvokeMovementScale(player), precision: 5);
         Assert.Equal(PlayerEntity.SniperScopedJumpScale, InvokeJumpScale(player), precision: 5);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.ExtremeConditioning]));
 
@@ -428,7 +428,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var world = CreateSniperWorld(enableExperimentalWeapons: true);
         var player = world.LocalPlayer;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Overcharged]));
         Assert.True(player.TrySelectGameplayPrimaryItem("weapon.bow"));
@@ -471,7 +471,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             LastToDiePerkIds.Sniper.DugIn,
             LastToDiePerkIds.Sniper.Ascetic,
         };
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             perks));
         source.LocalPlayer.SetLastToDieSniperMarkedTargetSlot(2);
@@ -511,7 +511,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.NotNull(state.LastToDieSniperVolleyState);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
         Assert.Equal(expected, receiver.LocalPlayer.LastToDieSniperProfile);
         Assert.Equal((byte)2, receiver.LocalPlayer.LastToDieSniperMarkedTargetSlot);
         Assert.Equal(1, receiver.LocalPlayer.LastToDieSniperConquistadorStacks);
@@ -533,7 +533,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted]));
 
@@ -557,7 +557,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         sniper.TeleportTo(100f, 100f);
         var first = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
         var second = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 220f, 220f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted]));
 
@@ -582,7 +582,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted]));
 
@@ -604,7 +604,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         sniper.TeleportTo(100f, 100f);
         var marked = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
         var unmarked = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 220f, 220f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted]));
         sniper.SetLastToDieSniperMarkedTargetSlot(2);
@@ -645,7 +645,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
         target.SetExperimentalShieldHealth(100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted]));
 
@@ -662,7 +662,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var victim = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.FiftyCal, LastToDiePerkIds.Sniper.Conquistador]));
 
@@ -671,7 +671,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.False(victim.IsAlive);
         Assert.Equal(1, sniper.LastToDieSniperConquistadorStacks);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Conquistador]));
         var nextTarget = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 340f, 100f);
@@ -688,8 +688,8 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TrySetNetworkPlayerMaxHealthOverride(2, 500, refillHealth: true));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.ServerTuning.TrySetNetworkPlayerMaxHealthOverride(2, 500, refillHealth: true));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted, LastToDiePerkIds.Sniper.Conquistador]));
         for (var stack = 0; stack < 105; stack += 1)
@@ -714,24 +714,24 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted, LastToDiePerkIds.Sniper.Conquistador]));
 
         FireRifle(world, sniper, target.X, target.Y);
         Assert.True(sniper.TryIncrementLastToDieSniperConquistadorStacks());
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             []));
         Assert.Equal((byte)0, sniper.LastToDieSniperMarkedTargetSlot);
         Assert.Equal(0, sniper.LastToDieSniperConquistadorStacks);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted, LastToDiePerkIds.Sniper.Conquistador]));
         sniper.SetLastToDieSniperMarkedTargetSlot(2);
         Assert.True(sniper.TryIncrementLastToDieSniperConquistadorStacks());
-        world.ForceKillLocalPlayer();
+        world.NetworkPlayerRules.ForceKillLocalPlayer();
         Assert.Equal((byte)0, sniper.LastToDieSniperMarkedTargetSlot);
         Assert.Equal(0, sniper.LastToDieSniperConquistadorStacks);
     }
@@ -743,7 +743,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted, LastToDiePerkIds.Sniper.FiftyCal]));
 
@@ -757,21 +757,21 @@ public sealed class LastToDieSniperPerkRuntimeTests
     public void SameBuildPreservesConquistadorAndRunSeedRestoreUsesCheckpoint()
     {
         var world = CreateSniperWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Conquistador]));
         Assert.True(world.LocalPlayer.TryIncrementLastToDieSniperConquistadorStacks());
         Assert.True(world.LocalPlayer.TryIncrementLastToDieSniperConquistadorStacks());
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Conquistador],
             resetDynamicState: true));
         Assert.Equal(2, world.LocalPlayer.LastToDieSniperConquistadorStacks);
 
-        world.ConfigureLastToDieCombatSeed(999);
+        world.LastToDieRules.ConfigureLastToDieCombatSeed(999);
         Assert.Equal(0, world.LocalPlayer.LastToDieSniperConquistadorStacks);
-        Assert.True(world.TryRestoreLastToDieSniperConquistadorStacks(
+        Assert.True(world.LastToDieRules.TryRestoreLastToDieSniperConquistadorStacks(
             SimulationWorld.LocalPlayerSlot,
             73));
         Assert.Equal(73, world.LocalPlayer.LastToDieSniperConquistadorStacks);
@@ -782,7 +782,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var world = CreateSniperCombatWorld();
         _ = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Spotted, LastToDiePerkIds.Sniper.Conquistador]));
         world.LocalPlayer.SetLastToDieSniperMarkedTargetSlot(2);
@@ -808,7 +808,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.TranqDarts]));
 
@@ -820,10 +820,10 @@ public sealed class LastToDieSniperPerkRuntimeTests
 
         Assert.Equal(target.MaxHealth - 50, target.Health);
         var poison = Assert.Single(
-            world.GetLastToDieStatusEffects(target.Id),
+            world.LastToDieRules.GetLastToDieStatusEffects(target.Id),
             status => status.Id == LastToDieStatusEffectIds.SniperTranqPoison);
         var slow = Assert.Single(
-            world.GetLastToDieStatusEffects(target.Id),
+            world.LastToDieRules.GetLastToDieStatusEffects(target.Id),
             status => status.Id == LastToDieStatusEffectIds.SniperTranqSlow);
         Assert.Equal(LastToDieSniperProfile.TranqDartsPoisonDamagePerSecond, poison.DamagePerSecond);
         Assert.Equal(LastToDieSniperProfile.TranqDartsMaximumSlowStacks, slow.StackCount);
@@ -853,7 +853,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.TranqDarts]));
 
@@ -870,7 +870,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             healthAfterDirectHit - (int)(LastToDieSniperProfile.TranqDartsPoisonDamagePerSecond
                 * LastToDieSniperProfile.TranqDartsDurationSeconds),
             target.Health);
-        Assert.Empty(world.GetLastToDieStatusEffects(target.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(target.Id));
         Assert.Equal(1f, target.LastToDieStatusMovementSpeedMultiplier);
         Assert.Equal(1f, target.LastToDieStatusOutgoingDamageMultiplier);
     }
@@ -882,7 +882,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.PoisonTip]));
 
@@ -911,7 +911,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         world.AdvanceOneTick();
 
         var poison = Assert.Single(
-            world.GetLastToDieStatusEffects(target.Id),
+            world.LastToDieRules.GetLastToDieStatusEffects(target.Id),
             status => status.Id == LastToDieStatusEffectIds.SniperPoisonTip);
         Assert.Equal(LastToDieSniperProfile.PoisonTipMaximumDamagePerSecond, poison.DamagePerSecond);
         Assert.Equal(
@@ -926,7 +926,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.TranqDarts, LastToDiePerkIds.Sniper.PoisonTip]));
 
@@ -938,16 +938,16 @@ public sealed class LastToDieSniperPerkRuntimeTests
             PlayerEntity.SniperBowMaxFakeSpeedMultiplier);
         Assert.True(arrow.AppliesLastToDieTranqDarts);
         Assert.Equal(20f, arrow.LastToDiePoisonDamagePerSecond);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
 
         world.AdvanceOneTick();
 
         Assert.Equal(target.MaxHealth - 30, target.Health);
         Assert.Contains(
-            world.GetLastToDieStatusEffects(target.Id),
+            world.LastToDieRules.GetLastToDieStatusEffects(target.Id),
             status => status.Id == LastToDieStatusEffectIds.SniperTranqPoison);
         Assert.Contains(
-            world.GetLastToDieStatusEffects(target.Id),
+            world.LastToDieRules.GetLastToDieStatusEffects(target.Id),
             status => status.Id == LastToDieStatusEffectIds.SniperPoisonTip);
 
         arrow.ConfigureLastToDiePayload(
@@ -964,12 +964,12 @@ public sealed class LastToDieSniperPerkRuntimeTests
     public void RemovingSniperProfileRestoresStockBehavior()
     {
         var world = CreateSniperWorld();
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Overcharged, LastToDiePerkIds.Sniper.ExtremeConditioning]));
         Assert.Equal(45, world.LocalPlayer.LastToDieSniperRifleFullChargeTicks);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             []));
 
@@ -1007,7 +1007,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var world = CreateSniperWorld(enableExperimentalWeapons: true);
         var sniper = world.LocalPlayer;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.MenageATrois, LastToDiePerkIds.Sniper.ExplosiveTip]));
         Assert.True(sniper.TrySelectGameplayPrimaryItem("weapon.bow"));
@@ -1027,7 +1027,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.Equal((byte)3, sniper.LastToDieSniperVolleyState.SourceTicksUntilNextArrow);
 
         // A later perk rebuild cannot mutate the already accepted release.
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
         for (var tick = 0; tick < 2; tick += 1)
         {
             world.AdvanceOneTick();
@@ -1054,7 +1054,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var world = CreateSniperWorld(enableExperimentalWeapons: true);
         var sniper = world.LocalPlayer;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.MenageATrois]));
         Assert.True(sniper.TrySelectGameplayPrimaryItem("weapon.bow"));
@@ -1075,7 +1075,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var world = CreateSniperWorld(enableExperimentalWeapons: true);
         var sniper = world.LocalPlayer;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.ExplosiveTip]));
         Assert.True(sniper.TrySelectGameplayPrimaryItem("weapon.bow"));
@@ -1083,8 +1083,8 @@ public sealed class LastToDieSniperPerkRuntimeTests
         _ = SpawnTestArrow(world, sniper, 0f, PlayerEntity.SniperBowMinDamage);
         Assert.Equal(2, world.Needles.Count);
 
-        world.SetLocalPreviousInput(default);
-        world.SetLocalInput(new PlayerInputSnapshot(
+        world.NetworkPlayerRules.SetLocalPreviousInput(default);
+        world.NetworkPlayerRules.SetLocalInput(new PlayerInputSnapshot(
             Left: false,
             Right: false,
             Up: false,
@@ -1112,7 +1112,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         sniper.TeleportTo(100f, 100f);
         var teammate = AddNetworkPlayer(world, 2, PlayerTeam.Red, 150f, 100f);
         var enemy = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 180f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.ExplosiveTip]));
         var arrow = SpawnTestArrow(world, sniper, 0f, PlayerEntity.SniperBowMinDamage);
@@ -1135,7 +1135,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         _ = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.ExplosiveTip]));
         _ = SpawnTestArrow(world, sniper, 500f, PlayerEntity.SniperBowMinDamage);
@@ -1153,7 +1153,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var bodyWorld = CreateSniperCombatWorld();
         var bodySniper = bodyWorld.LocalPlayer;
         var bodyTarget = AddNetworkPlayer(bodyWorld, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(bodyWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(bodyWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Decapitator]));
         Assert.True(bodySniper.TryToggleSniperScope());
@@ -1172,7 +1172,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var unchargedWorld = CreateSniperCombatWorld();
         var unchargedSniper = unchargedWorld.LocalPlayer;
         var unchargedTarget = AddNetworkPlayer(unchargedWorld, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(unchargedWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(unchargedWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Decapitator]));
         var headAim = GetDecapitatorHeadAim(unchargedWorld, unchargedTarget);
@@ -1191,7 +1191,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var world = CreateSniperCombatWorld();
         var sniper = world.LocalPlayer;
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Decapitator]));
         Assert.True(sniper.TryToggleSniperScope());
@@ -1217,7 +1217,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var first = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
         var second = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 340f, 100f);
         var third = AddNetworkPlayer(world, 4, PlayerTeam.Blue, 460f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Decapitator, LastToDiePerkIds.Sniper.Mechanica]));
         Assert.True(sniper.TryToggleSniperScope());
@@ -1241,7 +1241,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         var first = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
         var second = AddNetworkPlayer(world, 3, PlayerTeam.Blue, 340f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Decapitator, LastToDiePerkIds.Sniper.Mechanica]));
         var headAim = GetDecapitatorHeadAim(world, first);
@@ -1288,7 +1288,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var world = CreateSniperCombatWorld();
         var sniper = world.LocalPlayer;
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Decapitator]));
         var headAim = GetDecapitatorHeadAim(world, target);
@@ -1314,7 +1314,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Ghost]));
 
@@ -1345,7 +1345,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Ghost]));
         Assert.True(sniper.TryActivateLastToDieSniperGhostCloak());
@@ -1356,7 +1356,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             300f,
             PlayerEntity.SniperBowMinDamage);
         Assert.Equal(LastToDieSniperProfile.GhostShotDamageMultiplier, arrow.LastToDieGhostDamageMultiplier);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
         world.AdvanceOneTick();
 
         Assert.Equal(
@@ -1376,11 +1376,11 @@ public sealed class LastToDieSniperPerkRuntimeTests
     {
         var seed = FindFirstOverkillerSuccessSeed(SimulationWorld.LocalPlayerSlot);
         var world = CreateSniperCombatWorld();
-        world.ConfigureLastToDieCombatSeed(seed);
+        world.LastToDieRules.ConfigureLastToDieCombatSeed(seed);
         var sniper = world.LocalPlayer;
         sniper.TeleportTo(100f, 100f);
         var target = AddNetworkPlayer(world, 2, PlayerTeam.Blue, 220f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Sniper.Overkiller]));
 
@@ -1420,8 +1420,8 @@ public sealed class LastToDieSniperPerkRuntimeTests
             Assert.True(world.TryLoadLevel("Harvest"));
         }
 
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Sniper);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Sniper);
         if (enableExperimentalWeapons)
         {
             world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
@@ -1456,8 +1456,8 @@ public sealed class LastToDieSniperPerkRuntimeTests
             floorY: 480f,
             solids: solids ?? [],
             importedFromSource: false));
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Sniper);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Sniper);
         return world;
     }
 
@@ -1468,10 +1468,10 @@ public sealed class LastToDieSniperPerkRuntimeTests
         float x,
         float y)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Heavy));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Heavy));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
     }

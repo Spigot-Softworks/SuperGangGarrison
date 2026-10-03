@@ -50,7 +50,7 @@ public sealed class SecondaryWeaponRuntimeTests
         Assert.Equal(expectedItemId, player.GameplayLoadoutState.SecondaryItemId);
         Assert.Equal(expectedItemId, player.ExperimentalOffhandWeapon?.ItemId);
         Assert.Equal(expectedProjectileCount, player.ExperimentalOffhandWeapon?.ProjectilesPerShot);
-        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Secondary));
 
@@ -74,7 +74,7 @@ public sealed class SecondaryWeaponRuntimeTests
         var player = world.LocalPlayer;
         var primaryAmmoBefore = player.CurrentShells;
 
-        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Secondary));
         Assert.False(player.HasGameplayAbilityBehavior(
@@ -111,7 +111,7 @@ public sealed class SecondaryWeaponRuntimeTests
         Assert.Equal(0, player.PyroFlareCooldownTicks);
         var fuelBefore = player.PyroPrimaryFuelScaled;
 
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             FireSecondary = !useAirburst,
@@ -138,7 +138,7 @@ public sealed class SecondaryWeaponRuntimeTests
     {
         var world = CreateWorld(PlayerClass.Pyro);
         var owner = world.LocalPlayer;
-        world.SpawnPracticeCombatDummy();
+        world.PracticeDummies.SpawnPracticeCombatDummy();
         var target = world.EnemyPlayer;
         owner.TeleportTo(200f, 200f);
         target.TeleportTo(300f, 200f);
@@ -161,7 +161,7 @@ public sealed class SecondaryWeaponRuntimeTests
         var player = world.LocalPlayer;
         var primaryAmmoBefore = player.CurrentShells;
 
-        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Secondary));
 
@@ -188,7 +188,7 @@ public sealed class SecondaryWeaponRuntimeTests
             GameplayAbilityConstants.UtilityChannel,
             BuiltInGameplayBehaviorIds.HeavyUtility));
 
-        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Secondary));
 
@@ -203,18 +203,18 @@ public sealed class SecondaryWeaponRuntimeTests
     private static SimulationWorld CreateWorld(PlayerClass playerClass)
     {
         var world = new SimulationWorld();
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
-        world.SetLocalInput(default);
-        world.SetLocalPreviousInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalPreviousInput(default);
         _ = world.DrainPendingSoundEvents();
         return world;
     }
 
     private static void FireSelectedWeapon(SimulationWorld world)
     {
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             AimWorldX = world.LocalPlayer.X + 96f,

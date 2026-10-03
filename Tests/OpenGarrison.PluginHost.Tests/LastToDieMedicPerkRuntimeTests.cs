@@ -67,10 +67,10 @@ public sealed class LastToDieMedicPerkRuntimeTests
         medic.TeleportTo(0f, 0f);
         target.TeleportTo(10f, 0f);
         enemy.TeleportTo(20f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.StimulantDrip, LastToDiePerkIds.Medic.AgilityDrive]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(2, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(2, []));
         var targetBaseRunPower = target.RunPower;
         var medicBaseRunPower = medic.RunPower;
         medic.SetMedicHealingTarget(target);
@@ -115,11 +115,11 @@ public sealed class LastToDieMedicPerkRuntimeTests
         target.TeleportTo(10f, 0f);
         firstMedic.TeleportTo(0f, 0f);
         secondMedic.TeleportTo(20f, 0f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Medic.StimulantDrip]));
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             3,
             [LastToDiePerkIds.Medic.StimulantDrip]));
         SetPlayerTimer(target, nameof(PlayerEntity.PrimaryCooldownTicks), 12);
@@ -152,7 +152,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
     {
         var springWorld = CreateMedicWorld();
         var springMedic = springWorld.LocalPlayer;
-        Assert.True(springWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(springWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.ModifiedSpring]));
 
@@ -172,10 +172,10 @@ public sealed class LastToDieMedicPerkRuntimeTests
             PlayerTeam.Red);
         composedMedic.TeleportTo(10f, 0f);
         stimulantMedic.TeleportTo(0f, 0f);
-        Assert.True(composedWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(composedWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.ModifiedSpring]));
-        Assert.True(composedWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(composedWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Medic.StimulantDrip]));
         stimulantMedic.SetMedicHealingTarget(composedMedic);
@@ -196,7 +196,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         SetPlayerTimer(medic, nameof(PlayerEntity.MedicNeedleRefillTicks), 20);
         SetPlayerTimer(medic, nameof(PlayerEntity.MedicHealDartCooldownTicks), 12);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.ModifiedSpring]));
 
@@ -204,7 +204,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         Assert.Equal(10, medic.MedicNeedleRefillTicks);
         Assert.Equal(6, medic.MedicHealDartCooldownTicks);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(SimulationWorld.LocalPlayerSlot, []));
         Assert.Equal(12, medic.MedicNeedleCooldownTicks);
         Assert.Equal(20, medic.MedicNeedleRefillTicks);
         Assert.Equal(12, medic.MedicHealDartCooldownTicks);
@@ -275,7 +275,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         secondTarget.ForceSetAmmo(secondTarget.MaxShells - 4);
         SetPlayerTimer(firstTarget, nameof(PlayerEntity.PrimaryCooldownTicks), 7);
         SetPlayerTimer(firstTarget, nameof(PlayerEntity.ReloadTicksUntilNextShell), 13);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.SupportRelay]));
         // Configure first: its live-scale fallback relocates players whose test
@@ -322,7 +322,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
         var target = AddHeavyTeammate(world, slot: 2);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.SupportRelay]));
         // Configure first: its live-scale fallback relocates players whose test
@@ -366,7 +366,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
     {
         var traumaWorld = CreateMedicWorld();
         var traumaTarget = AddHeavyTeammate(traumaWorld, slot: 2);
-        Assert.True(traumaWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(traumaWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.TraumaSurgeon]));
 
@@ -386,7 +386,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var world = CreateMedicWorld();
         var target = AddHeavyTeammate(world, slot: 2);
         target.ForceSetHealth(target.MaxHealth - 20);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Overcharged]));
 
@@ -403,7 +403,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var target = AddHeavyTeammate(world, slot: 2);
         medic.ForceSetHealth(medic.MaxHealth - 40);
         target.ForceSetHealth(target.MaxHealth / 10);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Homeostasis]));
 
@@ -432,7 +432,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
         var enemy = AddHeavyPlayer(world, slot: 2, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.CombatMedic]));
 
@@ -460,7 +460,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
         var enemy = AddHeavyPlayer(world, slot: 2, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.CombatMedic, LastToDiePerkIds.Medic.SpikedVest]));
         medic.ForceSetHealth((medic.MaxHealth / 2) - 1);
@@ -476,7 +476,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
     {
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Stoic]));
 
@@ -493,7 +493,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
         var enemy = AddHeavyPlayer(world, slot: 2, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.SpikedVest]));
 
@@ -524,7 +524,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var medic = world.LocalPlayer;
         var enemy = AddHeavyPlayer(world, slot: 2, PlayerTeam.Blue);
         enemy.ForceSetHealth(10);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.SpikedVest]));
 
@@ -540,7 +540,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
         var enemy = AddHeavyPlayer(world, slot: 2, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.SpikedVest]));
 
@@ -559,7 +559,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
     {
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.IronWill]));
         // Configure first: the Medic +40 LastToDie class bonus raises max health,
@@ -596,7 +596,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var medic = world.LocalPlayer;
         medic.ForceSetHealth(medic.MaxHealth - 50);
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.VitalityTrinket]));
         // +40 is the LastToDie class bonus for Medic (see GetLastToDieBaseMaximumHealth).
@@ -604,7 +604,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         Assert.Equal(medic.MaxHealth - 50, medic.Health);
 
         var healthAfterAcquisition = medic.Health;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.VitalityTrinket]));
         Assert.Equal(healthAfterAcquisition, medic.Health);
@@ -617,13 +617,13 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var medic = world.LocalPlayer;
         medic.FillMedicUberCharge();
         Assert.True(medic.TryStartMedicUber());
-        Assert.False(world.CanPlayerCaptureControlPointsWhileUbered(medic));
+        Assert.False(world.LastToDieRules.CanPlayerCaptureControlPointsWhileUbered(medic));
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.FieldCommander]));
 
-        Assert.True(world.CanPlayerCaptureControlPointsWhileUbered(medic));
+        Assert.True(world.LastToDieRules.CanPlayerCaptureControlPointsWhileUbered(medic));
     }
 
     [Fact]
@@ -677,7 +677,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var teammate = AddHeavyTeammate(world, slot: 2);
         var linkedEnemy = AddHeavyPlayer(world, slot: 3, PlayerTeam.Blue);
         var unlinkedEnemy = AddHeavyPlayer(world, slot: 4, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Exsanguination]));
         // Configure first: its live-scale fallback relocates players whose test
@@ -695,7 +695,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             teammate,
             PlayerDamageTraits.CanApplyOnHitEffects);
 
-        var linkedStatuses = world.GetLastToDieStatusEffects(linkedEnemy.Id);
+        var linkedStatuses = world.LastToDieRules.GetLastToDieStatusEffects(linkedEnemy.Id);
         Assert.Contains(
             linkedStatuses,
             status => status.Id == LastToDieStatusEffectIds.MedicExsanguinationBleed
@@ -714,7 +714,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             10f,
             teammate,
             PlayerDamageTraits.CanApplyOnHitEffects);
-        Assert.Empty(world.GetLastToDieStatusEffects(unlinkedEnemy.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(unlinkedEnemy.Id));
 
         medic.SetMedicHealingTarget(linkedEnemy);
         _ = ResolveDamage(
@@ -723,7 +723,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             10f,
             medic,
             PlayerDamageTraits.CanApplyOnHitEffects);
-        Assert.Empty(world.GetLastToDieStatusEffects(unlinkedEnemy.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(unlinkedEnemy.Id));
 
         teammate.TeleportTo(400f, 0f);
         medic.SetMedicHealingTarget(teammate);
@@ -733,7 +733,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             10f,
             medic,
             PlayerDamageTraits.CanApplyOnHitEffects);
-        Assert.Empty(world.GetLastToDieStatusEffects(unlinkedEnemy.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(unlinkedEnemy.Id));
 
         teammate.TeleportTo(10f, 0f);
         teammate.ForceSetHealth(0);
@@ -744,7 +744,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             10f,
             medic,
             PlayerDamageTraits.CanApplyOnHitEffects);
-        Assert.Empty(world.GetLastToDieStatusEffects(unlinkedEnemy.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(unlinkedEnemy.Id));
 
         teammate.ForceSetHealth(teammate.MaxHealth);
         medic.ForceSetHealth(0);
@@ -755,7 +755,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             10f,
             teammate,
             PlayerDamageTraits.CanApplyOnHitEffects);
-        Assert.Empty(world.GetLastToDieStatusEffects(unlinkedEnemy.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(unlinkedEnemy.Id));
     }
 
     [Fact]
@@ -768,7 +768,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         medic.TeleportTo(100f, 100f);
         teammate.TeleportTo(300f, 100f);
         enemy.TeleportTo(350f, 100f);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Exsanguination]));
         medic.SetMedicHealingTarget(teammate);
@@ -780,7 +780,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             teammate,
             PlayerDamageTraits.CanApplyOnHitEffects);
 
-        Assert.Empty(world.GetLastToDieStatusEffects(enemy.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id));
     }
 
     [Fact]
@@ -790,7 +790,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var medic = world.LocalPlayer;
         var teammate = AddHeavyTeammate(world, slot: 2);
         var enemy = AddHeavyPlayer(world, slot: 3, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Exsanguination]));
         // Configure first: its live-scale fallback relocates players whose test
@@ -807,7 +807,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             medic,
             PlayerDamageTraits.CanApplyOnHitEffects);
 
-        var statuses = world.GetLastToDieStatusEffects(enemy.Id);
+        var statuses = world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id);
         Assert.Contains(statuses, status => status.Id == LastToDieStatusEffectIds.MedicExsanguinationBleed);
         Assert.Contains(statuses, status => status.Id == LastToDieStatusEffectIds.MedicExsanguinationSlow);
         Assert.Equal(-1, Assert.Single(world.PendingDamageEvents).AssistedByPlayerId);
@@ -821,7 +821,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var lowerSlotMedic = AddNetworkPlayer(world, slot: 2, PlayerClass.Medic, PlayerTeam.Red);
         var higherSlotMedic = AddNetworkPlayer(world, slot: 3, PlayerClass.Medic, PlayerTeam.Red);
         var enemy = AddHeavyPlayer(world, slot: 4, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             3,
             [LastToDiePerkIds.Medic.Exsanguination]));
         // Configure first: its live-scale fallback relocates players whose test
@@ -847,7 +847,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             world.AdvanceOneTick();
         }
 
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             2,
             [LastToDiePerkIds.Medic.Exsanguination]));
         attacker.TeleportTo(10f, 0f);
@@ -865,14 +865,14 @@ public sealed class LastToDieMedicPerkRuntimeTests
             PlayerDamageTraits.CanApplyOnHitEffects);
         var refreshedDamageEvent = Assert.Single(world.DrainPendingDamageEvents());
         Assert.Equal(lowerSlotMedic.Id, refreshedDamageEvent.AssistedByPlayerId);
-        var refreshedStatuses = world.GetLastToDieStatusEffects(enemy.Id);
+        var refreshedStatuses = world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id);
         Assert.Equal(2, refreshedStatuses.Count);
         Assert.All(
             refreshedStatuses,
             status => Assert.Equal(world.Config.TicksPerSecond * 3, status.RemainingTicks));
 
         var disconnectedMedicId = lowerSlotMedic.Id;
-        Assert.True(world.TryReleaseNetworkPlayerSlot(2));
+        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(2));
         for (var tick = 0; tick < 20; tick += 1)
         {
             world.AdvanceOneTick();
@@ -897,7 +897,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var teammate = AddHeavyTeammate(world, slot: 2);
         var enemy = AddHeavyPlayer(world, slot: 3, PlayerTeam.Blue);
         enemy.ForceSetHealth(6);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Exsanguination]));
         // Configure first: its live-scale fallback relocates players whose test
@@ -915,7 +915,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             PlayerDamageTraits.CanApplyOnHitEffects);
         var directDamageEvent = Assert.Single(world.DrainPendingDamageEvents());
         Assert.Equal(medic.Id, directDamageEvent.AssistedByPlayerId);
-        world.ForceKillLocalPlayer();
+        world.NetworkPlayerRules.ForceKillLocalPlayer();
         for (var tick = 0; tick < (world.Config.TicksPerSecond * 3) + 1; tick += 1)
         {
             world.AdvanceOneTick();
@@ -931,7 +931,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         Assert.All(
             statusTickEvents,
             damageEvent => Assert.Equal(damageEvent.WasFatal ? -1 : medic.Id, damageEvent.AssistedByPlayerId));
-        Assert.Empty(world.GetLastToDieStatusEffects(enemy.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(enemy.Id));
     }
 
     [Fact]
@@ -942,7 +942,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         var teammate = AddHeavyTeammate(world, slot: 2);
         var enemy = AddHeavyPlayer(world, slot: 3, PlayerTeam.Blue);
         enemy.ForceSetHealth(3);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.Exsanguination]));
         // Configure first: its live-scale fallback relocates players whose test
@@ -959,7 +959,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
             teammate,
             PlayerDamageTraits.CanApplyOnHitEffects);
         _ = world.DrainPendingDamageEvents();
-        Assert.True(world.TrySetNetworkPlayerTeam(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Blue,
             respawnLivePlayerImmediately: true));
@@ -984,8 +984,8 @@ public sealed class LastToDieMedicPerkRuntimeTests
     private static SimulationWorld CreateWorld(PlayerClass localPlayerClass)
     {
         var world = new SimulationWorld();
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(localPlayerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(localPlayerClass);
         return world;
     }
 
@@ -1013,8 +1013,8 @@ public sealed class LastToDieMedicPerkRuntimeTests
             floorY: 400f,
             solids: [new LevelSolid(190f, 0f, 20f, 350f)],
             importedFromSource: false));
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
         return world;
     }
 
@@ -1057,15 +1057,15 @@ public sealed class LastToDieMedicPerkRuntimeTests
             floorY: 320f,
             solids: [new LevelSolid(0f, 320f, 640f, 160f)],
             importedFromSource: false));
-        world.PrepareLocalPlayerJoin();
-        Assert.True(world.TrySetNetworkPlayerTeam(
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
-        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
         if (fieldCommanderEnabled)
         {
-            Assert.True(world.TryConfigureLastToDiePlayerBuild(
+            Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
                 SimulationWorld.LocalPlayerSlot,
                 [LastToDiePerkIds.Medic.FieldCommander]));
         }
@@ -1093,10 +1093,10 @@ public sealed class LastToDieMedicPerkRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 

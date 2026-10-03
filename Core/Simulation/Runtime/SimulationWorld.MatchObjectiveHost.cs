@@ -28,7 +28,7 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
 
     ObjectiveStateStore IMatchObjectiveHost.Objectives => Objectives;
 
-    bool IMatchObjectiveHost.CompetitiveObjectivesLocked => CompetitiveObjectivesLocked;
+    bool IMatchObjectiveHost.CompetitiveObjectivesLocked => ReadyUp.CompetitiveObjectivesLocked;
 
     bool IMatchObjectiveHost.TryEndRound(PlayerTeam? winnerTeam, string reason) => TryEndRound(winnerTeam, reason);
 
@@ -40,9 +40,9 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
 
     int IMatchObjectiveHost.BlueCaps => BlueCaps;
 
-    TeamIntelligenceState IMatchObjectiveHost.RedIntel => RedIntel;
+    TeamIntelligenceState IMatchObjectiveHost.RedIntel => ObjectiveRules.RedIntel;
 
-    TeamIntelligenceState IMatchObjectiveHost.BlueIntel => BlueIntel;
+    TeamIntelligenceState IMatchObjectiveHost.BlueIntel => ObjectiveRules.BlueIntel;
 
     bool IMatchObjectiveHost.IsIntelAtHome(TeamIntelligenceState intelState) => ObjectiveRules.IsIntelAtHome(intelState);
 

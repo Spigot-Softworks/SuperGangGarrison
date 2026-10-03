@@ -42,19 +42,19 @@ public sealed class NeutralJumpPadTests
         Assert.True(pad.IsBuilt);
         Assert.True(pad.HasLanded);
 
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.LocalPlayer.SetSpawnRoomState(false);
         Assert.True(world.TryApplyJumpPadJumpBoostForPrediction(
             PlacePlayerOnPad(world.LocalPlayer, pad),
             jumped: true));
         Assert.True(world.LocalPlayer.VerticalSpeed < -world.LocalPlayer.JumpSpeed);
 
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(2, out var bluePlayer));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var bluePlayer));
         bluePlayer.SetSpawnRoomState(false);
         PlacePlayerOnPad(bluePlayer, pad);
         Assert.True(world.TryApplyJumpPadJumpBoostForPrediction(bluePlayer, jumped: true));

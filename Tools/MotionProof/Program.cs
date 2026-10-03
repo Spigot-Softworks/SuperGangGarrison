@@ -241,31 +241,31 @@ internal static class MotionProofRunner
             return 3;
         }
 
-        var initialRedTimer = world.KothRedTimerTicksRemaining;
-        var initialBlueTimer = world.KothBlueTimerTicksRemaining;
+        var initialRedTimer = world.ObjectiveRules.KothRedTimerTicksRemaining;
+        var initialBlueTimer = world.ObjectiveRules.KothBlueTimerTicksRemaining;
         ReplayPath(world, bot, attackPath, "mirror_koth");
-        if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
+        if (!world.ObjectiveRules.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
         {
             HoldInput(world, 90);
             Console.WriteLine(
                 $"motion-proof mirror koth settle ticks=90 pos=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
         }
 
-        if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
+        if (!world.ObjectiveRules.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
         {
             Console.WriteLine(
                 $"motion-proof mirror koth result status=fail reason=not_in_capture_zone pos=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
             return 3;
         }
 
-        var holdTicks = Math.Max(0, world.KothUnlockTicksRemaining) + Math.Max(1, targetPoint.CapTimeTicks) + 90;
+        var holdTicks = Math.Max(0, world.ObjectiveRules.KothUnlockTicksRemaining) + Math.Max(1, targetPoint.CapTimeTicks) + 90;
         HoldInput(world, holdTicks);
         var timerAdvanced = options.Team == PlayerTeam.Blue
-            ? world.KothBlueTimerTicksRemaining < initialBlueTimer
-            : world.KothRedTimerTicksRemaining < initialRedTimer;
+            ? world.ObjectiveRules.KothBlueTimerTicksRemaining < initialBlueTimer
+            : world.ObjectiveRules.KothRedTimerTicksRemaining < initialRedTimer;
         var completed = targetPoint.Team == options.Team && timerAdvanced;
         Console.WriteLine(
-            $"motion-proof mirror koth result status={(completed ? "pass" : "fail")} pointTeam={targetPoint.Team?.ToString() ?? "None"} timers={world.KothRedTimerTicksRemaining}-{world.KothBlueTimerTicksRemaining} initialTimers={initialRedTimer}-{initialBlueTimer} holdTicks={holdTicks} elapsedMs={stopwatch.ElapsedMilliseconds} final=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
+            $"motion-proof mirror koth result status={(completed ? "pass" : "fail")} pointTeam={targetPoint.Team?.ToString() ?? "None"} timers={world.ObjectiveRules.KothRedTimerTicksRemaining}-{world.ObjectiveRules.KothBlueTimerTicksRemaining} initialTimers={initialRedTimer}-{initialBlueTimer} holdTicks={holdTicks} elapsedMs={stopwatch.ElapsedMilliseconds} final=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
         if (completed)
         {
             WriteProofArtifact(options.OutputPath!, world, options, attackPath, MotionPath.Empty);
@@ -2668,10 +2668,10 @@ internal static class MotionProofRunner
     {
         enemy = default!;
         var enemyTeam = GetOpposingTeam(options.Team);
-        return world.TryPrepareNetworkPlayerJoin((byte)EnemySlot)
-            && world.TrySetNetworkPlayerTeam((byte)EnemySlot, enemyTeam)
-            && world.TryApplyNetworkPlayerClassSelection((byte)EnemySlot, options.EnemyClassId)
-            && world.TryGetNetworkPlayer((byte)EnemySlot, out enemy);
+        return world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin((byte)EnemySlot)
+            && world.NetworkPlayerRules.TrySetNetworkPlayerTeam((byte)EnemySlot, enemyTeam)
+            && world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection((byte)EnemySlot, options.EnemyClassId)
+            && world.NetworkPlayerRules.TryGetNetworkPlayer((byte)EnemySlot, out enemy);
     }
 
     private static MotionGoal[] BuildCombatSmokeTargets(
@@ -2750,12 +2750,12 @@ internal static class MotionProofRunner
         {
             var input = BuildCombatInput(world, bot, enemy);
             _ = input.Up && !previousBotInput.Up;
-            if (!world.TrySetNetworkPlayerInput((byte)BotSlot, input))
+            if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput((byte)BotSlot, input))
             {
                 throw new InvalidOperationException("failed_to_apply_combat_input");
             }
 
-            world.TrySetNetworkPlayerInput((byte)EnemySlot, BuildIdleCombatTargetInput(enemy));
+            world.NetworkPlayerRules.TrySetNetworkPlayerInput((byte)EnemySlot, BuildIdleCombatTargetInput(enemy));
             world.AdvanceOneTick();
             previousBotInput = input;
         }
@@ -3017,8 +3017,8 @@ internal static class MotionProofRunner
             return 3;
         }
 
-        var initialRedTimer = world.KothRedTimerTicksRemaining;
-        var initialBlueTimer = world.KothBlueTimerTicksRemaining;
+        var initialRedTimer = world.ObjectiveRules.KothRedTimerTicksRemaining;
+        var initialBlueTimer = world.ObjectiveRules.KothBlueTimerTicksRemaining;
         var goal = SelectKothCaptureGoal(world, targetPoint);
         if (!TryFindPrimitivePath(
                 world.Level,
@@ -3039,28 +3039,28 @@ internal static class MotionProofRunner
         Console.WriteLine($"motion-proof koth status=found point={targetPoint.Index} actions={path.Actions.Count} ticks={path.TotalTicks} {stats}");
         Console.WriteLine($"motion-proof koth tape={FormatActionSequence(path)}");
         ReplayPath(world, bot, path, "koth");
-        if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
+        if (!world.ObjectiveRules.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
         {
             HoldInput(world, 90);
             Console.WriteLine(
                 $"motion-proof koth settle ticks=90 pos=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
         }
 
-        if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
+        if (!world.ObjectiveRules.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
         {
             Console.WriteLine(
                 $"motion-proof koth result status=fail reason=not_in_capture_zone pos=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
             return 3;
         }
 
-        var holdTicks = Math.Max(0, world.KothUnlockTicksRemaining) + Math.Max(1, targetPoint.CapTimeTicks) + 90;
+        var holdTicks = Math.Max(0, world.ObjectiveRules.KothUnlockTicksRemaining) + Math.Max(1, targetPoint.CapTimeTicks) + 90;
         HoldInput(world, holdTicks);
         var timerAdvanced = options.Team == PlayerTeam.Blue
-            ? world.KothBlueTimerTicksRemaining < initialBlueTimer
-            : world.KothRedTimerTicksRemaining < initialRedTimer;
+            ? world.ObjectiveRules.KothBlueTimerTicksRemaining < initialBlueTimer
+            : world.ObjectiveRules.KothRedTimerTicksRemaining < initialRedTimer;
         var completed = targetPoint.Team == options.Team && timerAdvanced;
         Console.WriteLine(
-            $"motion-proof koth result status={(completed ? "pass" : "fail")} pointTeam={targetPoint.Team?.ToString() ?? "None"} timers={world.KothRedTimerTicksRemaining}-{world.KothBlueTimerTicksRemaining} initialTimers={initialRedTimer}-{initialBlueTimer} holdTicks={holdTicks} elapsedMs={stopwatch.ElapsedMilliseconds} final=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
+            $"motion-proof koth result status={(completed ? "pass" : "fail")} pointTeam={targetPoint.Team?.ToString() ?? "None"} timers={world.ObjectiveRules.KothRedTimerTicksRemaining}-{world.ObjectiveRules.KothBlueTimerTicksRemaining} initialTimers={initialRedTimer}-{initialBlueTimer} holdTicks={holdTicks} elapsedMs={stopwatch.ElapsedMilliseconds} final=({bot.X:0.0},{bot.Y:0.0}) bottom={bot.Bottom:0.0}");
         if (completed && !string.IsNullOrWhiteSpace(options.OutputPath))
         {
             WriteProofArtifact(options.OutputPath, world, options, path, MotionPath.Empty);
@@ -3104,7 +3104,7 @@ internal static class MotionProofRunner
         }
 
         var settleTicks = 0;
-        if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
+        if (!world.ObjectiveRules.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
         {
             settleTicks = Math.Min(90, Math.Max(0, options.ObjectiveHoldTicks));
             if (settleTicks > 0)
@@ -3113,7 +3113,7 @@ internal static class MotionProofRunner
             }
         }
 
-        if (!world.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
+        if (!world.ObjectiveRules.IsPlayerInControlPointCaptureZone(bot, targetPoint.Index))
         {
             resultLine =
                 $"motion-proof primitive objectiveValidation status=fail reason=not_in_capture_zone point={targetPoint.Index} " +
@@ -3124,7 +3124,7 @@ internal static class MotionProofRunner
         var initialCaps = bot.Caps;
         var holdTicks = options.ObjectiveHoldTicks > 0
             ? options.ObjectiveHoldTicks
-            : Math.Max(0, world.KothUnlockTicksRemaining) + Math.Max(1, targetPoint.CapTimeTicks) + 90;
+            : Math.Max(0, world.ObjectiveRules.KothUnlockTicksRemaining) + Math.Max(1, targetPoint.CapTimeTicks) + 90;
         HoldInput(world, holdTicks);
         var completed = targetPoint.Team == options.Team || bot.Caps > initialCaps;
         resultLine =
@@ -3200,11 +3200,11 @@ internal static class MotionProofRunner
         }
 
         RunNeutralPreTicks(world, options.PreTicks);
-        world.PrepareLocalPlayerJoin();
-        if (!world.TryPrepareNetworkPlayerJoin(BotSlot)
-            || !world.TrySetNetworkPlayerTeam(BotSlot, options.Team)
-            || !world.TryApplyNetworkPlayerClassSelection(BotSlot, options.ClassId)
-            || !world.TryGetNetworkPlayer(BotSlot, out bot))
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        if (!world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(BotSlot)
+            || !world.NetworkPlayerRules.TrySetNetworkPlayerTeam(BotSlot, options.Team)
+            || !world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(BotSlot, options.ClassId)
+            || !world.NetworkPlayerRules.TryGetNetworkPlayer(BotSlot, out bot))
         {
             failureReason = "failed_to_spawn_probe_player";
             return null;
@@ -3366,8 +3366,8 @@ internal static class MotionProofRunner
             return;
         }
 
-        world.SetLocalInput(default);
-        world.SetEnemyInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
+        world.NetworkPlayerRules.SetEnemyInput(default);
         for (var tick = 0; tick < ticks; tick += 1)
         {
             world.AdvanceOneTick();
@@ -4151,7 +4151,7 @@ internal static class MotionProofRunner
                 var input = action.GetInput(actionTick, bot);
                 var jumpPressed = input.Up && !previousInput.Up;
                 _ = jumpPressed;
-                if (!world.TrySetNetworkPlayerInput(BotSlot, input))
+                if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(BotSlot, input))
                 {
                     throw new InvalidOperationException("failed_to_apply_replay_input");
                 }
@@ -4183,7 +4183,7 @@ internal static class MotionProofRunner
             DebugKill: false);
         for (var tick = 0; tick < ticks; tick += 1)
         {
-            if (!world.TrySetNetworkPlayerInput(BotSlot, input))
+            if (!world.NetworkPlayerRules.TrySetNetworkPlayerInput(BotSlot, input))
             {
                 throw new InvalidOperationException("failed_to_apply_hold_input");
             }

@@ -62,7 +62,7 @@ public partial class Game1
                 continue;
             }
 
-            var frameIndex = _world.GetSpritesheetFrame(roomObjectIndex);
+            var frameIndex = _world.MapLogic.GetSpritesheetFrame(roomObjectIndex);
             var source = SpritesheetMetadata.ResolveFrameSourceRectangle(
                 texture.Width,
                 texture.Height,

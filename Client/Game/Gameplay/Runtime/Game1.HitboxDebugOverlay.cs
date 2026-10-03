@@ -121,9 +121,9 @@ public partial class Game1
                 color);
         }
 
-        for (var index = 0; index < _world.Generators.Count; index += 1)
+        for (var index = 0; index < _world.ObjectiveRules.Generators.Count; index += 1)
         {
-            var generator = _world.Generators[index];
+            var generator = _world.ObjectiveRules.Generators[index];
             if (generator.IsDestroyed)
             {
                 continue;

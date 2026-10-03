@@ -28,14 +28,14 @@ public sealed class Protocol64SimulationInputTests
             [],
             importedFromSource: false));
 
-        Assert.True(world.TrySetNetworkPlayerTeam(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
 
         for (var tick = 0; tick < 120 && !world.LocalPlayer.IsGrounded; tick += 1)
         {
-            world.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, default);
+            world.NetworkPlayerRules.TrySetNetworkPlayerInput(SimulationWorld.LocalPlayerSlot, default);
             world.AdvanceOneTick();
         }
 
@@ -43,7 +43,7 @@ public sealed class Protocol64SimulationInputTests
         world.LocalPlayer.SetExperimentalBonusAirJumps(1);
 
         var jump = default(PlayerInputSnapshot) with { Up = true };
-        world.TrySetNetworkPlayerInput(
+        world.NetworkPlayerRules.TrySetNetworkPlayerInput(
             SimulationWorld.LocalPlayerSlot,
             jump,
             InputButtons.Up);
@@ -51,7 +51,7 @@ public sealed class Protocol64SimulationInputTests
         Assert.False(world.LocalPlayer.IsGrounded);
         var remainingAfterFirstJump = world.LocalPlayer.RemainingAirJumps;
 
-        world.TrySetNetworkPlayerInput(
+        world.NetworkPlayerRules.TrySetNetworkPlayerInput(
             SimulationWorld.LocalPlayerSlot,
             jump,
             InputButtons.Up);

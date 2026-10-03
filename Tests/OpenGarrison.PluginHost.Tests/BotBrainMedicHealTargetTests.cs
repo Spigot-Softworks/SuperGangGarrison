@@ -223,7 +223,7 @@ public sealed class BotBrainMedicHealTargetTests
         for (byte slot = 5; slot <= 8; slot++)
         {
             var enemy = AddNetworkPlayer(world, slot, PlayerClass.Scout, medic.X + direction * 180f, medic.Y);
-            world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue, respawnLivePlayerImmediately: true);
+            world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Blue, respawnLivePlayerImmediately: true);
             enemy.TeleportTo(medic.X + direction * 180f, medic.Y);
         }
         var controller = new BotBrainController(disableShippedNavigationGraph: true);
@@ -248,7 +248,7 @@ public sealed class BotBrainMedicHealTargetTests
         var world = new SimulationWorld();
         Assert.True(world.TrySetLocalClass(PlayerClass.Medic));
         SetCombatLevel(world);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
         medic = world.LocalPlayer;
         medic.TeleportTo(100f, 100f);
 
@@ -289,10 +289,10 @@ public sealed class BotBrainMedicHealTargetTests
         float x,
         float y)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
     }

@@ -2290,7 +2290,7 @@ public sealed class BotBrainController
                         _currentGoalPosition.Y,
                         point.HealingAuraCenterX,
                         point.HealingAuraCenterY) <= 128f
-                    && world.IsPlayerInControlPointCaptureZone(self, point.Index))
+                    && world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index))
                 {
                     return true;
                 }
@@ -2485,8 +2485,8 @@ public sealed class BotBrainController
             {
                 var signature = 17;
                 signature = (signature * 31) + (int)world.MatchRules.Mode;
-                signature = AppendIntelStateSignature(signature, world.RedIntel);
-                signature = AppendIntelStateSignature(signature, world.BlueIntel);
+                signature = AppendIntelStateSignature(signature, world.ObjectiveRules.RedIntel);
+                signature = AppendIntelStateSignature(signature, world.ObjectiveRules.BlueIntel);
                 return signature == 0 ? 1 : signature;
             }
         }
@@ -2750,7 +2750,7 @@ public sealed class BotBrainController
                 }
 
                 var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
-                var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, player);
+                var treatAsFriendlyFireTarget = ExperimentalRulesSystem.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, player);
                 if (player.Team != opposingTeam && !treatAsFriendlyFireTarget)
                 {
                     return false;
@@ -5107,7 +5107,7 @@ public sealed class BotBrainController
         SimulationWorld world,
         PlayerEntity self,
         ControlPointState point) =>
-        world.IsPlayerInControlPointCaptureZone(self, point.Index)
+        world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index)
         && DistanceBetween(
             self.X,
             self.Y,
@@ -5132,7 +5132,7 @@ public sealed class BotBrainController
                 continue;
             }
 
-            var isCurrentZone = world.IsPlayerInControlPointCaptureZone(self, candidate.Index);
+            var isCurrentZone = world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, candidate.Index);
             var dx = candidate.HealingAuraCenterX - self.X;
             var dy = candidate.HealingAuraCenterY - self.Y;
             var distanceSq = (dx * dx) + (dy * dy);
@@ -6765,7 +6765,7 @@ public sealed class BotBrainController
 
         if (TryFindNearestUnownedControlPoint(world, self, team, CapturePointDirectSeekDistance, out var point))
         {
-            var inCaptureZone = world.IsPlayerInControlPointCaptureZone(self, point.Index);
+            var inCaptureZone = world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index);
             if (TryResolveControlPointPlatformLadderDrive(world, self, point, steeringOutput, out directSteering, out directTrace))
             {
                 return true;
@@ -6845,7 +6845,7 @@ public sealed class BotBrainController
     {
         directSteering = steeringOutput;
         directTrace = string.Empty;
-        if (world.IsPlayerInControlPointCaptureZone(self, point.Index)
+        if (world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index)
             || !self.IsGrounded
             || steeringOutput.Jump
             || steeringOutput.DropDown)
@@ -6891,7 +6891,7 @@ public sealed class BotBrainController
         ref SteeringOutput steering,
         ref string trace)
     {
-        if (world.IsPlayerInControlPointCaptureZone(self, point.Index)
+        if (world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index)
             || !self.IsGrounded
             || steering.Jump
             || steering.DropDown
@@ -6945,8 +6945,8 @@ public sealed class BotBrainController
         // targeting and firing still run independently.
         foreach (var point in world.ControlPoints)
         {
-            if (world.IsPlayerInControlPointCaptureZone(target, point.Index)
-                && !world.IsPlayerInControlPointCaptureZone(self, point.Index))
+            if (world.ObjectiveRules.IsPlayerInControlPointCaptureZone(target, point.Index)
+                && !world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index))
             {
                 return true;
             }
@@ -6981,7 +6981,7 @@ public sealed class BotBrainController
         // characteristic forward/backward oscillation.  Once the bot is in
         // the capture zone or in the point's immediate engagement pocket,
         // combat is allowed to take ownership and clear the point.
-        if (!world.IsPlayerInControlPointCaptureZone(self, point.Index)
+        if (!world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index)
             && DistanceBetween(self.X, self.Y, point.HealingAuraCenterX, point.HealingAuraCenterY)
                 > AlphaCapturePointCombatEngagementDistance)
         {
@@ -7119,7 +7119,7 @@ public sealed class BotBrainController
             var selfDy = candidatePoint.HealingAuraCenterY - self.Y;
             var selfDistance = MathF.Sqrt((selfDx * selfDx) + (selfDy * selfDy));
             if (selfDistance > CapturePointClearSelfInterestDistance
-                && !world.IsPlayerInControlPointCaptureZone(self, candidatePoint.Index))
+                && !world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, candidatePoint.Index))
             {
                 continue;
             }
@@ -7131,7 +7131,7 @@ public sealed class BotBrainController
                     continue;
                 }
 
-                var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, candidate);
+                var treatAsFriendlyFireTarget = ExperimentalRulesSystem.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, candidate);
                 if (candidate.Team != opposingTeam && !treatAsFriendlyFireTarget)
                 {
                     continue;
@@ -7145,7 +7145,7 @@ public sealed class BotBrainController
 
                 var enemyDx = candidate.X - candidatePoint.HealingAuraCenterX;
                 var enemyDy = candidate.Y - candidatePoint.HealingAuraCenterY;
-                var enemyNearPoint = world.IsPlayerInControlPointCaptureZone(candidate, candidatePoint.Index)
+                var enemyNearPoint = world.ObjectiveRules.IsPlayerInControlPointCaptureZone(candidate, candidatePoint.Index)
                     || (MathF.Sqrt((enemyDx * enemyDx) + (enemyDy * enemyDy)) <= CapturePointClearEnemyDistance
                         && MathF.Abs(enemyDy) <= CapturePointClearEnemyVerticalRange);
                 if (!enemyNearPoint)
@@ -7156,7 +7156,7 @@ public sealed class BotBrainController
                 var dx = candidate.X - self.X;
                 var dy = candidate.Y - self.Y;
                 var distanceSq = (dx * dx) + (dy * dy);
-                var score = distanceSq + (world.IsPlayerInControlPointCaptureZone(candidate, candidatePoint.Index) ? 0f : 10_000f);
+                var score = distanceSq + (world.ObjectiveRules.IsPlayerInControlPointCaptureZone(candidate, candidatePoint.Index) ? 0f : 10_000f);
                 if (score >= bestScore)
                 {
                     continue;
@@ -7336,7 +7336,7 @@ public sealed class BotBrainController
         return dx <= PlatformLadderHorizontalRange
             && dy >= PlatformLadderVerticalMin
             && dy <= PlatformLadderVerticalMax
-            && !world.IsPlayerInControlPointCaptureZone(self, point.Index);
+            && !world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index);
     }
 
     private bool TryResolveAtaliaControlPointClimbDrive(
@@ -7427,7 +7427,7 @@ public sealed class BotBrainController
         return dx <= AtaliaPointClimbHorizontalRange
             && dy >= AtaliaPointClimbVerticalMin
             && dy <= AtaliaPointClimbVerticalMax
-            && !world.IsPlayerInControlPointCaptureZone(self, point.Index);
+            && !world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index);
     }
 
     private bool TryResolveAtaliaCentralRecoveryDrive(
@@ -7614,12 +7614,12 @@ public sealed class BotBrainController
         holdSteering = steeringOutput;
         trace = string.Empty;
 
-        var holdTargetX = world.IsPlayerInControlPointCaptureZone(self, point.Index)
+        var holdTargetX = world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index)
             ? ResolveCapturePointLaneTargetX(world, self, team, point)
             : point.HealingAuraCenterX;
         var dx = holdTargetX - self.X;
         var dy = point.HealingAuraCenterY - self.Y;
-        var inCaptureZone = world.IsPlayerInControlPointCaptureZone(self, point.Index);
+        var inCaptureZone = world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index);
         if (!inCaptureZone
             && (MathF.Abs(point.HealingAuraCenterX - self.X) > CapturePointHoldHorizontalRange || MathF.Abs(dy) > CapturePointHoldVerticalRange))
         {
@@ -7723,7 +7723,7 @@ public sealed class BotBrainController
         var repulsionX = 0f;
         var repulsionY = 0f;
         var hasNearbyAlly = false;
-        foreach (var (_, ally) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (_, ally) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             if (ReferenceEquals(ally, self)
                 || !ally.IsAlive
@@ -7952,7 +7952,7 @@ public sealed class BotBrainController
                 continue;
             }
 
-            var inZone = world.IsPlayerInControlPointCaptureZone(self, point.Index);
+            var inZone = world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, point.Index);
             if (!inZone && !pathComplete)
             {
                 continue;
@@ -8088,7 +8088,7 @@ public sealed class BotBrainController
         {
             if (!candidate.IsAlive
                 || candidate.Id == self.Id
-                || !world.IsPlayerInControlPointCaptureZone(candidate, point.Index))
+                || !world.ObjectiveRules.IsPlayerInControlPointCaptureZone(candidate, point.Index))
             {
                 continue;
             }
@@ -8262,7 +8262,7 @@ public sealed class BotBrainController
         {
             if (candidate.IsLocked
                 || candidate.Team == team
-                || !world.IsPlayerInControlPointCaptureZone(self, candidate.Index))
+                || !world.ObjectiveRules.IsPlayerInControlPointCaptureZone(self, candidate.Index))
             {
                 continue;
             }
@@ -8328,7 +8328,7 @@ public sealed class BotBrainController
                 continue;
             }
 
-            var treatAsFriendlyFireTarget = SimulationWorld.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, candidate);
+            var treatAsFriendlyFireTarget = ExperimentalRulesSystem.ShouldTreatPlayerAsExperimentalFriendlyFireTarget(self, candidate);
             if (candidate.Team != opposingTeam && !treatAsFriendlyFireTarget)
             {
                 continue;
@@ -8405,12 +8405,12 @@ public sealed class BotBrainController
 
     private static TeamIntelligenceState GetEnemyIntelState(SimulationWorld world, PlayerTeam team)
     {
-        return team == PlayerTeam.Blue ? world.RedIntel : world.BlueIntel;
+        return team == PlayerTeam.Blue ? world.ObjectiveRules.RedIntel : world.ObjectiveRules.BlueIntel;
     }
 
     private static TeamIntelligenceState GetOwnIntelState(SimulationWorld world, PlayerTeam team)
     {
-        return team == PlayerTeam.Blue ? world.BlueIntel : world.RedIntel;
+        return team == PlayerTeam.Blue ? world.ObjectiveRules.BlueIntel : world.ObjectiveRules.RedIntel;
     }
 
     private static bool HasOtherAllyAvailableForObjective(PlayerEntity self, SimulationWorld world, PlayerTeam team)

@@ -17,33 +17,33 @@ public sealed class LastToDieSpyAfterlifeRuntimeTests
         var spy = world.LocalPlayer;
         var attacker = AddNetworkPlayer(world, 2, PlayerClass.Soldier, PlayerTeam.Blue);
         var victim = AddNetworkPlayer(world, 3, PlayerClass.Scout, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Afterlife],
             resetDynamicState: true));
         var deathsBefore = spy.Deaths;
         var attackerKillsBefore = attacker.Kills;
 
-        Assert.True(world.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, "RocketKL"));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, "RocketKL"));
 
         Assert.True(spy.IsAlive);
         Assert.True(spy.IsLastToDieSpyAfterlifeActive);
-        Assert.True(world.IsLastToDieSpyAfterlifeWindowActive(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.LastToDieRules.IsLastToDieSpyAfterlifeWindowActive(SimulationWorld.LocalPlayerSlot));
         Assert.Equal(1, spy.Health);
         Assert.Equal(5 * world.Config.TicksPerSecond, spy.LastToDieSpyAfterlifeWindowTicksRemaining);
         Assert.Equal(60 * world.Config.TicksPerSecond, spy.LastToDieSpyAfterlifeCooldownTicksRemaining);
         Assert.Equal(deathsBefore, spy.Deaths);
         Assert.Equal(attackerKillsBefore, attacker.Kills);
-        Assert.False(world.CanPlayerContributeToControlPoint(spy));
+        Assert.False(world.LastToDieRules.CanPlayerContributeToControlPoint(spy));
 
-        Assert.True(world.TryApplyGameplayDamage(spy.Id, 10_000f, attacker.Id, null));
-        world.ForceKillLocalPlayer();
+        Assert.True(world.Abilities.TryApplyGameplayDamage(spy.Id, 10_000f, attacker.Id, null));
+        world.NetworkPlayerRules.ForceKillLocalPlayer();
         Assert.Equal(1, spy.Health);
         Assert.True(spy.IsLastToDieSpyAfterlifeActive);
 
         victim.ForceSetHealth(1);
         var spyKillsBefore = spy.Kills;
-        Assert.True(world.TryApplyGameplayDamage(victim.Id, 10f, spy.Id, "RevolverKL"));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(victim.Id, 10f, spy.Id, "RevolverKL"));
 
         Assert.True(spy.IsAlive);
         Assert.False(spy.IsLastToDieSpyAfterlifeActive);
@@ -60,13 +60,13 @@ public sealed class LastToDieSpyAfterlifeRuntimeTests
         var spy = world.LocalPlayer;
         var attacker = AddNetworkPlayer(world, 2, PlayerClass.Soldier, PlayerTeam.Blue);
         var victim = AddNetworkPlayer(world, 3, PlayerClass.Scout, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Afterlife],
             resetDynamicState: true));
-        Assert.True(world.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, null));
         victim.ForceSetHealth(1);
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             victim.Id,
             spy.Id,
             LastToDieStatusEffectSpec.Bleed(
@@ -89,11 +89,11 @@ public sealed class LastToDieSpyAfterlifeRuntimeTests
         var world = CreateSpyWorld();
         var spy = world.LocalPlayer;
         var attacker = AddNetworkPlayer(world, 2, PlayerClass.Soldier, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Afterlife],
             resetDynamicState: true));
-        Assert.True(world.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, "RocketKL"));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, "RocketKL"));
 
         for (var tick = 1; tick < spy.LastToDieSpyAfterlifeWindowTicks; tick += 1)
         {
@@ -113,9 +113,9 @@ public sealed class LastToDieSpyAfterlifeRuntimeTests
         Assert.Equal(1, attacker.Kills);
         Assert.Equal(55 * world.Config.TicksPerSecond, spy.LastToDieSpyAfterlifeCooldownTicksRemaining);
 
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         Assert.True(spy.IsAlive);
-        Assert.True(world.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, null));
         Assert.False(spy.IsAlive);
         Assert.False(spy.IsLastToDieSpyAfterlifeActive);
         Assert.Equal(2, spy.Deaths);
@@ -128,18 +128,18 @@ public sealed class LastToDieSpyAfterlifeRuntimeTests
         var world = CreateSpyWorld();
         var spy = world.LocalPlayer;
         var attacker = AddNetworkPlayer(world, 2, PlayerClass.Soldier, PlayerTeam.Blue);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Afterlife],
             resetDynamicState: true));
-        Assert.True(world.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, null));
+        Assert.True(world.Abilities.TryApplyGameplayDamage(spy.Id, spy.MaxHealth * 2f, attacker.Id, null));
 
-        Assert.True(world.TryReleaseNetworkPlayerSlot(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(SimulationWorld.LocalPlayerSlot));
 
         Assert.False(spy.IsAlive);
-        Assert.False(world.IsLastToDieSpyAfterlifeWindowActive(SimulationWorld.LocalPlayerSlot));
-        Assert.True(world.ConsumeLastToDieSpyAfterlifeDisconnectFailure(SimulationWorld.LocalPlayerSlot));
-        Assert.False(world.ConsumeLastToDieSpyAfterlifeDisconnectFailure(SimulationWorld.LocalPlayerSlot));
+        Assert.False(world.LastToDieRules.IsLastToDieSpyAfterlifeWindowActive(SimulationWorld.LocalPlayerSlot));
+        Assert.True(world.LastToDieRules.ConsumeLastToDieSpyAfterlifeDisconnectFailure(SimulationWorld.LocalPlayerSlot));
+        Assert.False(world.LastToDieRules.ConsumeLastToDieSpyAfterlifeDisconnectFailure(SimulationWorld.LocalPlayerSlot));
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public sealed class LastToDieSpyAfterlifeRuntimeTests
     {
         var source = CreateSpyWorld();
         var player = source.LocalPlayer;
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Afterlife],
             resetDynamicState: true));
@@ -269,8 +269,8 @@ public sealed class LastToDieSpyAfterlifeRuntimeTests
         Assert.Equal((ushort)31, schema.Descriptor.Key.Revision);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(decodedPlayer));
-        Assert.True(receiver.TryApplyLastToDiePlayerPredictionProfile(
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(decodedPlayer));
+        Assert.True(receiver.LastToDieRules.TryApplyLastToDiePlayerPredictionProfile(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Spy.Afterlife.Value]));
         Assert.Equal(player.LastToDieSpyAfterlifeState, receiver.LocalPlayer.LastToDieSpyAfterlifeState);
@@ -282,8 +282,8 @@ public sealed class LastToDieSpyAfterlifeRuntimeTests
     private static SimulationWorld CreateSpyWorld()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Spy);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Spy);
         var spawn = new SpawnPoint(100f, 100f);
         world.CombatTestSetLevel(new SimpleLevel(
             "ltd-spy-afterlife-test",
@@ -311,10 +311,10 @@ public sealed class LastToDieSpyAfterlifeRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 }

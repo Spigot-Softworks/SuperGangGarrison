@@ -61,10 +61,10 @@ public partial class Game1
             ? _world.ArenaBlueConsecutiveWins
             : IsPracticeSessionActive ? GetPracticeRoundPoints(PlayerTeam.Blue) : _world.BlueCaps;
         var redCenterText = isKothMode
-            ? FormatHudTimerText(_world.KothRedTimerTicksRemaining)
+            ? FormatHudTimerText(_world.ObjectiveRules.KothRedTimerTicksRemaining)
             : redCenterValue.ToString(CultureInfo.InvariantCulture);
         var blueCenterText = isKothMode
-            ? FormatHudTimerText(_world.KothBlueTimerTicksRemaining)
+            ? FormatHudTimerText(_world.ObjectiveRules.KothBlueTimerTicksRemaining)
             : blueCenterValue.ToString(CultureInfo.InvariantCulture);
         var serverLabel = _networkClient.IsConnected
             ? _networkClient.ServerDescription ?? "Connected"
@@ -366,7 +366,7 @@ public partial class Game1
             return true;
         }
 
-        return _world.TryGetPlayerNetworkSlot(player, out slot);
+        return _world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out slot);
     }
 
     private void OpenScoreboardContextMenu(ScoreboardPlayerRow row, Point point)
@@ -682,7 +682,7 @@ public partial class Game1
             var hasNetworkSlot = TryGetScoreboardPlayerNetworkSlot(player, out var playerSlot);
             var isBot = hasNetworkSlot
                 && (_networkClient.IsConnected
-                    ? _world.IsNetworkPlayerBot(playerSlot)
+                    ? _world.NetworkPlayerRules.IsNetworkPlayerBot(playerSlot)
                     : _practiceBotSlots.ContainsKey(playerSlot));
             if (TryGetScoreboardPlayerNetworkSlot(player, out var slot)
                 && _scoreboardHoveredPlayerRow is { } hoveredRow
@@ -717,7 +717,7 @@ public partial class Game1
             var scoreboardName = SanitizeScoreboardText(player.DisplayName);
             if (IsScoreboardPlayerSpeaking(player)) scoreboardName = "> " + scoreboardName;
             if (TryGetScoreboardPlayerNetworkSlot(player, out var readySlot)
-                && _world.IsNetworkPlayerReady(readySlot))
+                && _world.ReadyUp.IsNetworkPlayerReady(readySlot))
             {
                 scoreboardName += " (Ready)";
             }
@@ -803,7 +803,7 @@ public partial class Game1
         }
         else if (TryGetScoreboardPlayerNetworkSlot(player, out var slot))
         {
-            pingMilliseconds = _world.GetNetworkPlayerPingMilliseconds(slot);
+            pingMilliseconds = _world.NetworkPlayerRules.GetNetworkPlayerPingMilliseconds(slot);
         }
 
         return pingMilliseconds >= 0

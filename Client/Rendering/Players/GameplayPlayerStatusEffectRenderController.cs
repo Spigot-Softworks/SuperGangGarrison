@@ -21,7 +21,7 @@ public sealed class GameplayPlayerStatusEffectRenderController
         public void TryDrawAdditionalHealthBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha)
         {
             var forceSpecialEnemyHealthBar = _game.ShouldForceLastToDieSpecialEnemyHealthBar(player);
-            var forcePracticeCombatDummyHealthBar = _game._world.IsPracticeCombatDummy(player);
+            var forcePracticeCombatDummyHealthBar = _game._world.PracticeDummies.IsPracticeCombatDummy(player);
             var forceMapBotHealthBar = _game.ShouldForceMapBotHealthBar(player);
             if ((!_game.HudRuntimeSettings.ShowHealthBarEnabled && !forceSpecialEnemyHealthBar && !forcePracticeCombatDummyHealthBar && !forceMapBotHealthBar)
                 || visibilityAlpha <= 0f
@@ -95,7 +95,7 @@ public sealed class GameplayPlayerStatusEffectRenderController
 
         public void DrawCapturedPointHealingGhosting(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha, PlayerBodySpriteSelection bodySelection)
         {
-            if (!_game._world.IsPlayerInsideCapturedPointHealingAuraForVisuals(player) || visibilityAlpha <= 0.05f)
+            if (!_game._world.ExperimentalRules.IsPlayerInsideCapturedPointHealingAuraForVisuals(player) || visibilityAlpha <= 0.05f)
             {
                 return;
             }

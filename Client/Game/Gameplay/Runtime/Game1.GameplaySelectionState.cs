@@ -66,7 +66,7 @@ public partial class Game1
             return;
         }
 
-        if (!_world.CanNetworkPlayerChangeTeamByMapBehavior(SimulationWorld.LocalPlayerSlot))
+        if (!_world.ClassRules.CanNetworkPlayerChangeTeamByMapBehavior(SimulationWorld.LocalPlayerSlot))
         {
             CloseGameplaySelectionMenus();
             _menuStatusMessage = "Team changes are locked by this map.";
@@ -91,7 +91,7 @@ public partial class Game1
             return;
         }
 
-        if (!CanLocalPlayerSelectClassByMapBehavior(_world.GetNetworkPlayerClassDefinition(SimulationWorld.LocalPlayerSlot)))
+        if (!CanLocalPlayerSelectClassByMapBehavior(_world.NetworkPlayerRules.GetNetworkPlayerClassDefinition(SimulationWorld.LocalPlayerSlot)))
         {
             CloseGameplaySelectionMenus();
             _menuStatusMessage = "Class changes are locked by this map.";
@@ -126,7 +126,7 @@ public partial class Game1
             return;
         }
 
-        if (!_world.CanNetworkPlayerChangeTeamByMapBehavior(SimulationWorld.LocalPlayerSlot))
+        if (!_world.ClassRules.CanNetworkPlayerChangeTeamByMapBehavior(SimulationWorld.LocalPlayerSlot))
         {
             CloseGameplaySelectionMenus();
             _menuStatusMessage = "Team changes are locked by this map.";
@@ -150,7 +150,7 @@ public partial class Game1
             return;
         }
 
-        if (!CanLocalPlayerSelectClassByMapBehavior(_world.GetNetworkPlayerClassDefinition(SimulationWorld.LocalPlayerSlot)))
+        if (!CanLocalPlayerSelectClassByMapBehavior(_world.NetworkPlayerRules.GetNetworkPlayerClassDefinition(SimulationWorld.LocalPlayerSlot)))
         {
             CloseGameplaySelectionMenus();
             _menuStatusMessage = "Class changes are locked by this map.";
@@ -190,7 +190,7 @@ public partial class Game1
         }
 
         _offlinePracticeSpectatorMode = true;
-        _world.PrepareLocalPlayerJoin();
+        _world.NetworkPlayerRules.PrepareLocalPlayerJoin();
         ApplyPracticeTeamSelection(_world.LocalPlayerTeam);
         ResetSpectatorTracking(enableTracking: true);
         _respawnCameraDetached = false;
@@ -233,7 +233,7 @@ public partial class Game1
 
     private void ApplyOfflineTeamSelection(PlayerTeam selectedTeam)
     {
-        _world.TryRequestNetworkPlayerTeamSelection(SimulationWorld.LocalPlayerSlot, selectedTeam);
+        _world.NetworkPlayerRules.TryRequestNetworkPlayerTeamSelection(SimulationWorld.LocalPlayerSlot, selectedTeam);
         ApplyPracticeTeamSelection(selectedTeam);
         OpenGameplayClassSelection();
     }
@@ -253,7 +253,7 @@ public partial class Game1
         ClearOfflinePracticeSpectatorMode();
         if (_world.LocalPlayerAwaitingJoin)
         {
-            _world.CompleteLocalPlayerJoin(gameplayClassId);
+            _world.NetworkPlayerRules.CompleteLocalPlayerJoin(gameplayClassId);
             ApplyPracticeDummyPreferencesAfterJoin();
             return;
         }
@@ -297,7 +297,7 @@ public partial class Game1
             return true;
         }
 
-        _world.TryRequestNetworkPlayerTeamSelection(SimulationWorld.LocalPlayerSlot, team);
+        _world.NetworkPlayerRules.TryRequestNetworkPlayerTeamSelection(SimulationWorld.LocalPlayerSlot, team);
         ApplyPracticeTeamSelection(team);
         ApplyOfflineClassSelection(gameplayClassId);
         CloseGameplaySelectionMenus();
@@ -337,7 +337,7 @@ public partial class Game1
 
     private bool CanLocalPlayerSelectClassByMapBehavior(CharacterClassDefinition definition)
     {
-        var team = _teamClassSelectionState.PendingClassSelectTeam ?? _world.GetNetworkPlayerConfiguredTeam(SimulationWorld.LocalPlayerSlot);
+        var team = _teamClassSelectionState.PendingClassSelectTeam ?? _world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(SimulationWorld.LocalPlayerSlot);
         return !TryGetLocalMapSpawnClassBehavior(team, out var behavior)
             || behavior.AllowClassChange
             || _world.LocalPlayerAwaitingJoin;
@@ -345,7 +345,7 @@ public partial class Game1
 
     private bool TryResolveLocalMapForcedGameplayClass(out string gameplayClassId)
     {
-        var team = _teamClassSelectionState.PendingClassSelectTeam ?? _world.GetNetworkPlayerConfiguredTeam(SimulationWorld.LocalPlayerSlot);
+        var team = _teamClassSelectionState.PendingClassSelectTeam ?? _world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(SimulationWorld.LocalPlayerSlot);
         if (TryGetLocalMapSpawnClassBehavior(team, out var behavior)
             && SpawnClassBehaviorMetadata.TryGetForcedGameplayClassId(behavior.ForcedClass, out gameplayClassId))
         {
@@ -358,6 +358,6 @@ public partial class Game1
 
     private bool TryGetLocalMapSpawnClassBehavior(PlayerTeam team, out SpawnClassBehaviorMarker behavior)
     {
-        return _world.TryGetMapSpawnClassBehavior(team, out behavior);
+        return _world.ClassRules.TryGetMapSpawnClassBehavior(team, out behavior);
     }
 }

@@ -60,7 +60,7 @@ internal sealed class ServerRuntimeEventReporter(
         _observedSpawnedPlayerIds.Clear();
         _lastObservedControlPointStates.Clear();
         _lastObservedGeneratorDestroyedStates.Clear();
-        foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             _lastObservedPlayerAliveById[player.Id] = player.IsAlive;
             _lastObservedPlayerCapsById[player.Id] = player.Caps;
@@ -91,20 +91,20 @@ internal sealed class ServerRuntimeEventReporter(
                 point.IsLocked);
         }
 
-        for (var index = 0; index < world.Generators.Count; index += 1)
+        for (var index = 0; index < world.ObjectiveRules.Generators.Count; index += 1)
         {
-            var generator = world.Generators[index];
+            var generator = world.ObjectiveRules.Generators[index];
             _lastObservedGeneratorDestroyedStates[generator.Team] = generator.IsDestroyed;
         }
 
-        _lastObservedRedIntelAtBase = world.RedIntel.IsAtBase;
-        _lastObservedRedIntelDropped = world.RedIntel.IsDropped;
-        _lastObservedRedIntelX = world.RedIntel.X;
-        _lastObservedRedIntelY = world.RedIntel.Y;
-        _lastObservedBlueIntelAtBase = world.BlueIntel.IsAtBase;
-        _lastObservedBlueIntelDropped = world.BlueIntel.IsDropped;
-        _lastObservedBlueIntelX = world.BlueIntel.X;
-        _lastObservedBlueIntelY = world.BlueIntel.Y;
+        _lastObservedRedIntelAtBase = world.ObjectiveRules.RedIntel.IsAtBase;
+        _lastObservedRedIntelDropped = world.ObjectiveRules.RedIntel.IsDropped;
+        _lastObservedRedIntelX = world.ObjectiveRules.RedIntel.X;
+        _lastObservedRedIntelY = world.ObjectiveRules.RedIntel.Y;
+        _lastObservedBlueIntelAtBase = world.ObjectiveRules.BlueIntel.IsAtBase;
+        _lastObservedBlueIntelDropped = world.ObjectiveRules.BlueIntel.IsDropped;
+        _lastObservedBlueIntelX = world.ObjectiveRules.BlueIntel.X;
+        _lastObservedBlueIntelY = world.ObjectiveRules.BlueIntel.Y;
     }
 
     public void ConfigureStatsObservers(
@@ -295,7 +295,7 @@ internal sealed class ServerRuntimeEventReporter(
     private void PublishPlayerCapEvents()
     {
         var activePlayerIds = new HashSet<int>();
-        foreach (var (slot, player) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (slot, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             activePlayerIds.Add(player.Id);
             var previousCaps = _lastObservedPlayerCapsById.GetValueOrDefault(player.Id, player.Caps);
@@ -335,7 +335,7 @@ internal sealed class ServerRuntimeEventReporter(
     private void PublishGameplayAbilityEvents()
     {
         var pluginHost = pluginHostGetter();
-        foreach (var abilityEvent in world.DrainPendingGameplayAbilityEvents())
+        foreach (var abilityEvent in world.Abilities.DrainPendingGameplayAbilityEvents())
         {
             if (!abilityEvent.Handled || abilityEvent.Cancelled)
             {
@@ -379,7 +379,7 @@ internal sealed class ServerRuntimeEventReporter(
     {
         var pluginHost = pluginHostGetter();
         var observedKeys = new HashSet<(int PlayerId, string OwnerId, string StateKey)>();
-        foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             foreach (var entry in GameplayAbilityReplicatedState.CreateEntries(player))
             {
@@ -680,7 +680,7 @@ internal sealed class ServerRuntimeEventReporter(
     {
         var activePlayerIds = new HashSet<int>();
         var pluginHost = pluginHostGetter();
-        foreach (var (slot, player) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (slot, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             activePlayerIds.Add(player.Id);
             var wasAlive = _lastObservedPlayerAliveById.GetValueOrDefault(player.Id, player.IsAlive);
@@ -751,9 +751,9 @@ internal sealed class ServerRuntimeEventReporter(
             _lastObservedSentryBuiltById.Remove(removedSentryIds[index]);
         }
 
-        for (var index = 0; index < world.Generators.Count; index += 1)
+        for (var index = 0; index < world.ObjectiveRules.Generators.Count; index += 1)
         {
-            var generator = world.Generators[index];
+            var generator = world.ObjectiveRules.Generators[index];
             var wasDestroyed = _lastObservedGeneratorDestroyedStates.GetValueOrDefault(generator.Team, generator.IsDestroyed);
             if (!wasDestroyed && generator.IsDestroyed)
             {
@@ -775,13 +775,13 @@ internal sealed class ServerRuntimeEventReporter(
     private void PublishIntelEvents()
     {
         PublishIntelEventsForState(
-            world.RedIntel,
+            world.ObjectiveRules.RedIntel,
             ref _lastObservedRedIntelAtBase,
             ref _lastObservedRedIntelDropped,
             ref _lastObservedRedIntelX,
             ref _lastObservedRedIntelY);
         PublishIntelEventsForState(
-            world.BlueIntel,
+            world.ObjectiveRules.BlueIntel,
             ref _lastObservedBlueIntelAtBase,
             ref _lastObservedBlueIntelDropped,
             ref _lastObservedBlueIntelX,
@@ -887,7 +887,7 @@ internal sealed class ServerRuntimeEventReporter(
             return null;
         }
 
-        foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             if (player.Id == playerId)
             {
@@ -914,7 +914,7 @@ internal sealed class ServerRuntimeEventReporter(
 
     private PlayerEntity? FindPlayerCarryingEnemyIntel(PlayerTeam team)
     {
-        foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             if (player.Team == team && player.IsCarryingIntel)
             {
@@ -929,7 +929,7 @@ internal sealed class ServerRuntimeEventReporter(
     {
         PlayerEntity? closest = null;
         var closestDistanceSquared = float.MaxValue;
-        foreach (var (_, player) in world.EnumerateActiveNetworkPlayers())
+        foreach (var (_, player) in world.NetworkPlayerRules.EnumerateActiveNetworkPlayers())
         {
             if (team.HasValue && player.Team != team.Value)
             {

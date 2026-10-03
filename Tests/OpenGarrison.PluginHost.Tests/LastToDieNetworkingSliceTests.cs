@@ -530,7 +530,7 @@ public sealed class LastToDieNetworkingSliceTests
     public void DispatcherRebindsMatchingClientInstanceBeforeOrdinarySlotAllocation()
     {
         var world = new SimulationWorld();
-        world.CompleteLocalPlayerJoin(PlayerClass.Spy);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Spy);
         var oldPeer = new IPEndPoint(IPAddress.Loopback, 8191);
         var replacementPeer = new IPEndPoint(IPAddress.Loopback, 8291);
         var oldClient = new ClientSession(
@@ -809,7 +809,7 @@ public sealed class LastToDieNetworkingSliceTests
     public void DirectCoopDisconnectPolicyRetainsThePlayableEntityAndBuild()
     {
         var world = new SimulationWorld();
-        world.CompleteLocalPlayerJoin(PlayerClass.Spy);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Spy);
         world.LocalPlayer.ForceSetHealth(42);
         var client = new ClientSession(
             slot: SimulationWorld.LocalPlayerSlot,
@@ -842,7 +842,7 @@ public sealed class LastToDieNetworkingSliceTests
         sessionManager.RemoveClient(client.Slot, "test disconnect");
 
         Assert.Empty(clients);
-        Assert.False(world.IsNetworkPlayerAwaitingJoin(client.Slot));
+        Assert.False(world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot));
         Assert.Equal(PlayerClass.Spy, world.LocalPlayer.ClassId);
         Assert.Equal(42, world.LocalPlayer.Health);
     }

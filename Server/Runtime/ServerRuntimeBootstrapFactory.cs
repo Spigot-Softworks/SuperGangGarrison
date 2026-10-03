@@ -72,8 +72,8 @@ internal static class ServerRuntimeBootstrapFactory
         var world = new SimulationWorld(config);
         world.LocalGoreEffectsEnabled = false;
         world.RandomSpreadEnabled = randomSpreadEnabled;
-        world.SetCompetitiveSetupSeconds(competitiveSetupSeconds);
-        world.SetCompetitiveReadyUpEnabled(competitiveReadyUpEnabled);
+        world.ReadyUp.SetCompetitiveSetupSeconds(competitiveSetupSeconds);
+        world.ReadyUp.SetCompetitiveReadyUpEnabled(competitiveReadyUpEnabled);
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: secondaryAbilitiesEnabled,
             EnableSoldierShotgunSecondaryWeapon: secondaryAbilitiesEnabled));
@@ -93,8 +93,8 @@ internal static class ServerRuntimeBootstrapFactory
             stockMapRotation,
             log,
             mapRotationShuffleEnabled);
-        world.DespawnEnemyDummy();
-        world.TryPrepareNetworkPlayerJoin(SimulationWorld.LocalPlayerSlot);
+        world.PracticeDummies.DespawnEnemyDummy();
+        world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(SimulationWorld.LocalPlayerSlot);
 
         var simulator = new FixedStepSimulator(world);
         var clock = new ServerClock();

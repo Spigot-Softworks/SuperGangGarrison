@@ -497,7 +497,7 @@ public partial class Game1
 
         if (player.HasAlternatePrimaryWeapons)
         {
-            if (_world.IsNearPrimaryWeaponSwapStation(player))
+            if (_world.Structures.IsNearPrimaryWeaponSwapStation(player))
             {
                 if (!player.TryCycleGameplayPrimaryItem())
                 {

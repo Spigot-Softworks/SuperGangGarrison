@@ -16,7 +16,7 @@ public sealed class LastToDieStatusRuntimeTests
         target.ForceSetHealth(target.MaxHealth);
         var durationTicks = ticksPerSecond * 4;
 
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Bleed(
@@ -27,7 +27,7 @@ public sealed class LastToDieStatusRuntimeTests
         Advance(world, durationTicks);
 
         Assert.Equal(target.MaxHealth - 20, target.Health);
-        Assert.Empty(world.GetLastToDieStatusEffects(target.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(target.Id));
         var bleedEvents = world.PendingDamageEvents
             .Where(damageEvent => damageEvent.TargetEntityId == target.Id
                 && damageEvent.Flags.HasFlag(DamageEventFlags.StatusTick))
@@ -44,14 +44,14 @@ public sealed class LastToDieStatusRuntimeTests
         var durationTicks = world.Config.TicksPerSecond;
         target.ForceSetHealth(target.MaxHealth);
 
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Bleed(
                 LastToDieStatusEffectIds.MedicExsanguinationBleed,
                 durationTicks,
                 damagePerSecond: 2f)));
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Poison(
@@ -69,17 +69,17 @@ public sealed class LastToDieStatusRuntimeTests
     {
         var world = CreateWorld();
         var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TrySetNetworkPlayerMovementSpeedScale(2, 1.25f));
+        Assert.True(world.ServerTuning.TrySetNetworkPlayerMovementSpeedScale(2, 1.25f));
         var baseMaxRunSpeed = target.ClassDefinition.MaxRunSpeed * 1.25f;
 
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Slow(
                 LastToDieStatusEffectIds.SpyRubberBulletsSlow,
                 durationTicks: 15,
                 movementSpeedMultiplier: 0.6f)));
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Slow(
@@ -99,7 +99,7 @@ public sealed class LastToDieStatusRuntimeTests
 
         Assert.Equal(1f, target.LastToDieStatusMovementSpeedMultiplier);
         Assert.Equal(baseMaxRunSpeed, target.MaxRunSpeed, precision: 3);
-        Assert.Equal(1.25f, world.GetNetworkPlayerMovementSpeedScale(2));
+        Assert.Equal(1.25f, world.ServerTuning.GetNetworkPlayerMovementSpeedScale(2));
     }
 
     [Fact]
@@ -108,14 +108,14 @@ public sealed class LastToDieStatusRuntimeTests
         var world = CreateWorld();
         var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
 
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Stun(
                 LastToDieStatusEffectIds.SpyLuckyStrikeStun,
                 durationTicks: 30)));
         Advance(world, 10);
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Stun(
@@ -124,12 +124,12 @@ public sealed class LastToDieStatusRuntimeTests
 
         Advance(world, 19);
         Assert.True(target.IsServerStunned);
-        Assert.Single(world.GetLastToDieStatusEffects(target.Id));
+        Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(target.Id));
 
         Advance(world, 1);
 
         Assert.False(target.IsServerStunned);
-        Assert.Empty(world.GetLastToDieStatusEffects(target.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(target.Id));
     }
 
     [Fact]
@@ -140,14 +140,14 @@ public sealed class LastToDieStatusRuntimeTests
         target.ForceSetHealth(3);
         var killsBefore = world.LocalPlayer.Kills;
 
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Bleed(
                 LastToDieStatusEffectIds.SpyBlunderbussBleed,
                 world.Config.TicksPerSecond,
                 damagePerSecond: world.Config.TicksPerSecond * target.MaxHealth)));
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Slow(
@@ -158,7 +158,7 @@ public sealed class LastToDieStatusRuntimeTests
         Advance(world, 1);
 
         Assert.Equal(killsBefore + 1, world.LocalPlayer.Kills);
-        Assert.Empty(world.GetLastToDieStatusEffects(target.Id));
+        Assert.Empty(world.LastToDieRules.GetLastToDieStatusEffects(target.Id));
         Assert.Equal(1f, target.LastToDieStatusMovementSpeedMultiplier);
     }
 
@@ -170,14 +170,14 @@ public sealed class LastToDieStatusRuntimeTests
         var teammate = AddNetworkPlayer(world, 3, PlayerClass.Medic, PlayerTeam.Red);
         var durationTicks = world.Config.TicksPerSecond * 3;
 
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Slow(
                 LastToDieStatusEffectIds.SpyRubberBulletsSlow,
                 durationTicks,
                 movementSpeedMultiplier: 0.6f)));
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             teammate.Id,
             LastToDieStatusEffectSpec.Slow(
@@ -185,9 +185,9 @@ public sealed class LastToDieStatusRuntimeTests
                 durationTicks,
                 movementSpeedMultiplier: 0.8f)));
 
-        Assert.True(world.TryReleaseNetworkPlayerSlot(3));
+        Assert.True(world.NetworkPlayerRules.TryReleaseNetworkPlayerSlot(3));
 
-        var remaining = Assert.Single(world.GetLastToDieStatusEffects(target.Id));
+        var remaining = Assert.Single(world.LastToDieRules.GetLastToDieStatusEffects(target.Id));
         Assert.Equal(world.LocalPlayer.Id, remaining.SourcePlayerId);
         Assert.Equal(0.6f, target.LastToDieStatusMovementSpeedMultiplier);
     }
@@ -197,7 +197,7 @@ public sealed class LastToDieStatusRuntimeTests
     {
         var world = CreateWorld();
         var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
-        Assert.True(world.TryApplyLastToDieStatusEffect(
+        Assert.True(world.LastToDieRules.TryApplyLastToDieStatusEffect(
             target.Id,
             world.LocalPlayer.Id,
             LastToDieStatusEffectSpec.Slow(
@@ -225,8 +225,8 @@ public sealed class LastToDieStatusRuntimeTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Spy);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Spy);
         return world;
     }
 
@@ -236,10 +236,10 @@ public sealed class LastToDieStatusRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 

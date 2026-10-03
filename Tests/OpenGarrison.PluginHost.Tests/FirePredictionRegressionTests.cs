@@ -23,7 +23,7 @@ public sealed class FirePredictionRegressionTests
         for (var tick = 0; tick < rate; tick++)
         {
             var input = default(PlayerInputSnapshot) with { FireSecondary = true, AimWorldX = 1000, AimWorldY = 500 };
-            authority.SetLocalInput(input);
+            authority.NetworkPlayerRules.SetLocalInput(input);
             authority.AdvanceOneTick();
             InvokePrivate(typeof(Game1), game, "ApplyPredictedInputStep", predicted.LocalPlayer,
                 CreatePredictedLocalInput(input, primaryPressed: false, secondaryAbilityPressed: tick == 0));
@@ -59,7 +59,7 @@ public sealed class FirePredictionRegressionTests
             swapWeaponPressed: false,
             abilityPressed: false);
 
-        world.SetLocalInput(fixedTickInput);
+        world.NetworkPlayerRules.SetLocalInput(fixedTickInput);
         world.AdvanceOneTick();
 
         Assert.Equal(expectedAmmoAfterOneShot, player.CurrentShells);
@@ -67,7 +67,7 @@ public sealed class FirePredictionRegressionTests
 
         // Releasing the button on the next render frame must not replay the
         // latched edge or consume a second shell.
-        world.SetLocalInput(default);
+        world.NetworkPlayerRules.SetLocalInput(default);
         world.AdvanceOneTick();
 
         Assert.Equal(expectedAmmoAfterOneShot, player.CurrentShells);
@@ -194,12 +194,12 @@ public sealed class FirePredictionRegressionTests
     public void PredictedSecondaryDoesNotFireStowedPyroWeaponAltFire()
     {
         var world = new SimulationWorld();
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Pyro);
-        Assert.True(world.TrySetNetworkPlayerGameplaySecondaryItem(
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Pyro);
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplaySecondaryItem(
             SimulationWorld.LocalPlayerSlot,
             "weapon.rocketlauncher"));
-        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Secondary));
 
@@ -237,12 +237,12 @@ public sealed class FirePredictionRegressionTests
     public void PredictedFlamethrowerAirblastAndAirburstDoNotConsumeLegacyFlareState(bool useAirburst)
     {
         var world = new SimulationWorld();
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Pyro);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Pyro);
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings());
         for (var tick = 0; tick <= PlayerEntity.PyroFlareReloadTicks; tick += 1)
         {
-            world.SetLocalInput(default);
+            world.NetworkPlayerRules.SetLocalInput(default);
             world.AdvanceOneTick();
         }
 
@@ -279,8 +279,8 @@ public sealed class FirePredictionRegressionTests
         var world = new SimulationWorld();
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         var player = world.LocalPlayer;
         Assert.True(player.TryAddBuffBannerDamageCharge(PlayerEntity.BuffBannerDefaultMaxChargeDamage));
         var game = CreatePredictionHarness(world);
@@ -323,8 +323,8 @@ public sealed class FirePredictionRegressionTests
         var world = new SimulationWorld();
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: true));
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
         var player = world.LocalPlayer;
         var primaryAmmoBefore = player.CurrentShells;
         var equippedSlotBefore = player.GameplayLoadoutState.EquippedSlot;

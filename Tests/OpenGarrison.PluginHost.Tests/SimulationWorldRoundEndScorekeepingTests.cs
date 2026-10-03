@@ -58,22 +58,22 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
     public void KillStreakAnnouncementsTrackNonLocalPlayersWhenEnabled()
     {
         var world = new SimulationWorld();
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(EnableKillStreakTracking: true));
 
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.TryGetNetworkPlayer(2, out var botKiller));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var botKiller));
 
         var victims = new List<PlayerEntity>();
         for (byte slot = 3; slot <= 5; slot += 1)
         {
-            Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-            Assert.True(world.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
-            Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
-            Assert.True(world.TryGetNetworkPlayer(slot, out var victim));
+            Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+            Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, PlayerTeam.Red));
+            Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Scout));
+            Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var victim));
             victims.Add(victim);
         }
 
@@ -137,12 +137,12 @@ public sealed class SimulationWorldRoundEndScorekeepingTests
     private static SimulationWorld CreateCombatWorld(out PlayerEntity killer)
     {
         var world = new SimulationWorld();
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
-        Assert.True(world.TryGetNetworkPlayer(2, out killer!));
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Soldier));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out killer!));
         return world;
     }
 

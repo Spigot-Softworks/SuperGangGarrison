@@ -22,7 +22,7 @@ internal sealed class SnapshotCapture
         var viewer = world.LocalPlayerAwaitingJoin ? null : world.LocalPlayer;
         foreach (var slot in SimulationWorld.NetworkPlayerSlots)
         {
-            if (!world.TryGetNetworkPlayer(slot, out var player))
+            if (!world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }
@@ -32,8 +32,8 @@ internal sealed class SnapshotCapture
                 player,
                 viewer,
                 value => _stringCache.GetOrAddCacheId(value),
-                world.GetNetworkPlayerPingMilliseconds(slot),
-                world.IsNetworkPlayerBot(slot)));
+                world.NetworkPlayerRules.GetNetworkPlayerPingMilliseconds(slot),
+                world.NetworkPlayerRules.IsNetworkPlayerBot(slot)));
         }
 
         var visualEvents = ConvertVisualEvents(snapshots, world.DrainPendingVisualEvents(), world.Frame);
@@ -70,8 +70,8 @@ internal sealed class SnapshotCapture
             BlueCaps: world.BlueCaps,
             SpectatorCount: world.SpectatorCount,
             LastProcessedInputSequence: 0,
-            RedIntel: snapshots.ToSnapshotIntelState(world.RedIntel),
-            BlueIntel: snapshots.ToSnapshotIntelState(world.BlueIntel),
+            RedIntel: snapshots.ToSnapshotIntelState(world.ObjectiveRules.RedIntel),
+            BlueIntel: snapshots.ToSnapshotIntelState(world.ObjectiveRules.BlueIntel),
             Players: players.ToArray(),
             CombatTraces: world.CombatTraces
                 .Select(trace => snapshots.ToSnapshotCombatTraceState(trace))
@@ -113,13 +113,13 @@ internal sealed class SnapshotCapture
                 .Select(body => snapshots.ToSnapshotDeadBodyState(body))
                 .ToArray(),
             ControlPointSetupTicksRemaining: world.ControlPointSetupTicksRemaining,
-            KothUnlockTicksRemaining: world.KothUnlockTicksRemaining,
-            KothRedTimerTicksRemaining: world.KothRedTimerTicksRemaining,
-            KothBlueTimerTicksRemaining: world.KothBlueTimerTicksRemaining,
+            KothUnlockTicksRemaining: world.ObjectiveRules.KothUnlockTicksRemaining,
+            KothRedTimerTicksRemaining: world.ObjectiveRules.KothRedTimerTicksRemaining,
+            KothBlueTimerTicksRemaining: world.ObjectiveRules.KothBlueTimerTicksRemaining,
             ControlPoints: world.ControlPoints
                 .Select(point => snapshots.ToSnapshotControlPointState(point))
                 .ToArray(),
-            Generators: world.Generators
+            Generators: world.ObjectiveRules.Generators
                 .Select(generator => snapshots.ToSnapshotGeneratorState(generator))
                 .ToArray(),
             LocalDeathCam: snapshots.ToSnapshotDeathCamState(
@@ -140,8 +140,8 @@ internal sealed class SnapshotCapture
             ArenaCappers = world.ArenaCappers,
             ArenaRedConsecutiveWins = world.ArenaRedConsecutiveWins,
             ArenaBlueConsecutiveWins = world.ArenaBlueConsecutiveWins,
-            CompetitiveReadyUpPhase = (byte)world.CompetitiveReadyUpPhase,
-            CompetitiveReadyUpTicksRemaining = world.CompetitiveReadyUpTicksRemaining,
+            CompetitiveReadyUpPhase = (byte)world.ReadyUp.CompetitiveReadyUpPhase,
+            CompetitiveReadyUpTicksRemaining = world.ReadyUp.CompetitiveReadyUpTicksRemaining,
             CapLimit = world.MatchRules.CapLimit,
             ScoreboardPlayers = players.ToArray(),
             SentryGibs = world.SentryGibs
@@ -162,7 +162,7 @@ internal sealed class SnapshotCapture
             HealthPacks = snapshots.ToSnapshotHealthPackStates(
                 world.HealthPacks,
                 world.Level.HealthPackSpawns,
-                world.GetHealthPackSpawnRespawnTicksRemaining),
+                world.Pickups.GetHealthPackSpawnRespawnTicksRemaining),
             PlayerGibs = playerGibs,
             GibSpawnEvents = gibSpawnEvents,
             RocketSpawnEvents = rocketSpawnEvents,

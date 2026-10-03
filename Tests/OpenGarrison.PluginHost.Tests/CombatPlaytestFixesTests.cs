@@ -34,7 +34,7 @@ public sealed class CombatPlaytestFixesTests
         Assert.True(sniper.TryToggleSniperScope());
         Assert.True(sniper.IsSniperScoped);
 
-        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Secondary));
 
@@ -62,11 +62,11 @@ public sealed class CombatPlaytestFixesTests
     {
         var world = CreateCombatWorld(PlayerClass.Pyro);
         var pyro = world.LocalPlayer;
-        Assert.True(world.TrySetNetworkPlayerGameplayEquippedSlot(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerGameplayEquippedSlot(
             SimulationWorld.LocalPlayerSlot,
             GameplayEquipmentSlot.Secondary));
         pyro.AddImpulse(-600f, 0f);
-        world.SetLocalInput(default(PlayerInputSnapshot) with
+        world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with
         {
             FirePrimary = true,
             AimWorldX = pyro.X + 256f,
@@ -144,8 +144,8 @@ public sealed class CombatPlaytestFixesTests
                 solids: [],
                 importedFromSource: false));
         }
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }
@@ -158,10 +158,10 @@ public sealed class CombatPlaytestFixesTests
         float x,
         float y)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
     }

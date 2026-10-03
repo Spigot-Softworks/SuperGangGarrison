@@ -29,8 +29,8 @@ public sealed class TeamSelectionDismissalTests
     {
         var game = (Game1)RuntimeHelpers.GetUninitializedObject(typeof(Game1));
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        if (!awaitingJoin) world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        if (!awaitingJoin) world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
         Set(game, "_world", world);
         var services = new ClientServiceContainer();
         Set(game, "_services", services);

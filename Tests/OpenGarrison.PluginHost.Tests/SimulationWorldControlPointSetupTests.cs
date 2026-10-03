@@ -14,7 +14,7 @@ public sealed class SimulationWorldControlPointSetupTests
         SetAttackDefenseControlPointLevel(world);
 
         Assert.Equal(world.Config.TicksPerSecond * 30, world.ControlPointSetupTicksRemaining);
-        Assert.Equal(world.ControlPointSetupTicksRemaining, world.ControlPointSetupDurationTicks);
+        Assert.Equal(world.ControlPointSetupTicksRemaining, world.ObjectiveRules.ControlPointSetupDurationTicks);
         Assert.True(world.ControlPointSetupActive);
         Assert.True(world.Level.ControlPointSetupGatesActive);
         Assert.Equal(3, world.MatchRules.TimeLimitMinutes);
@@ -27,7 +27,7 @@ public sealed class SimulationWorldControlPointSetupTests
         var world = new SimulationWorld();
         SetAttackDefenseControlPointLevel(world);
 
-        for (var tick = 0; tick < world.ControlPointSetupDurationTicks - world.Config.TicksPerSecond; tick += 1)
+        for (var tick = 0; tick < world.ObjectiveRules.ControlPointSetupDurationTicks - world.Config.TicksPerSecond; tick += 1)
         {
             world.AdvanceOneTick();
         }
@@ -41,12 +41,12 @@ public sealed class SimulationWorldControlPointSetupTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         SetAttackDefenseControlPointLevel(world);
-        world.PrepareLocalPlayerJoin();
-        Assert.True(world.TrySetNetworkPlayerTeam(
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
 
         while (world.ControlPointSetupTicksRemaining > 0)
         {
@@ -70,12 +70,12 @@ public sealed class SimulationWorldControlPointSetupTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         SetAttackDefenseControlPointLevel(world);
-        world.PrepareLocalPlayerJoin();
-        Assert.True(world.TrySetNetworkPlayerTeam(
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
 
         while (world.ControlPointSetupTicksRemaining > 0)
         {

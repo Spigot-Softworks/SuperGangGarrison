@@ -31,13 +31,13 @@ public sealed class ClientGoreEntityIsolationTests
             ],
         };
 
-        Assert.True(world.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(snapshot, localPlayerSlot: 1));
         var eventGibs = world.PlayerGibs.ToArray();
         Assert.Equal(2, eventGibs.Length);
         Assert.All(eventGibs, gib => Assert.True(gib.Id < 0));
         Assert.Equal(eventGibs.Length, eventGibs.Select(gib => gib.Id).Distinct().Count());
 
-        world.SpawnClientBloodFromDamage(128f, 96f, damageAmount: 12);
+        world.PlayerRemains.SpawnClientBloodFromDamage(128f, 96f, damageAmount: 12);
         var damageBlood = world.BloodDrops.ToArray();
         Assert.Equal(3, damageBlood.Length);
         Assert.All(damageBlood, blood => Assert.True(blood.Id < 0));
@@ -76,11 +76,11 @@ public sealed class ClientGoreEntityIsolationTests
         var remote = SimulationWorldSnapshotPresentationTests.CreatePlayerState(
             2, 202, "Remote", PlayerTeam.Blue, PlayerClass.Soldier, isAlive: true, gibDeaths: 0);
         var alive = SimulationWorldSnapshotPresentationTests.CreateSnapshot(world, 80, local, remote);
-        Assert.True(world.ApplySnapshot(alive, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(alive, localPlayerSlot: 1));
 
         var deadRemote = remote with { IsAlive = false, Health = 0, Deaths = 1, GibDeaths = 1 };
         var death = alive with { Frame = 81, Players = [local, deadRemote] };
-        Assert.True(world.ApplySnapshot(death, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(death, localPlayerSlot: 1));
 
         var clientGibIds = world.PlayerGibs.Select(gib => gib.Id).ToArray();
         var clientBloodIds = world.BloodDrops.Select(blood => blood.Id).ToArray();
@@ -99,7 +99,7 @@ public sealed class ClientGoreEntityIsolationTests
                 Frame = 82,
                 Rockets = [new SnapshotRocketState(203, (byte)PlayerTeam.Blue, 202, 900f, 400f, 890f, 400f, 0f, 10f, 30)],
             };
-        Assert.True(world.ApplySnapshot(projectileSnapshot, localPlayerSlot: 1));
+        Assert.True(world.SnapshotApply.ApplySnapshot(projectileSnapshot, localPlayerSlot: 1));
 
         var projectile = projectileKind == "bullet"
             ? (SimulationEntity)Assert.Single(world.Shots)

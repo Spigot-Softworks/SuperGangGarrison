@@ -288,7 +288,7 @@ public partial class Game1
             return TryGetLocalCustomBubbleTexture(slotIndex, out texture);
         }
 
-        if (!_world.TryGetPlayerNetworkSlot(player, out var playerSlot))
+        if (!_world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var playerSlot))
         {
             return false;
         }

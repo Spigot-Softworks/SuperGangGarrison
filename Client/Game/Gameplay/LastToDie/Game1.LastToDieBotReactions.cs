@@ -199,12 +199,12 @@ public partial class Game1
         var bots = new Dictionary<byte, PlayerEntity>();
         foreach (var entry in _practiceBotSlots)
         {
-            if (entry.Value.Team == localTeam || !_world.TryGetNetworkPlayer(entry.Key, out var player))
+            if (entry.Value.Team == localTeam || !_world.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var player))
             {
                 continue;
             }
 
-            if (_world.IsNetworkPlayerAwaitingJoin(entry.Key))
+            if (_world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(entry.Key))
             {
                 continue;
             }
@@ -281,7 +281,7 @@ public partial class Game1
             return false;
         }
 
-        if (!_world.TryTriggerNetworkPlayerChatBubble(slot, bubbleFrame))
+        if (!_world.NetworkPlayerRules.TryTriggerNetworkPlayerChatBubble(slot, bubbleFrame))
         {
             return false;
         }

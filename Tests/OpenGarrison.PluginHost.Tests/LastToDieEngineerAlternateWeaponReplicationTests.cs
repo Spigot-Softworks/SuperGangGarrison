@@ -17,19 +17,19 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
         for (uint tick = 1; tick <= 3; tick++)
         {
             Assert.True(source.LocalPlayer.SpendMetal(100));
-            Assert.True(receiver.ApplyProtocol64PlayerState(Assert.Single(publisher.BuildPlayerStateBatch(tick).Players)));
+            Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(Assert.Single(publisher.BuildPlayerStateBatch(tick).Players)));
             Assert.Equal(source.LocalPlayer.Metal, receiver.LocalPlayer.Metal);
             Assert.Equal(200f, receiver.LocalPlayer.MaxMetal);
             Assert.Equal(0.25f, receiver.LocalPlayer.PassiveMetalRegenerationPerTick);
             source.LocalPlayer.AddMetal(100);
             source.LocalPlayer.SetSpawnRoomState(tick == 1);
-            Assert.True(receiver.ApplyProtocol64PlayerState(Assert.Single(publisher.BuildPlayerStateBatch(tick + 3).Players)));
+            Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(Assert.Single(publisher.BuildPlayerStateBatch(tick + 3).Players)));
             Assert.Equal(200f, receiver.LocalPlayer.Metal);
             Assert.Equal(tick == 1, receiver.LocalPlayer.IsInSpawnRoom);
         }
         var invalid = Assert.Single(publisher.BuildPlayerStateBatch(7).Players) with
         { EngineerBuild = new(float.NaN, 200, 0.25f, false) };
-        Assert.False(receiver.ApplyProtocol64PlayerState(invalid));
+        Assert.False(receiver.SnapshotApply.ApplyProtocol64PlayerState(invalid));
         Assert.Equal(200f, receiver.LocalPlayer.Metal);
     }
 
@@ -41,7 +41,7 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
         Assert.True(receiver.LocalPlayer.SpendMetal(100));
         receiver.LocalPlayer.SetSpawnRoomState(true);
         var state = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(1).Players);
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
         Assert.Equal(source.LocalPlayer.Metal, receiver.LocalPlayer.Metal);
         Assert.False(receiver.LocalPlayer.IsInSpawnRoom);
     }
@@ -56,9 +56,9 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
             ExperimentalEngineerAlternateWeaponMode.FreezeRay, ExperimentalEngineerAlternateWeaponMode.None,
             ExperimentalEngineerAlternateWeaponMode.EssenceExtractor })
         {
-            world.SetLocalInput(default(PlayerInputSnapshot) with { SwapWeapon = true });
+            world.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { SwapWeapon = true });
             world.AdvanceOneTick();
-            world.SetLocalInput(default);
+            world.NetworkPlayerRules.SetLocalInput(default);
             for (var tick = 0; tick < 10; tick++)
             {
                 world.AdvanceOneTick();
@@ -79,17 +79,17 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
             EnableEngineerEssenceExtractor: mode == ExperimentalEngineerAlternateWeaponMode.EssenceExtractor,
             EnableEngineerFreezeRay: mode == ExperimentalEngineerAlternateWeaponMode.FreezeRay);
         source.ConfigureExperimentalGameplaySettings(settings);
-        Assert.True(source.TryMoveLocalPlayerToControlPointSpawn());
-        Assert.True(source.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(source.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(source.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(source.TryGetNetworkPlayer(2, out var target));
+        Assert.True(source.Spawns.TryMoveLocalPlayerToControlPointSpawn());
+        Assert.True(source.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(source.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(source.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(source.NetworkPlayerRules.TryGetNetworkPlayer(2, out var target));
         target.ForceSetHealth(999);
         target.TeleportTo(source.LocalPlayer.X + 96f, source.LocalPlayer.Y);
         source.AdvanceOneTick();
-        source.SetLocalInput(default(PlayerInputSnapshot) with { ToggleSecondaryWeapon = true });
+        source.NetworkPlayerRules.SetLocalInput(default(PlayerInputSnapshot) with { ToggleSecondaryWeapon = true });
         source.AdvanceOneTick();
-        source.SetLocalInput(default);
+        source.NetworkPlayerRules.SetLocalInput(default);
         source.AdvanceOneTick();
         Assert.True(source.LocalPlayer.IsExperimentalOffhandSelected);
         Assert.Equal(mode, source.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
@@ -101,15 +101,15 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
         for (var tick = 0; tick < source.Config.TicksPerSecond * 3; tick++)
         {
             var input = default(PlayerInputSnapshot) with { FirePrimary = true, AimWorldX = target.X, AimWorldY = target.Y };
-            source.SetLocalInput(input);
+            source.NetworkPlayerRules.SetLocalInput(input);
             source.AdvanceOneTick();
             Assert.True(source.LocalPlayer.IsExperimentalOffhandSelected);
             Assert.Equal(mode, source.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
             var packet = publisher.BuildPlayerStateBatch((uint)tick + 1).Players.First(p => p.Slot == 1);
-            Assert.True(receiver.ApplyProtocol64PlayerState(packet));
+            Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(packet));
             Assert.Equal(mode, receiver.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
             Assert.Equal(source.LocalPlayer.MedicHealTargetId, receiver.LocalPlayer.MedicHealTargetId);
-            receiver.SetLocalInput(input);
+            receiver.NetworkPlayerRules.SetLocalInput(input);
             receiver.AdvanceOneTick();
             Assert.True(receiver.LocalPlayer.IsExperimentalOffhandSelected);
             Assert.Equal(mode, receiver.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
@@ -136,7 +136,7 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
         Assert.Equal((byte)mode, state.Equipment.EngineerAlternateWeaponMode);
 
         var receiver = JoinedEngineerWorld();
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
 
         Assert.True(receiver.LocalPlayer.IsExperimentalOffhandSelected);
         Assert.Equal(mode, receiver.LocalPlayer.ExperimentalEngineerAlternateWeaponMode);
@@ -151,8 +151,8 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
     private static SimulationWorld JoinedEngineerWorld()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }

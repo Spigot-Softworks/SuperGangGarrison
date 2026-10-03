@@ -2,7 +2,7 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld : IClassRulesHost
 {
-    bool IClassRulesHost.IsVipModeActive => IsVipModeActive;
+    bool IClassRulesHost.IsVipModeActive => VipRules.IsVipModeActive;
     MatchSettingsState IClassRulesHost.MatchSettings => MatchSettings;
     NetworkPlayerSystem IClassRulesHost.NetworkPlayerRules => NetworkPlayerRules;
     NetworkPlayerRegistry IClassRulesHost.PlayerRegistry => PlayerRegistry;

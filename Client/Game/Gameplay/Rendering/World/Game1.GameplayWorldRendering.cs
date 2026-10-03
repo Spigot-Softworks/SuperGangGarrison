@@ -306,8 +306,8 @@ public partial class Game1
 
         if (_world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
         {
-            DrawIntel(_world.RedIntel, cameraPosition);
-            DrawIntel(_world.BlueIntel, cameraPosition);
+            DrawIntel(_world.ObjectiveRules.RedIntel, cameraPosition);
+            DrawIntel(_world.ObjectiveRules.BlueIntel, cameraPosition);
         }
         else if (_world.MatchRules.Mode == GameModeKind.Arena)
         {

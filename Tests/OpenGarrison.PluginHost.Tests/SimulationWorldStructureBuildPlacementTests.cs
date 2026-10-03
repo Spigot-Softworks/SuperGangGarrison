@@ -17,7 +17,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
         world.LocalPlayer.SetSpawnRoomState(false);
         var metalBefore = world.LocalPlayer.Metal;
 
-        Assert.False(world.TryBuildLocalSentry());
+        Assert.False(world.Structures.TryBuildLocalSentry());
 
         Assert.Empty(world.Sentries);
         Assert.Equal(metalBefore, world.LocalPlayer.Metal);
@@ -34,7 +34,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
         world.TeleportLocalPlayer(100f, 100f);
         world.LocalPlayer.SetSpawnRoomState(false);
 
-        Assert.True(world.TryBuildLocalSentry());
+        Assert.True(world.Structures.TryBuildLocalSentry());
 
         var sentry = Assert.Single(world.Sentries);
         Assert.Equal(world.LocalPlayer.Id, sentry.OwnerPlayerId);
@@ -51,7 +51,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
         world.TeleportLocalPlayer(100f, 100f);
         world.LocalPlayer.SetSpawnRoomState(false);
 
-        Assert.True(world.TryBuildLocalSentry());
+        Assert.True(world.Structures.TryBuildLocalSentry());
 
         var sentry = Assert.Single(world.Sentries);
         Assert.Equal(99f, sentry.X);
@@ -70,7 +70,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
         world.LocalPlayer.SetSpawnRoomState(false);
         var metalBefore = world.LocalPlayer.Metal;
 
-        Assert.True(world.TryBuildLocalDispenser());
+        Assert.True(world.Structures.TryBuildLocalDispenser());
 
         var dispenser = Assert.Single(world.Sentries);
         Assert.True(dispenser.IsDispenser);
@@ -78,7 +78,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
         Assert.Equal(metalBefore - 100f, world.LocalPlayer.Metal);
 
         dispenser.ForceBuilt();
-        Assert.True(world.IsNearPrimaryWeaponSwapStation(world.LocalPlayer));
+        Assert.True(world.Structures.IsNearPrimaryWeaponSwapStation(world.LocalPlayer));
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
         Assert.True(world.LocalPlayer.SpendMetal(1f));
         var metalBefore = world.LocalPlayer.Metal;
 
-        Assert.False(world.TryBuildLocalDispenser());
+        Assert.False(world.Structures.TryBuildLocalDispenser());
 
         Assert.Empty(world.Sentries);
         Assert.Equal(metalBefore, world.LocalPlayer.Metal);
@@ -110,7 +110,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
             ]);
         world.TeleportLocalPlayer(100f, 100f);
         world.LocalPlayer.SetSpawnRoomState(false);
-        Assert.True(world.TryBuildLocalDispenser());
+        Assert.True(world.Structures.TryBuildLocalDispenser());
 
         var dispenser = Assert.Single(world.Sentries);
         dispenser.ForceBuilt();
@@ -138,7 +138,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
         world.LocalPlayer.SetSpawnRoomState(false);
         var metalBefore = world.LocalPlayer.Metal;
 
-        Assert.False(world.TryBuildLocalJumpPad());
+        Assert.False(world.Structures.TryBuildLocalJumpPad());
 
         Assert.Empty(world.JumpPads);
         Assert.Equal(metalBefore, world.LocalPlayer.Metal);
@@ -155,7 +155,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
         world.TeleportLocalPlayer(100f, 100f);
         world.LocalPlayer.SetSpawnRoomState(false);
 
-        Assert.True(world.TryBuildLocalJumpPad());
+        Assert.True(world.Structures.TryBuildLocalJumpPad());
 
         var pad = Assert.Single(world.JumpPads);
         Assert.Equal(world.LocalPlayer.Id, pad.OwnerPlayerId);
@@ -172,7 +172,7 @@ public sealed class SimulationWorldStructureBuildPlacementTests
         world.TeleportLocalPlayer(100f, 100f);
         world.LocalPlayer.SetSpawnRoomState(false);
 
-        Assert.True(world.TryBuildLocalJumpPad());
+        Assert.True(world.Structures.TryBuildLocalJumpPad());
 
         var pad = Assert.Single(world.JumpPads);
         Assert.Equal(99f, pad.X);
@@ -198,9 +198,9 @@ public sealed class SimulationWorldStructureBuildPlacementTests
             floorY: 480f,
             solids: solids,
             importedFromSource: false));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Engineer);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Engineer);
         return world;
     }
 }

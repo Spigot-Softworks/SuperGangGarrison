@@ -25,7 +25,7 @@ public sealed class Protocol64EquipmentValidationTests
         var receiver = JoinedWorld(playerClass);
 
         Assert.True(PlayerEntity.IsValidProtocol64EquipmentState(state));
-        receiver.ApplyProtocol64PlayerState(state);
+        receiver.SnapshotApply.ApplyProtocol64PlayerState(state);
 
         Assert.Equal(source.LocalPlayer.GameplayLoadoutState, receiver.LocalPlayer.GameplayLoadoutState);
         Assert.Equal(source.LocalPlayer.IsExperimentalOffhandSelected, receiver.LocalPlayer.IsExperimentalOffhandSelected);
@@ -53,7 +53,7 @@ public sealed class Protocol64EquipmentValidationTests
         var originalLoadout = receiver.LocalPlayer.GameplayLoadoutState;
         var originalAmmo = receiver.LocalPlayer.CurrentShells;
 
-        receiver.ApplyProtocol64PlayerState(invalid);
+        receiver.SnapshotApply.ApplyProtocol64PlayerState(invalid);
 
         Assert.Equal(originalLoadout, receiver.LocalPlayer.GameplayLoadoutState);
         Assert.Equal(originalAmmo, receiver.LocalPlayer.CurrentShells);
@@ -74,7 +74,7 @@ public sealed class Protocol64EquipmentValidationTests
         var originalLoadout = receiver.LocalPlayer.GameplayLoadoutState;
         var originalAmmo = receiver.LocalPlayer.CurrentShells;
 
-        receiver.ApplyProtocol64PlayerState(invalid);
+        receiver.SnapshotApply.ApplyProtocol64PlayerState(invalid);
 
         Assert.Equal(originalAmmo, receiver.LocalPlayer.CurrentShells);
         Assert.Equal(originalLoadout, receiver.LocalPlayer.GameplayLoadoutState);
@@ -83,8 +83,8 @@ public sealed class Protocol64EquipmentValidationTests
     private static SimulationWorld JoinedWorld(PlayerClass playerClass)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }

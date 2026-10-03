@@ -153,12 +153,12 @@ public sealed class ScrGamemodeTests
         Assert.Equal(0, world.RedCaps);
 
         world.Spawns.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
-        world.RefreshMapLogicRuntimeIfControlPointInputsChanged();
+        world.MapLogic.RefreshMapLogicRuntimeIfControlPointInputsChanged();
         Assert.Equal(1, world.RedCaps);
 
         for (var tick = 0; tick < 10; tick += 1)
         {
-            world.TickMapLogicTimers();
+            world.MapLogic.TickMapLogicTimers();
         }
 
         Assert.Equal(1, world.RedCaps);
@@ -227,12 +227,12 @@ public sealed class ScrGamemodeTests
         world.ObjectiveRules.CombatTestFinalizeScrRoundStart();
         Assert.Equal(0, world.RedCaps);
 
-        Assert.True(world.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Red));
+        Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Red));
         Assert.Equal(1, world.RedCaps);
 
-        world.TickMapLogicTimers();
+        world.MapLogic.TickMapLogicTimers();
 
-        Assert.True(world.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Red));
+        Assert.True(world.MapLogic.TryApplyDamageableZoneDamage(0, 10f, PlayerTeam.Red));
         Assert.Equal(2, world.RedCaps);
     }
 
@@ -243,12 +243,12 @@ public sealed class ScrGamemodeTests
         Assert.Equal(0, world.RedCaps);
 
         world.Spawns.CombatTestSetControlPointOwner(1, PlayerTeam.Red);
-        world.RefreshMapLogicRuntimeIfControlPointInputsChanged();
+        world.MapLogic.RefreshMapLogicRuntimeIfControlPointInputsChanged();
         Assert.Equal(1, world.RedCaps);
 
         for (var tick = 0; tick < 10; tick += 1)
         {
-            world.TickMapLogicTimers();
+            world.MapLogic.TickMapLogicTimers();
         }
 
         Assert.Equal(1, world.RedCaps);

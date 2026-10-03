@@ -58,9 +58,9 @@ public sealed class HealthPackSpawnTests
                 new HealthPackSpawnMarker(128f, 128f, HealthPackSize.Small, RespawnTicks: 2),
             ]));
 
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.TeleportLocalPlayer(128f, 128f);
 
         var maxHealth = world.LocalPlayer.MaxHealth;
@@ -115,9 +115,9 @@ public sealed class HealthPackSpawnTests
                 new HealthPackSpawnMarker(128f, floorTop + 10f, HealthPackSize.Small, RespawnTicks: 2),
             ]));
 
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.TeleportLocalPlayer(128f, floorTop - world.LocalPlayer.CollisionBottomOffset);
 
         var maxHealth = world.LocalPlayer.MaxHealth;
@@ -178,13 +178,13 @@ public sealed class HealthPackSpawnTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         Assert.True(world.TryLoadLevel("Harvest"));
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(killerClass);
-        Assert.True(world.TryPrepareNetworkPlayerJoin(2));
-        Assert.True(world.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
-        Assert.True(world.TryGetNetworkPlayer(2, out var victim));
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(killerClass);
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(2));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(2, PlayerTeam.Blue));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(2, PlayerClass.Scout));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(2, out var victim));
         Assert.Equal(PlayerTeam.Red, world.LocalPlayer.Team);
         Assert.Equal(PlayerTeam.Blue, victim.Team);
         world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(

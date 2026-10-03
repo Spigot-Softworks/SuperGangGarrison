@@ -462,7 +462,7 @@ public sealed class GameplayDeadBodyRenderController
 
                 if (!snapshotPlayer.IsAlive
                     && snapshotPlayer.GibDeaths > targetPlayer.GibDeaths
-                    && _game._world.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths, damageEvent.X, damageEvent.Y))
+                    && _game._world.SnapshotApply.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths, damageEvent.X, damageEvent.Y))
                 {
                     _game.PlayPredictedGibSound(damageEvent.X, damageEvent.Y);
                     return true;
@@ -486,14 +486,14 @@ public sealed class GameplayDeadBodyRenderController
 
                 if (targetPlayer is not null
                     && snapshotPlayer.GibDeaths > targetPlayer.GibDeaths
-                    && _game._world.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths, damageEvent.X, damageEvent.Y))
+                    && _game._world.SnapshotApply.TryPresentNetworkGibDeath(damageEvent.TargetEntityId, snapshotPlayer.GibDeaths, damageEvent.X, damageEvent.Y))
                 {
                     _game.PlayPredictedGibSound(damageEvent.X, damageEvent.Y);
                     return true;
                 }
 
                 var presentationPlayer = CreateSnapshotGibPresentationPlayer(snapshotPlayer, targetPlayer);
-                _game._world.SpawnClientPlayerGibsFromNetworkDeath(presentationPlayer, damageEvent.X, damageEvent.Y);
+                _game._world.PlayerRemains.SpawnClientPlayerGibsFromNetworkDeath(presentationPlayer, damageEvent.X, damageEvent.Y);
                 _game.PlayPredictedGibSound(damageEvent.X, damageEvent.Y);
                 return true;
             }

@@ -13,25 +13,25 @@ partial class GameServer
 
     private void PublishVipAnnouncements()
     {
-        if (!_world.IsVipModeActive)
+        if (!_world.VipRules.IsVipModeActive)
         {
             ResetVipAnnouncementTracking();
             return;
         }
 
-        if (_world.VipAssignmentVersion != _lastAnnouncedVipAssignmentVersion)
+        if (_world.VipRules.VipAssignmentVersion != _lastAnnouncedVipAssignmentVersion)
         {
             AnnounceVipAssignments();
-            _lastAnnouncedVipAssignmentVersion = _world.VipAssignmentVersion;
+            _lastAnnouncedVipAssignmentVersion = _world.VipRules.VipAssignmentVersion;
         }
 
-        if (!_world.VipWarmupActive
+        if (!_world.VipRules.VipWarmupActive
             && !_world.ControlPointSetupActive
-            && _world.VipSlotsByTeam.Count > 0
-            && _lastAnnouncedVipDirectiveAssignmentVersion != _world.VipAssignmentVersion)
+            && _world.VipRules.VipSlotsByTeam.Count > 0
+            && _lastAnnouncedVipDirectiveAssignmentVersion != _world.VipRules.VipAssignmentVersion)
         {
             AnnounceVipRoundDirective();
-            _lastAnnouncedVipDirectiveAssignmentVersion = _world.VipAssignmentVersion;
+            _lastAnnouncedVipDirectiveAssignmentVersion = _world.VipRules.VipAssignmentVersion;
         }
     }
 
@@ -44,7 +44,7 @@ partial class GameServer
 
     private void AnnounceVipAssignments()
     {
-        foreach (var entry in _world.VipSlotsByTeam)
+        foreach (var entry in _world.VipRules.VipSlotsByTeam)
         {
             if (_lastAnnouncedVipSlotsByTeam.TryGetValue(entry.Key, out var previousSlot)
                 && previousSlot == entry.Value)
@@ -61,7 +61,7 @@ partial class GameServer
             BroadcastVipPresentation(message);
         }
 
-        foreach (var staleTeam in _lastAnnouncedVipSlotsByTeam.Keys.Where(team => !_world.VipSlotsByTeam.ContainsKey(team)).ToArray())
+        foreach (var staleTeam in _lastAnnouncedVipSlotsByTeam.Keys.Where(team => !_world.VipRules.VipSlotsByTeam.ContainsKey(team)).ToArray())
         {
             _lastAnnouncedVipSlotsByTeam.Remove(staleTeam);
         }
@@ -69,7 +69,7 @@ partial class GameServer
 
     private void AnnounceVipRoundDirective()
     {
-        if (_world.VipSlotsByTeam.Count > 1)
+        if (_world.VipRules.VipSlotsByTeam.Count > 1)
         {
             SendVipDirectiveToTeam(PlayerTeam.Red, "Escort your VIP!");
             SendVipDirectiveToTeam(PlayerTeam.Blue, "Escort your VIP!");
@@ -89,7 +89,7 @@ partial class GameServer
                 continue;
             }
 
-            var clientTeam = _world.GetNetworkPlayerConfiguredTeam(client.Slot);
+            var clientTeam = _world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(client.Slot);
             if (clientTeam == team)
             {
                 _adminOperations.SendSystemMessage(client.Slot, message);
@@ -135,7 +135,7 @@ partial class GameServer
             return true;
         }
 
-        if (_world.TryGetNetworkPlayer(slot, out var player) && !string.IsNullOrWhiteSpace(player.DisplayName))
+        if (_world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player) && !string.IsNullOrWhiteSpace(player.DisplayName))
         {
             playerName = player.DisplayName;
             return true;

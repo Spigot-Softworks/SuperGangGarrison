@@ -10019,11 +10019,11 @@ public partial class Game1
 
     private void PrepareGarrisonBuilderQuickTestPlayer()
     {
-        _world.DespawnEnemyDummy();
-        _world.DespawnFriendlyDummy();
-        _world.SetLocalPlayerTeam(PlayerTeam.Red);
-        _world.PrepareLocalPlayerJoin();
-        _world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        _world.PracticeDummies.DespawnEnemyDummy();
+        _world.PracticeDummies.DespawnFriendlyDummy();
+        _world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        _world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        _world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
     }
 
     private void LoadGarrisonBuilderEditorAssets()

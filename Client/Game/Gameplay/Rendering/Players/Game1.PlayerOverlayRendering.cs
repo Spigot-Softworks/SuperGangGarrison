@@ -266,7 +266,7 @@ public partial class Game1
             return true;
         }
 
-        return _world.TryGetPlayerNetworkSlot(player, out slot);
+        return _world.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out slot);
     }
 
     private void DrawWriteBubble(PlayerEntity player, Vector2 cameraPosition)
@@ -307,7 +307,7 @@ public partial class Game1
 
     private void DrawPracticeCombatDummyDps(PlayerEntity player, Vector2 cameraPosition)
     {
-        if (!_world.IsPracticeDpsDummy(player) || !player.IsAlive || !_world.PracticeCombatDummyDpsVisible)
+        if (!_world.PracticeDummies.IsPracticeDpsDummy(player) || !player.IsAlive || !_world.PracticeDummies.PracticeCombatDummyDpsVisible)
         {
             return;
         }
@@ -318,9 +318,9 @@ public partial class Game1
             return;
         }
 
-        var roundedDps = Math.Max(0, (int)Math.Round(_world.PracticeCombatDummyDps, MidpointRounding.AwayFromZero));
+        var roundedDps = Math.Max(0, (int)Math.Round(_world.PracticeDummies.PracticeCombatDummyDps, MidpointRounding.AwayFromZero));
         var text = $"{roundedDps.ToString(CultureInfo.InvariantCulture)} DPS";
-        var intensity = _world.PracticeCombatDummyDamageIntensity;
+        var intensity = _world.PracticeDummies.PracticeCombatDummyDamageIntensity;
         var scale = 1f + (0.55f * intensity);
         var textColor = Color.Lerp(Color.White, new Color(255, 48, 34), intensity) * visibilityAlpha;
         var shadowColor = Color.Black * (0.75f * visibilityAlpha);

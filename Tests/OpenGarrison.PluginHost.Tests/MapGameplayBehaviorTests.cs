@@ -56,16 +56,16 @@ public sealed class MapGameplayBehaviorTests
                 AllowTeamChange: false,
                 AllowClassChange: false));
 
-        world.PrepareLocalPlayerJoin();
-        Assert.True(world.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Red));
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
 
         Assert.Equal(PlayerTeam.Red, world.LocalPlayer.Team);
         Assert.Equal(PlayerClass.Soldier, world.LocalPlayer.ClassId);
         Assert.Equal(240f, world.LocalPlayer.X);
         Assert.Equal(220f, world.LocalPlayer.Y);
-        Assert.False(world.CanNetworkPlayerChangeTeamInCurrentMode(SimulationWorld.LocalPlayerSlot));
-        Assert.False(world.CanNetworkPlayerSelectClassInCurrentMode(
+        Assert.False(world.VipRules.CanNetworkPlayerChangeTeamInCurrentMode(SimulationWorld.LocalPlayerSlot));
+        Assert.False(world.VipRules.CanNetworkPlayerSelectClassInCurrentMode(
             SimulationWorld.LocalPlayerSlot,
             CharacterClassCatalog.Scout));
     }
@@ -102,7 +102,7 @@ public sealed class MapGameplayBehaviorTests
             220f,
             out var slot));
 
-        Assert.True(world.TryGetNetworkPlayer(slot, out var bot));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var bot));
         Assert.Equal(PlayerTeam.Red, bot.Team);
         Assert.Equal(PlayerClass.Medic, bot.ClassId);
         Assert.Equal(240f, bot.X);

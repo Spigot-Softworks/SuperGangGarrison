@@ -347,12 +347,12 @@ public sealed class PlayerTriggerLogicTests
             importedFromSource: false,
             logicGraph: graph));
 
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Scout);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.LocalPlayer.TeleportTo(10f, 10f);
 
-        world.TickMapLogicTimers();
+        world.MapLogic.TickMapLogicTimers();
 
         Assert.True(world.Level.LogicGraph.GetOutput(world.Level.LogicGraph.NodeIndexByKey["trigger"]));
     }
@@ -392,13 +392,13 @@ public sealed class PlayerTriggerLogicTests
             importedFromSource: false,
             logicGraph: graph));
 
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         world.LocalPlayer.TeleportTo(128f, 100f);
 
-        world.TickMapLogicTimersOncePerFrame();
-        world.TickMapLogicTimersOncePerFrame();
+        world.MapLogic.TickMapLogicTimersOncePerFrame();
+        world.MapLogic.TickMapLogicTimersOncePerFrame();
 
         Assert.True(world.Level.LogicGraph.GetOutput(world.Level.LogicGraph.NodeIndexByKey["trigger"]));
     }
@@ -438,9 +438,9 @@ public sealed class PlayerTriggerLogicTests
             importedFromSource: false,
             logicGraph: graph));
 
-        world.PrepareLocalPlayerJoin();
-        world.SetLocalPlayerTeam(PlayerTeam.Red);
-        world.CompleteLocalPlayerJoin(PlayerClass.Soldier);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.SetLocalPlayerTeam(PlayerTeam.Red);
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Soldier);
         world.LocalPlayer.TeleportTo(128f, 100f);
 
         var simulator = new FixedStepSimulator(world);

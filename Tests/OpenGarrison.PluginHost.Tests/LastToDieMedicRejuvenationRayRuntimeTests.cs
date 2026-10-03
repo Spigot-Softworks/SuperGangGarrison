@@ -21,7 +21,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
         var medic = world.LocalPlayer;
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Red);
         medic.SetMedicHealingTarget(target);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.RejuvenationRay]));
         StartUber(medic);
@@ -48,7 +48,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
         var target = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Red);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [
                 LastToDiePerkIds.Medic.RejuvenationRay,
@@ -77,7 +77,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
         var medic = world.LocalPlayer;
         var first = AddPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Red);
         var second = AddPlayer(world, 3, PlayerClass.Heavy, PlayerTeam.Red);
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.RejuvenationRay]));
         StartUber(medic);
@@ -102,7 +102,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
     {
         var world = CreateMedicWorld();
         var medic = world.LocalPlayer;
-        Assert.True(world.TryConfigureLastToDiePlayerBuild(
+        Assert.True(world.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.RejuvenationRay]));
         StartUber(medic);
@@ -113,7 +113,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
 
         var kritzWorld = CreateMedicWorld();
         var kritzMedic = kritzWorld.LocalPlayer;
-        Assert.True(kritzWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(kritzWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.RejuvenationRay]));
         Assert.True(kritzMedic.TrySelectGameplayPrimaryItem("weapon.medigun.crit"));
@@ -126,27 +126,27 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
     public void RejuvenationRayCaptureRequiresFieldCommanderAndIntelActivationRuleIsUnchanged()
     {
         var withoutFieldCommander = CreateMedicWorld();
-        Assert.True(withoutFieldCommander.TryConfigureLastToDiePlayerBuild(
+        Assert.True(withoutFieldCommander.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.RejuvenationRay]));
         StartUber(withoutFieldCommander.LocalPlayer);
-        Assert.False(withoutFieldCommander.CanPlayerCaptureControlPointsWhileUbered(
+        Assert.False(withoutFieldCommander.LastToDieRules.CanPlayerCaptureControlPointsWhileUbered(
             withoutFieldCommander.LocalPlayer));
-        Assert.False(withoutFieldCommander.CanPlayerContributeToControlPoint(
+        Assert.False(withoutFieldCommander.LastToDieRules.CanPlayerContributeToControlPoint(
             withoutFieldCommander.LocalPlayer));
 
         var withFieldCommander = CreateMedicWorld();
-        Assert.True(withFieldCommander.TryConfigureLastToDiePlayerBuild(
+        Assert.True(withFieldCommander.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.RejuvenationRay, LastToDiePerkIds.Medic.FieldCommander]));
         StartUber(withFieldCommander.LocalPlayer);
-        Assert.True(withFieldCommander.CanPlayerCaptureControlPointsWhileUbered(
+        Assert.True(withFieldCommander.LastToDieRules.CanPlayerCaptureControlPointsWhileUbered(
             withFieldCommander.LocalPlayer));
-        Assert.True(withFieldCommander.CanPlayerContributeToControlPoint(
+        Assert.True(withFieldCommander.LastToDieRules.CanPlayerContributeToControlPoint(
             withFieldCommander.LocalPlayer));
 
         var intelCarrierWorld = CreateMedicWorld();
-        Assert.True(intelCarrierWorld.TryConfigureLastToDiePlayerBuild(
+        Assert.True(intelCarrierWorld.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.RejuvenationRay]));
         intelCarrierWorld.LocalPlayer.FillMedicUberCharge();
@@ -160,7 +160,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
         var source = CreateMedicWorld();
         var medic = source.LocalPlayer;
         var target = AddPlayer(source, 2, PlayerClass.Heavy, PlayerTeam.Red);
-        Assert.True(source.TryConfigureLastToDiePlayerBuild(
+        Assert.True(source.LastToDieRules.TryConfigureLastToDiePlayerBuild(
             SimulationWorld.LocalPlayerSlot,
             [LastToDiePerkIds.Medic.RejuvenationRay]));
         medic.SetMedicHealingTarget(target);
@@ -194,7 +194,7 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
         Assert.Equal(medic.MedicUberCharge, protocolState.MedicUberCharge);
 
         var receiver = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(receiver.ApplyProtocol64PlayerState(protocolState));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(protocolState));
         Assert.True(receiver.LocalPlayer.IsMedicRejuvenationRayDeliveryActive);
         Assert.Equal(target.Id, receiver.LocalPlayer.MedicHealTargetId);
         Assert.Equal(medic.MedicUberCharge, receiver.LocalPlayer.MedicUberCharge);
@@ -203,8 +203,8 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
     private static SimulationWorld CreateMedicWorld()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(PlayerClass.Medic);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(PlayerClass.Medic);
         return world;
     }
 
@@ -214,10 +214,10 @@ public sealed class LastToDieMedicRejuvenationRayRuntimeTests
         PlayerClass playerClass,
         PlayerTeam team)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         return player;
     }
 

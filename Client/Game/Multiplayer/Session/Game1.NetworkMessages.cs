@@ -236,7 +236,7 @@ public partial class Game1
 
         if (!_networkClient.IsConnected)
         {
-            _world.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte>());
+            _world.SnapshotApply.ReconcileRemoteLastToDieDemoknightPresentation(new HashSet<byte>());
             return;
         }
 
@@ -261,18 +261,18 @@ public partial class Game1
             }
         }
 
-        _world.ReconcileRemoteLastToDieDemoknightPresentation(demoknightServerSlots);
+        _world.SnapshotApply.ReconcileRemoteLastToDieDemoknightPresentation(demoknightServerSlots);
 
         // Only LocalPlayer is predicted. Server slots are not simulation slots:
         // this client may own server slot 2 while its local entity uses slot 1.
         var hasLocalProfile = !_networkClient.IsSpectator
             && perksBySlot.TryGetValue(_networkClient.LocalPlayerSlot, out _);
-        _world.TrySetLastToDieSurvivorBuff(SimulationWorld.LocalPlayerSlot, hasLocalProfile);
-        _world.TrySetNetworkPlayerAutomaticRespawnSuppressed(
+        _world.LastToDieRules.TrySetLastToDieSurvivorBuff(SimulationWorld.LocalPlayerSlot, hasLocalProfile);
+        _world.NetworkPlayerRules.TrySetNetworkPlayerAutomaticRespawnSuppressed(
             SimulationWorld.LocalPlayerSlot, hasLocalProfile);
         if (hasLocalProfile)
         {
-            _world.TryApplyLastToDiePlayerPredictionProfile(
+            _world.LastToDieRules.TryApplyLastToDiePlayerPredictionProfile(
                 SimulationWorld.LocalPlayerSlot,
                 perksBySlot[_networkClient.LocalPlayerSlot],
                 killsBySlot.GetValueOrDefault(_networkClient.LocalPlayerSlot),
@@ -280,7 +280,7 @@ public partial class Game1
         }
         else
         {
-            _world.ClearLastToDiePlayerPredictionProfile(SimulationWorld.LocalPlayerSlot);
+            _world.LastToDieRules.ClearLastToDiePlayerPredictionProfile(SimulationWorld.LocalPlayerSlot);
         }
     }
 

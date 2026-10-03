@@ -112,7 +112,7 @@ public sealed class SimulationWorldCombatBlockingTests
                 new LevelSolid(solidLeft, 80f, 32f, 32f),
             ]));
         Assert.True(world.TrySetLocalClass(PlayerClass.Demoman));
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         var player = world.LocalPlayer;
         player.TeleportTo(80f, 96f);
 
@@ -138,14 +138,14 @@ public sealed class SimulationWorldCombatBlockingTests
             new RoomObjectMarker(RoomObjectType.TeamGate, 104f, 64f, 48f, 96f, "RedGate", PlayerTeam.Red),
         ]));
         Assert.True(world.TrySetLocalClass(PlayerClass.Soldier));
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         world.LocalPlayer.TeleportTo(128f, 96f);
-        world.BlueIntel.Drop(world.LocalPlayer.X, world.LocalPlayer.Y, returnTicks: 300);
+        world.ObjectiveRules.BlueIntel.Drop(world.LocalPlayer.X, world.LocalPlayer.Y, returnTicks: 300);
 
         world.AdvanceOneTick();
 
         Assert.False(world.LocalPlayer.IsCarryingIntel);
-        Assert.True(world.BlueIntel.IsDropped);
+        Assert.True(world.ObjectiveRules.BlueIntel.IsDropped);
     }
 
     private static SimulationWorld CreateCombatWorld(PlayerClass playerClass)
@@ -158,7 +158,7 @@ public sealed class SimulationWorldCombatBlockingTests
         }
 
         Assert.Equal(playerClass, world.LocalPlayer.ClassId);
-        world.ForceRespawnLocalPlayer();
+        world.NetworkPlayerRules.ForceRespawnLocalPlayer();
         return world;
     }
 
@@ -188,10 +188,10 @@ public sealed class SimulationWorldCombatBlockingTests
 
     private static PlayerEntity AddNetworkPlayer(SimulationWorld world, byte slot, PlayerTeam team, PlayerClass playerClass, float x, float y)
     {
-        Assert.True(world.TryPrepareNetworkPlayerJoin(slot));
-        Assert.True(world.TrySetNetworkPlayerTeam(slot, team));
-        Assert.True(world.TryApplyNetworkPlayerClassSelection(slot, playerClass));
-        Assert.True(world.TryGetNetworkPlayer(slot, out var player));
+        Assert.True(world.NetworkPlayerRules.TryPrepareNetworkPlayerJoin(slot));
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(slot, team));
+        Assert.True(world.NetworkPlayerRules.TryApplyNetworkPlayerClassSelection(slot, playerClass));
+        Assert.True(world.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player));
         player.TeleportTo(x, y);
         return player;
     }

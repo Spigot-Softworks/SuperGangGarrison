@@ -226,7 +226,7 @@ internal sealed partial class ServerOutboundMessaging
         var tokens = arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (tokens.Length == 0)
         {
-            SendSystemMessage(client.Slot, world.VipRequiresDualVip
+            SendSystemMessage(client.Slot, world.VipRules.VipRequiresDualVip
                 ? "Usage: !votevip <red|blue> <player>"
                 : "Usage: !votevip <player>");
             return;
@@ -253,9 +253,9 @@ internal sealed partial class ServerOutboundMessaging
             return;
         }
 
-        if (world.VipRequiresDualVip && firstTargetToken == 0)
+        if (world.VipRules.VipRequiresDualVip && firstTargetToken == 0)
         {
-            team = world.GetNetworkPlayerConfiguredTeam(target.Slot);
+            team = world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot);
         }
 
         TryStartVipVote(client, target.Slot, team);
@@ -263,7 +263,7 @@ internal sealed partial class ServerOutboundMessaging
 
     private void TryStartVipVote(ClientSession client, byte targetSlot, PlayerTeam team)
     {
-        if (!world.IsVipModeActive)
+        if (!world.VipRules.IsVipModeActive)
         {
             SendSystemMessage(client.Slot, "VIP votes are only available on vip_ maps.");
             return;
@@ -275,17 +275,17 @@ internal sealed partial class ServerOutboundMessaging
             return;
         }
 
-        if (!world.VipRequiresDualVip)
+        if (!world.VipRules.VipRequiresDualVip)
         {
             team = PlayerTeam.Red;
         }
         else if (team is not PlayerTeam.Red and not PlayerTeam.Blue)
         {
-            team = world.GetNetworkPlayerConfiguredTeam(target.Slot);
+            team = world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot);
         }
 
-        if (world.VipRequiresDualVip
-            && world.GetNetworkPlayerConfiguredTeam(target.Slot) != team)
+        if (world.VipRules.VipRequiresDualVip
+            && world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot) != team)
         {
             SendSystemMessage(client.Slot, $"{target.Name} is not on the {team} team.");
             return;
@@ -308,12 +308,12 @@ internal sealed partial class ServerOutboundMessaging
     {
         if (!TryGetClientByVoteIdentity(targetIdentity, out var target)
             || !IsEligibleVoteParticipant(target)
-            || (world.VipRequiresDualVip && world.GetNetworkPlayerConfiguredTeam(target.Slot) != team))
+            || (world.VipRules.VipRequiresDualVip && world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot) != team))
         {
             return false;
         }
 
-        return world.TrySetPreferredVipSlot(team, target.Slot);
+        return world.VipRules.TrySetPreferredVipSlot(team, target.Slot);
     }
 
     private void TryStartPlayerModerationVote(ClientSession client, string arguments, bool mute)
@@ -570,7 +570,7 @@ internal sealed partial class ServerOutboundMessaging
             target?.UserId,
             target is null ? string.Empty : GetVoteIdentity(target),
             target?.Name ?? string.Empty,
-            target is null ? null : world.GetNetworkPlayerConfiguredTeam(target.Slot),
+            target is null ? null : world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(target.Slot),
             level?.Name ?? string.Empty,
             level?.MapAreaIndex ?? 0);
 
@@ -773,7 +773,7 @@ internal sealed partial class ServerOutboundMessaging
             .Select(candidate => new VoteMenuPlayerEntry(
                 candidate.Slot,
                 candidate.Name,
-                (byte)world.GetNetworkPlayerConfiguredTeam(candidate.Slot),
+                (byte)world.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(candidate.Slot),
                 candidate.IsGagged))
             .ToArray();
         var customVotes = _pluginVoteRegistry.GetCatalog()
@@ -788,7 +788,7 @@ internal sealed partial class ServerOutboundMessaging
             new VoteMenuMessage(
                 maps,
                 players,
-                world.IsVipModeActive,
+                world.VipRules.IsVipModeActive,
                 _voteCoordinator?.HasActiveVote == true,
                 _voteCoordinator?.CooldownTicksRemaining ?? 0,
                 _voteCoordinator?.ActiveVoteId ?? 0,
@@ -831,8 +831,8 @@ internal sealed partial class ServerOutboundMessaging
     {
         return client.IsAuthorized
             && !ServerHelpers.IsSpectatorSlot(client.Slot)
-            && world.TryGetNetworkPlayer(client.Slot, out _)
-            && !world.IsNetworkPlayerAwaitingJoin(client.Slot);
+            && world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out _)
+            && !world.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(client.Slot);
     }
 
     private static string GetVoteIdentity(ClientSession client)

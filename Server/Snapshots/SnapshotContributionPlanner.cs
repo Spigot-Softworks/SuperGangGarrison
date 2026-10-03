@@ -451,8 +451,8 @@ internal static class SnapshotContributionPlanner
 
     private static (float X, float Y) GetClientFocusPoint(ClientSession client, SimulationWorld world)
     {
-        if (SimulationWorld.IsPlayableNetworkPlayerSlot(client.Slot)
-            && world.TryGetNetworkPlayer(client.Slot, out var player)
+        if (NetworkPlayerSystem.IsPlayableNetworkPlayerSlot(client.Slot)
+            && world.NetworkPlayerRules.TryGetNetworkPlayer(client.Slot, out var player)
             && player.IsAlive)
         {
             // When using binoculars, use midpoint between player and binoculars focus

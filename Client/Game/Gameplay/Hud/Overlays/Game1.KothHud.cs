@@ -21,7 +21,7 @@ public partial class Game1
             centerX - 132f,
             viewportHeight - 28f,
             PlayerTeam.Red,
-            _world.KothRedTimerTicksRemaining,
+            _world.ObjectiveRules.KothRedTimerTicksRemaining,
             IsKothTimerActive(PlayerTeam.Red),
             IsKothTeamOvertime(PlayerTeam.Red));
         DrawKothTeamTimer(
@@ -29,13 +29,13 @@ public partial class Game1
             centerX + 132f,
             viewportHeight - 28f,
             PlayerTeam.Blue,
-            _world.KothBlueTimerTicksRemaining,
+            _world.ObjectiveRules.KothBlueTimerTicksRemaining,
             IsKothTimerActive(PlayerTeam.Blue),
             IsKothTeamOvertime(PlayerTeam.Blue));
 
-        if (_world.KothUnlockTicksRemaining > 0)
+        if (_world.ObjectiveRules.KothUnlockTicksRemaining > 0)
         {
-            DrawHudTextCentered($"Unlock {FormatHudTimerText(_world.KothUnlockTicksRemaining)}", new Vector2(centerX, 30f), Color.White, 1f);
+            DrawHudTextCentered($"Unlock {FormatHudTimerText(_world.ObjectiveRules.KothUnlockTicksRemaining)}", new Vector2(centerX, 30f), Color.White, 1f);
         }
         else
         {
@@ -173,9 +173,9 @@ public partial class Game1
             _world.MatchRules.Mode,
             team,
             _world.ControlPoints,
-            _world.KothRedTimerTicksRemaining,
-            _world.KothBlueTimerTicksRemaining,
-            _world.KothUnlockTicksRemaining,
+            _world.ObjectiveRules.KothRedTimerTicksRemaining,
+            _world.ObjectiveRules.KothBlueTimerTicksRemaining,
+            _world.ObjectiveRules.KothUnlockTicksRemaining,
             _world.MatchState.TimeRemainingTicks,
             _world.MatchState.IsOvertime,
             _world.MatchState.IsEnded);

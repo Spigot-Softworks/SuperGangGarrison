@@ -21,7 +21,7 @@ public sealed class PlaytestEquipmentReplicationTests
         var state = Assert.Single(new Protocol64StatePublisher(source).BuildPlayerStateBatch(1).Players);
         var receiver = JoinedWorld(playerClass);
 
-        Assert.True(receiver.ApplyProtocol64PlayerState(state));
+        Assert.True(receiver.SnapshotApply.ApplyProtocol64PlayerState(state));
 
         Assert.Equal(itemId, receiver.LocalPlayer.SelectedGameplayPrimaryItemId);
         Assert.Equal(itemId, receiver.LocalPlayer.GameplayLoadoutState.EquippedItemId);
@@ -160,8 +160,8 @@ public sealed class PlaytestEquipmentReplicationTests
     private static SimulationWorld JoinedWorld(PlayerClass playerClass)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        world.PrepareLocalPlayerJoin();
-        world.CompleteLocalPlayerJoin(playerClass);
+        world.NetworkPlayerRules.PrepareLocalPlayerJoin();
+        world.NetworkPlayerRules.CompleteLocalPlayerJoin(playerClass);
         world.LocalPlayer.SetSpawnRoomState(false);
         return world;
     }

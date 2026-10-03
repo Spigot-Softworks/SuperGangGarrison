@@ -84,7 +84,7 @@ public sealed class CatapultRuntimeTests
             floorY: 512f,
             [],
             importedFromSource: false));
-        Assert.True(world.TrySetNetworkPlayerTeam(
+        Assert.True(world.NetworkPlayerRules.TrySetNetworkPlayerTeam(
             SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red,
             respawnLivePlayerImmediately: true));

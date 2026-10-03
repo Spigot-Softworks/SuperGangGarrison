@@ -163,8 +163,8 @@ public partial class Game1
         PruneInactiveEntitySnapshotHistories();
         PruneInactiveRemotePlayerSnapshotHistories();
 
-        UpdateInterpolatedIntelPosition(_world.RedIntel, entityRenderTimeSeconds);
-        UpdateInterpolatedIntelPosition(_world.BlueIntel, entityRenderTimeSeconds);
+        UpdateInterpolatedIntelPosition(_world.ObjectiveRules.RedIntel, entityRenderTimeSeconds);
+        UpdateInterpolatedIntelPosition(_world.ObjectiveRules.BlueIntel, entityRenderTimeSeconds);
     }
 
     public void UpdateOfflineInterpolatedWorldState()
@@ -267,8 +267,8 @@ public partial class Game1
         }
 
         PruneStaleOfflineInterpolatedEntities();
-        UpdateOfflineInterpolatedIntelPosition(_world.RedIntel);
-        UpdateOfflineInterpolatedIntelPosition(_world.BlueIntel);
+        UpdateOfflineInterpolatedIntelPosition(_world.ObjectiveRules.RedIntel);
+        UpdateOfflineInterpolatedIntelPosition(_world.ObjectiveRules.BlueIntel);
     }
 
     private void ResetNetworkInterpolationStateForOfflineFrame()
@@ -1243,8 +1243,8 @@ public partial class Game1
             }
         }
 
-        RefreshRetainedIntelInterpolationHistory(_world.RedIntel, snapshotServerTimeSeconds);
-        RefreshRetainedIntelInterpolationHistory(_world.BlueIntel, snapshotServerTimeSeconds);
+        RefreshRetainedIntelInterpolationHistory(_world.ObjectiveRules.RedIntel, snapshotServerTimeSeconds);
+        RefreshRetainedIntelInterpolationHistory(_world.ObjectiveRules.BlueIntel, snapshotServerTimeSeconds);
     }
 
     internal static bool ShouldRefreshResolvedPlayerPresentationHistory(byte playerSlot, bool isSpectator)
