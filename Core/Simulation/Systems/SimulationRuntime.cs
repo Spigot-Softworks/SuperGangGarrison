@@ -63,14 +63,6 @@ internal interface IMatchTickPhase
 /// </summary>
 internal sealed class SimulationRuntime
 {
-    private static readonly bool SlowPhaseTracingEnabled =
-        Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE") is "1" or "true" or "TRUE";
-    private static readonly double SlowPhaseThresholdMilliseconds = ResolveSlowPhaseThresholdMilliseconds();
-    private static readonly string? SlowPhaseTracePath = SlowPhaseTracingEnabled
-        ? RuntimePaths.GetLogPath($"simulation-phase-spikes-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
-        : null;
-    private static readonly object SlowPhaseTraceSync = new();
-
     private readonly ISimulationTickHost _host;
     private readonly IEntityTickPhase _entities;
     private readonly IMatchTickPhase _match;
@@ -142,23 +134,15 @@ internal sealed class SimulationRuntime
         _match.AdvancePostPlayerMatchPhase();
     }
 
-    private static double ResolveSlowPhaseThresholdMilliseconds()
-    {
-        var configured = Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE_THRESHOLD_MS");
-        return double.TryParse(configured, NumberStyles.Float, CultureInfo.InvariantCulture, out var threshold)
-            ? Math.Max(0d, threshold)
-            : 25d;
-    }
-
     private void TraceSlowPhase(string phase, long startTimestamp)
     {
-        if (!SlowPhaseTracingEnabled || string.IsNullOrWhiteSpace(SlowPhaseTracePath))
+        if (!SimulationTrace.Enabled)
         {
             return;
         }
 
-        var elapsedMilliseconds = (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
-        if (elapsedMilliseconds < SlowPhaseThresholdMilliseconds)
+        var elapsedMilliseconds = SimulationTrace.ElapsedMilliseconds(startTimestamp);
+        if (elapsedMilliseconds < SimulationTrace.PhaseThresholdMilliseconds)
         {
             return;
         }
@@ -166,9 +150,6 @@ internal sealed class SimulationRuntime
         var line = string.Create(
             CultureInfo.InvariantCulture,
             $"{DateTime.Now:O} frame={_host.Frame} phase={phase} elapsedMs={elapsedMilliseconds:0.0}{Environment.NewLine}");
-        lock (SlowPhaseTraceSync)
-        {
-            File.AppendAllText(SlowPhaseTracePath, line);
-        }
+        SimulationTrace.Append(SimulationTraceLog.PhaseSpikes, line);
     }
 }

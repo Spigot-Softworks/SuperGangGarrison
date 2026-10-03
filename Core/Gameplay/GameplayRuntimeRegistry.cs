@@ -21,6 +21,12 @@ public sealed partial class GameplayRuntimeRegistry
 
     public IReadOnlyCollection<GameplayModPackDefinition> ModPacks => _modPacks.Values;
 
+    /// <summary>
+    /// Bumped each time a mod pack is registered, so caches derived from
+    /// <see cref="ModPacks"/> (such as presentation sprite lookups) know to rebuild.
+    /// </summary>
+    internal int ModPackRevision { get; private set; }
+
     public IReadOnlyCollection<GameplayItemDefinition> Items => _items.Values;
 
     public IReadOnlyCollection<GameplayClassRuntimeBinding> RuntimeClassBindings => _classBindingsByClassId.Values;
@@ -167,6 +173,7 @@ public sealed partial class GameplayRuntimeRegistry
         }
 
         _characterClassDefinitionCache.Clear();
+        ModPackRevision += 1;
 
         return true;
     }

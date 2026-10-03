@@ -5,8 +5,7 @@ public sealed partial class PlayerEntity
     private const int MaxCollisionResolutionIterations = 10;
     private const float CollisionResolutionEpsilon = 0.1f;
     private const float CollisionSubpixelPrecision = 8f;
-    private static readonly bool MovementCollisionDiagnosticsEnabled =
-        Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE") is "1" or "true" or "TRUE";
+    private static readonly bool MovementCollisionDiagnosticsEnabled = SimulationTrace.Enabled;
     private int _movementCollisionContactIterations;
     private int _movementCollisionOccupyChecks;
     private int _movementCollisionResolutionIterations;

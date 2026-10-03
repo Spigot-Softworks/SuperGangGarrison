@@ -5,19 +5,6 @@ namespace OpenGarrison.Core;
 
 internal sealed class EntityTickPhase : IEntityTickPhase
 {
-    private static readonly bool SlowPlayerTracingEnabled =
-        Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE") is "1" or "true" or "TRUE";
-    private static readonly double SlowPlayerThresholdMilliseconds = ResolveSlowPlayerThresholdMilliseconds();
-    private static readonly string? SlowPlayerTracePath = SlowPlayerTracingEnabled
-        ? RuntimePaths.GetLogPath($"simulation-player-spikes-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
-        : null;
-    private static readonly string? SlowPlayerBreakdownTracePath = SlowPlayerTracingEnabled
-        ? RuntimePaths.GetLogPath($"simulation-player-breakdowns-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
-        : null;
-    private static readonly string? SlowPhaseTracePath = SlowPlayerTracingEnabled
-        ? RuntimePaths.GetLogPath($"simulation-phase-spikes-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
-        : null;
-    private static readonly object SlowPlayerTraceSync = new();
     private readonly IEntityPhaseHost _host;
 
     public EntityTickPhase(IEntityPhaseHost host)
@@ -32,7 +19,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
             return;
         }
 
-        if (SlowPlayerTracingEnabled)
+        if (SimulationTrace.Enabled)
         {
             AdvanceProjectileAndTransientEntityPhaseWithTracing();
             return;
@@ -151,9 +138,8 @@ internal sealed class EntityTickPhase : IEntityTickPhase
     {
         var startTimestamp = Stopwatch.GetTimestamp();
         advance();
-        var elapsedMilliseconds = ElapsedMilliseconds(startTimestamp);
-        if (elapsedMilliseconds < SlowPlayerThresholdMilliseconds
-            || string.IsNullOrWhiteSpace(SlowPhaseTracePath))
+        var elapsedMilliseconds = SimulationTrace.ElapsedMilliseconds(startTimestamp);
+        if (elapsedMilliseconds < SimulationTrace.PlayerThresholdMilliseconds)
         {
             return;
         }
@@ -161,10 +147,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
         var line = string.Create(
             CultureInfo.InvariantCulture,
             $"{DateTime.Now:O} frame={_host.Frame} phase={name} elapsedMs={elapsedMilliseconds:0.0}{Environment.NewLine}");
-        lock (SlowPlayerTraceSync)
-        {
-            File.AppendAllText(SlowPhaseTracePath, line);
-        }
+        SimulationTrace.Append(SimulationTraceLog.PhaseSpikes, line);
     }
 
 
@@ -178,10 +161,10 @@ internal sealed class EntityTickPhase : IEntityTickPhase
         _host.SupportRules.ApplyBuffBannerRegeneration();
         _host.Structures.UpdateDispenserAuras();
         _host.SupportRules.UpdateBuffBannerAuras();
-        var phaseStartTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var phaseStartTimestamp = SimulationTrace.StartTimestamp();
         var enabledAdditionalSlots = _host.PlayerRegistry.EnabledAdditionalSlots;
-        byte[]? playerTimingSlots = SlowPlayerTracingEnabled ? new byte[1 + enabledAdditionalSlots.Count] : null;
-        double[]? playerTimingMilliseconds = SlowPlayerTracingEnabled ? new double[1 + enabledAdditionalSlots.Count] : null;
+        byte[]? playerTimingSlots = SimulationTrace.Enabled ? new byte[1 + enabledAdditionalSlots.Count] : null;
+        double[]? playerTimingMilliseconds = SimulationTrace.Enabled ? new double[1 + enabledAdditionalSlots.Count] : null;
         var timingIndex = 0;
 
         AdvancePlayerSlot(_host.LocalPlayerSlot);
@@ -209,7 +192,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
 
         void AdvancePlayerSlot(byte slot)
         {
-            var startTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+            var startTimestamp = SimulationTrace.StartTimestamp();
             _host.NetworkPlayers.AdvancePlayableNetworkPlayer(slot);
             if (_host.LastToDieState.StageNumber > 0 && _host.IsNetworkPlayerActive(slot)
                 && _host.NetworkPlayers.TryGetNetworkPlayer(slot, out var survivor))
@@ -220,7 +203,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
             if (playerTimingSlots is not null && playerTimingMilliseconds is not null)
             {
                 playerTimingSlots[timingIndex] = slot;
-                playerTimingMilliseconds[timingIndex] = ElapsedMilliseconds(startTimestamp);
+                playerTimingMilliseconds[timingIndex] = SimulationTrace.ElapsedMilliseconds(startTimestamp);
                 timingIndex += 1;
             }
         }
@@ -238,34 +221,18 @@ internal sealed class EntityTickPhase : IEntityTickPhase
         _host.Movement.AdvanceJumpPads();
     }
 
-    private static double ResolveSlowPlayerThresholdMilliseconds()
-    {
-        var configured = Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_PLAYER_TRACE_THRESHOLD_MS");
-        return double.TryParse(configured, NumberStyles.Float, CultureInfo.InvariantCulture, out var threshold)
-            ? Math.Max(0d, threshold)
-            : 5d;
-    }
-
-    private static double ElapsedMilliseconds(long startTimestamp)
-    {
-        return startTimestamp == 0L
-            ? 0d
-            : (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
-    }
-
     private void TracePlayerPhaseBreakdown(long startTimestamp, byte[]? slots, double[]? timings)
     {
-        if (!SlowPlayerTracingEnabled
+        if (!SimulationTrace.Enabled
             || startTimestamp == 0L
             || slots is null
-            || timings is null
-            || string.IsNullOrWhiteSpace(SlowPlayerBreakdownTracePath))
+            || timings is null)
         {
             return;
         }
 
-        var totalMilliseconds = ElapsedMilliseconds(startTimestamp);
-        if (totalMilliseconds < SlowPlayerThresholdMilliseconds)
+        var totalMilliseconds = SimulationTrace.ElapsedMilliseconds(startTimestamp);
+        if (totalMilliseconds < SimulationTrace.PlayerThresholdMilliseconds)
         {
             return;
         }
@@ -296,21 +263,18 @@ internal sealed class EntityTickPhase : IEntityTickPhase
         }
 
         builder.AppendLine();
-        lock (SlowPlayerTraceSync)
-        {
-            File.AppendAllText(SlowPlayerBreakdownTracePath, builder.ToString());
-        }
+        SimulationTrace.Append(SimulationTraceLog.PlayerBreakdowns, builder.ToString());
     }
 
     private void TraceSlowPlayer(byte slot, long startTimestamp)
     {
-        if (!SlowPlayerTracingEnabled || startTimestamp == 0L || string.IsNullOrWhiteSpace(SlowPlayerTracePath))
+        if (!SimulationTrace.Enabled || startTimestamp == 0L)
         {
             return;
         }
 
-        var elapsedMilliseconds = (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
-        if (elapsedMilliseconds < SlowPlayerThresholdMilliseconds)
+        var elapsedMilliseconds = SimulationTrace.ElapsedMilliseconds(startTimestamp);
+        if (elapsedMilliseconds < SimulationTrace.PlayerThresholdMilliseconds)
         {
             return;
         }
@@ -321,9 +285,6 @@ internal sealed class EntityTickPhase : IEntityTickPhase
         var line = string.Create(
             CultureInfo.InvariantCulture,
             $"{DateTime.Now:O} frame={_host.Frame} slot={slot} class={className} elapsedMs={elapsedMilliseconds:0.0}{Environment.NewLine}");
-        lock (SlowPlayerTraceSync)
-        {
-            File.AppendAllText(SlowPlayerTracePath, line);
-        }
+        SimulationTrace.Append(SimulationTraceLog.PlayerSpikes, line);
     }
 }

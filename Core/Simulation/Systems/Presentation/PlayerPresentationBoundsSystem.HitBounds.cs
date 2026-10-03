@@ -4,11 +4,6 @@ namespace OpenGarrison.Core;
 
 internal sealed partial class PlayerPresentationBoundsSystem
 {
-    private static readonly Lazy<GameMakerAssetManifest> _gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
-    private static readonly object _presentationSpriteAssetCacheSync = new();
-    private static readonly Dictionary<string, GameMakerSpriteAsset> _resolvedPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly HashSet<string> _missingPresentationSpriteAssets = new(StringComparer.OrdinalIgnoreCase);
-
     internal void GetPlayerPresentationHitBounds(PlayerEntity player,
         out float left,
         out float top,
@@ -88,7 +83,7 @@ internal sealed partial class PlayerPresentationBoundsSystem
             return false;
         }
 
-        if (!TryGetPresentationSpriteAsset(spriteName, out var sprite))
+        if (!PresentationSpriteAssetCache.TryGet(spriteName, out var sprite))
         {
             return false;
         }
@@ -104,118 +99,6 @@ internal sealed partial class PlayerPresentationBoundsSystem
         top = player.Y + ((mask.Top.Value - sprite.OriginY) * playerScale);
         right = player.X + (((mask.Right.Value - sprite.OriginX) + 1f) * playerScale);
         bottom = player.Y + (((mask.Bottom.Value - sprite.OriginY) + 1f) * playerScale);
-        return true;
-    }
-
-    private static bool TryGetPresentationSpriteAsset(string spriteName, out GameMakerSpriteAsset sprite)
-    {
-        var normalizedSpriteName = spriteName.Trim();
-        if (_gameMakerAssets.Value.Sprites.TryGetValue(normalizedSpriteName, out sprite!))
-        {
-            return true;
-        }
-
-        lock (_presentationSpriteAssetCacheSync)
-        {
-            if (_resolvedPresentationSpriteAssets.TryGetValue(normalizedSpriteName, out sprite!))
-            {
-                return true;
-            }
-
-            if (_missingPresentationSpriteAssets.Contains(normalizedSpriteName))
-            {
-                sprite = null!;
-                return false;
-            }
-        }
-
-        if (TryCreateGameplayPresentationSpriteAsset(normalizedSpriteName, out sprite!)
-            || TryLoadFreshPresentationSpriteAsset(normalizedSpriteName, out sprite!))
-        {
-            lock (_presentationSpriteAssetCacheSync)
-            {
-                _resolvedPresentationSpriteAssets[normalizedSpriteName] = sprite;
-                _missingPresentationSpriteAssets.Remove(normalizedSpriteName);
-            }
-
-            return true;
-        }
-
-        lock (_presentationSpriteAssetCacheSync)
-        {
-            _missingPresentationSpriteAssets.Add(normalizedSpriteName);
-        }
-
-        sprite = null!;
-        return false;
-    }
-
-    private static bool TryLoadFreshPresentationSpriteAsset(string spriteName, out GameMakerSpriteAsset sprite)
-    {
-        try
-        {
-            var freshManifest = GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets();
-            return freshManifest.Sprites.TryGetValue(spriteName, out sprite!);
-        }
-        catch (FileNotFoundException)
-        {
-            sprite = null!;
-            return false;
-        }
-    }
-
-    private static bool TryCreateGameplayPresentationSpriteAsset(string spriteName, out GameMakerSpriteAsset sprite)
-    {
-        foreach (var modPack in CharacterClassCatalog.RuntimeRegistry.ModPacks)
-        {
-            if (modPack.Assets.Sprites.TryGetValue(spriteName, out var definition)
-                && TryCreateGameplayPresentationSpriteAsset(definition, out sprite!))
-            {
-                return true;
-            }
-        }
-
-        if (StockGameplayModCatalog.Definition.Assets.Sprites.TryGetValue(spriteName, out var stockDefinition)
-            && TryCreateGameplayPresentationSpriteAsset(stockDefinition, out sprite!))
-        {
-            return true;
-        }
-
-        sprite = null!;
-        return false;
-    }
-
-    private static bool TryCreateGameplayPresentationSpriteAsset(
-        GameplaySpriteAssetDefinition definition,
-        out GameMakerSpriteAsset sprite)
-    {
-        var mask = definition.Mask;
-        if (mask is null
-            || !mask.Left.HasValue
-            || !mask.Top.HasValue
-            || !mask.Right.HasValue
-            || !mask.Bottom.HasValue)
-        {
-            sprite = null!;
-            return false;
-        }
-
-        sprite = new GameMakerSpriteAsset(
-            definition.Id,
-            MetadataPath: $"gameplay:{definition.Id}",
-            FramePaths: definition.FramePaths,
-            OriginX: definition.OriginX,
-            OriginY: definition.OriginY,
-            Preload: true,
-            Transparent: true,
-            Mask: new GameMakerSpriteMask(
-                mask.Separate,
-                mask.Shape,
-                mask.BoundsMode,
-                mask.Left,
-                mask.Top,
-                mask.Right,
-                mask.Bottom));
         return true;
     }
 

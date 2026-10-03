@@ -1,19 +1,10 @@
 using OpenGarrison.GameplayModding;
-using System.Diagnostics;
 using System.Globalization;
 
 namespace OpenGarrison.Core;
 
 internal sealed partial class PlayerInputSystem
 {
-    private static readonly bool SlowPlayerPhaseTracingEnabled =
-        Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_TRACE") is "1" or "true" or "TRUE";
-    private static readonly double SlowPlayerPhaseThresholdMilliseconds = ResolveSlowPlayerPhaseThresholdMilliseconds();
-    private static readonly string? SlowPlayerPhaseTracePath = SlowPlayerPhaseTracingEnabled
-        ? RuntimePaths.GetLogPath($"simulation-player-phases-{DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture)}.log")
-        : null;
-    private static readonly object SlowPlayerPhaseTraceSync = new();
-
     internal void AdvanceAlivePlayerWithInput(
         PlayerEntity player,
         PlayerInputSnapshot input,
@@ -23,7 +14,7 @@ internal sealed partial class PlayerInputSystem
     {
         var preAdvanceX = player.X;
         var preAdvanceY = player.Y;
-        var phaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var phaseStartTimestamp = SimulationTrace.StartTimestamp();
         var advanceTickStateMilliseconds = 0d;
         var primaryFireMilliseconds = 0d;
         var prepareMovementMilliseconds = 0d;
@@ -159,9 +150,9 @@ internal sealed partial class PlayerInputSystem
         player.SyncCivviePogoSuperJumpInput(input.Up);
 
         var healthBeforeTick = player.Health;
-        var subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var subphaseStartTimestamp = SimulationTrace.StartTimestamp();
         var afterburn = player.AdvanceTickState(input, _host.Config.FixedDeltaSeconds);
-        advanceTickStateMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
+        advanceTickStateMilliseconds = SimulationTrace.ElapsedMilliseconds(subphaseStartTimestamp);
         if (_host.LastToDieRules.TryCompleteExpiredLastToDieSpyAfterlife(player))
         {
             return;
@@ -246,7 +237,7 @@ internal sealed partial class PlayerInputSystem
         }
 
         var wasSpyBackstabAnimating = player.IsSpyBackstabAnimating;
-        subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        subphaseStartTimestamp = SimulationTrace.StartTimestamp();
         if (!player.HasEquippedBehavior(BuiltInGameplayBehaviorIds.WhippingCord))
         {
             player.ReleaseWhippingCord();
@@ -256,7 +247,7 @@ internal sealed partial class PlayerInputSystem
             _ = player.ReleaseWhippingCordWithPull();
         }
         TryHandleNetworkPrimaryFire(player, input, previousInput, primaryPressed, suppressPyroPrimaryThisTick);
-        primaryFireMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
+        primaryFireMilliseconds = SimulationTrace.ElapsedMilliseconds(subphaseStartTimestamp);
         if (!wasSpyBackstabAnimating && player.IsSpyBackstabAnimating)
         {
             input = ResetMovementInput(input);
@@ -295,7 +286,7 @@ internal sealed partial class PlayerInputSystem
             _host.Movement.ClearJumpInputBuffer(player);
         }
 
-        subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        subphaseStartTimestamp = SimulationTrace.StartTimestamp();
         var movementPreparation = _host.Movement.PreparePlayerMovement(
             player,
             input,
@@ -307,7 +298,7 @@ internal sealed partial class PlayerInputSystem
         var startedGrounded = movementPreparation.StartedGrounded;
         var jumped = movementPreparation.Jumped;
         var emitWallspinDust = movementPreparation.EmitWallspinDust;
-        prepareMovementMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
+        prepareMovementMilliseconds = SimulationTrace.ElapsedMilliseconds(subphaseStartTimestamp);
 
         var secondaryAbilityConsumedInput = false;
         if (secondaryAbilityReleased
@@ -408,30 +399,30 @@ internal sealed partial class PlayerInputSystem
             _host.WorldEffects.RegisterWallspinDustEffect(player);
         }
 
-        subphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        subphaseStartTimestamp = SimulationTrace.StartTimestamp();
         _host.Projectiles.AdvancePendingRocketsForOwner(player.Id);
         var previousBottom = preAdvanceY + player.CollisionBottomOffset;
         _host.Movement.CompletePlayerMovement(player, team, startedGrounded, jumped, input.Down);
-        completeMovementMilliseconds = ElapsedMilliseconds(subphaseStartTimestamp);
+        completeMovementMilliseconds = SimulationTrace.ElapsedMilliseconds(subphaseStartTimestamp);
         if (player.TryConsumeCivviePogoSuperJumpSoundRequest(out var pogoJumpSoundX, out var pogoJumpSoundY))
         {
             _host.WorldEffects.RegisterWorldSoundEvent("JumpSnd", pogoJumpSoundX, pogoJumpSoundY, player.Id);
         }
 
-        var postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        var postMovementSubphaseStartTimestamp = SimulationTrace.StartTimestamp();
         _host.Movement.ResolveMovingPlatformLanding(player, previousBottom, input.Down);
         _host.Movement.ResolveLandedArrowLanding(player, previousBottom, input.Down);
         _host.Movement.HandleJumpPadTriggerContactEffects(player);
         _host.WorldEffects.TryRegisterIntelTrailEffect(player);
         _host.TryRegisterCivvieMoneyTrail(player);
-        postMovementContactEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+        postMovementContactEffectsMilliseconds = SimulationTrace.ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
 
-        postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        postMovementSubphaseStartTimestamp = SimulationTrace.StartTimestamp();
         _host.RoomEffects.UpdateSpawnRoomState(player);
         TryActivatePendingSpyBackstab(player);
-        postMovementObjectiveEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+        postMovementObjectiveEffectsMilliseconds = SimulationTrace.ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
 
-        postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        postMovementSubphaseStartTimestamp = SimulationTrace.StartTimestamp();
         if (dropPressed)
         {
             _host.ObjectiveRules.TryDropCarriedIntel(player);
@@ -465,17 +456,17 @@ internal sealed partial class PlayerInputSystem
         _host.RoomEffects.ApplyHealingCabinets(player);
         _host.RoomEffects.ApplyRoomHazards(player);
         _host.Movement.ApplyTeleportZones(player);
-        postMovementInventoryEffectsMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+        postMovementInventoryEffectsMilliseconds = SimulationTrace.ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
         if (!player.IsAlive)
         {
             return;
         }
 
-        postMovementSubphaseStartTimestamp = SlowPlayerPhaseTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
+        postMovementSubphaseStartTimestamp = SimulationTrace.StartTimestamp();
         _host.Abilities.DispatchPassiveGameplayAbilities(player, input, previousInput, preAdvanceX, preAdvanceY);
-        postMovementPassiveAbilitiesMilliseconds = ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
+        postMovementPassiveAbilitiesMilliseconds = SimulationTrace.ElapsedMilliseconds(postMovementSubphaseStartTimestamp);
 
-        postMovementMilliseconds = ElapsedMilliseconds(phaseStartTimestamp)
+        postMovementMilliseconds = SimulationTrace.ElapsedMilliseconds(phaseStartTimestamp)
             - advanceTickStateMilliseconds
             - primaryFireMilliseconds
             - prepareMovementMilliseconds
@@ -502,21 +493,6 @@ internal sealed partial class PlayerInputSystem
         }
     }
 
-    private static double ResolveSlowPlayerPhaseThresholdMilliseconds()
-    {
-        var configured = Environment.GetEnvironmentVariable("OG_CLIENT_PERF_SIM_PLAYER_PHASE_TRACE_THRESHOLD_MS");
-        return double.TryParse(configured, NumberStyles.Float, CultureInfo.InvariantCulture, out var threshold)
-            ? Math.Max(0d, threshold)
-            : 10d;
-    }
-
-    internal static double ElapsedMilliseconds(long startTimestamp)
-    {
-        return startTimestamp == 0L
-            ? 0d
-            : (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
-    }
-
     private void TraceSlowPlayerPhases(
         PlayerEntity player,
         long startTimestamp,
@@ -533,15 +509,14 @@ internal sealed partial class PlayerInputSystem
         int movementCollisionOccupyChecks,
         int movementCollisionResolutionIterations)
     {
-        if (!SlowPlayerPhaseTracingEnabled
-            || startTimestamp == 0L
-            || string.IsNullOrWhiteSpace(SlowPlayerPhaseTracePath))
+        if (!SimulationTrace.Enabled
+            || startTimestamp == 0L)
         {
             return;
         }
 
-        var totalMilliseconds = ElapsedMilliseconds(startTimestamp);
-        if (totalMilliseconds < SlowPlayerPhaseThresholdMilliseconds)
+        var totalMilliseconds = SimulationTrace.ElapsedMilliseconds(startTimestamp);
+        if (totalMilliseconds < SimulationTrace.PlayerPhaseThresholdMilliseconds)
         {
             return;
         }
@@ -549,10 +524,7 @@ internal sealed partial class PlayerInputSystem
         var line = string.Create(
             CultureInfo.InvariantCulture,
             $"{DateTime.Now:O} frame={_host.Frame} slot={FindNetworkSlotForPlayer(player)} class={player.ClassId} totalMs={totalMilliseconds:0.0} advanceTickStateMs={advanceTickStateMilliseconds:0.0} primaryFireMs={primaryFireMilliseconds:0.0} prepareMovementMs={prepareMovementMilliseconds:0.0} completeMovementMs={completeMovementMilliseconds:0.0} postMovementMs={postMovementMilliseconds:0.0} postContactMs={postMovementContactEffectsMilliseconds:0.0} postObjectiveMs={postMovementObjectiveEffectsMilliseconds:0.0} postInventoryMs={postMovementInventoryEffectsMilliseconds:0.0} postPassiveMs={postMovementPassiveAbilitiesMilliseconds:0.0} collisionContactIterations={movementCollisionContactIterations} collisionOccupyChecks={movementCollisionOccupyChecks} collisionResolutionIterations={movementCollisionResolutionIterations}{Environment.NewLine}");
-        lock (SlowPlayerPhaseTraceSync)
-        {
-            File.AppendAllText(SlowPlayerPhaseTracePath, line);
-        }
+        SimulationTrace.Append(SimulationTraceLog.PlayerPhases, line);
     }
 
     private byte FindNetworkSlotForPlayer(PlayerEntity player)
