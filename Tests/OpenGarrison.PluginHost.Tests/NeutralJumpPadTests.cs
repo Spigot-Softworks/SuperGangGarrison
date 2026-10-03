@@ -72,7 +72,7 @@ public sealed class NeutralJumpPadTests
         oldPad.TakeDamage(JumpPadEntity.MaxHealth);
         Assert.True(oldPad.IsDead);
 
-        world.RestartCurrentRound(true, false);
+        world.MapLifecycle.RestartCurrentRound(true, false);
 
         var newPad = Assert.Single(world.JumpPads);
         Assert.NotSame(oldPad, newPad);

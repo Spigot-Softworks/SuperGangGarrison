@@ -168,7 +168,7 @@ public sealed class ServerAdminFoundationTests
             "Time limit",
             world.MatchRules.TimeLimitMinutes,
             () => world.MatchRules.TimeLimitMinutes,
-            world.SetTimeLimitMinutes,
+            world.MapLifecycle.SetTimeLimitMinutes,
             minValue: 1,
             maxValue: 255);
         registry.RegisterInteger(
@@ -176,7 +176,7 @@ public sealed class ServerAdminFoundationTests
             "Respawn time",
             world.ConfiguredRespawnSeconds,
             () => world.ConfiguredRespawnSeconds,
-            world.SetRespawnSeconds,
+            world.MapLifecycle.SetRespawnSeconds,
             minValue: 0,
             maxValue: 255);
 
@@ -215,7 +215,7 @@ public sealed class ServerAdminFoundationTests
             "Map scale",
             world.ConfiguredMapScale,
             () => world.ConfiguredMapScale,
-            world.SetMapScale,
+            world.MapLifecycle.SetMapScale,
             minValue: 0.25f,
             maxValue: 4f);
         registry.RegisterFloat(
