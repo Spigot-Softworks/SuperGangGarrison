@@ -79,7 +79,7 @@ internal static class ServerRuntimeBootstrapFactory
             EnableSoldierShotgunSecondaryWeapon: secondaryAbilitiesEnabled));
         if (timeLimitMinutesOverride.HasValue || capLimitOverride.HasValue || respawnSecondsOverride.HasValue)
         {
-            world.ConfigureMatchDefaults(
+            world.MapLifecycle.ConfigureMatchDefaults(
                 timeLimitMinutes: timeLimitMinutesOverride,
                 capLimit: capLimitOverride,
                 respawnSeconds: respawnSecondsOverride);

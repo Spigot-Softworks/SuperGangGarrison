@@ -177,7 +177,7 @@ public sealed class HealthPackSpawnTests
     public void EnemyHealthPackDropDoesNotDependOnKillerClass(PlayerClass killerClass)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(killerClass);

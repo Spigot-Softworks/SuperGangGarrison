@@ -8,7 +8,5 @@ internal interface IReadyUpHost : ISimulationWorldState, ISimulationPlayerDirect
     ObjectiveRulesSystem ObjectiveRules { get; }
     ObjectiveStateStore Objectives { get; }
     CompetitiveReadyUpState ReadyUpState { get; }
-
-    void ResetModeStateForNewRound();
-    void RestartCurrentRound(bool preservePlayerStats, bool enterCompetitiveSkirmish = true);
+    MapLifecycleSystem MapLifecycle { get; }
 }

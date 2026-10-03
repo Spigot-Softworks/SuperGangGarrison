@@ -13,7 +13,7 @@ public sealed class DirtbowlStageTransitionTests
         int expectedArea)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Dirtbowl", currentArea, preservePlayerStats: false));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Dirtbowl", currentArea, preservePlayerStats: false));
         Assert.Equal(3, world.Level.MapAreaCount);
         Assert.True(world.AutoRestartOnMapChange);
         world.LocalPlayer.AddKill();
@@ -31,7 +31,7 @@ public sealed class DirtbowlStageTransitionTests
     public void AutomaticRoundChangeRestartsCurrentDirtbowlStageAfterBlueWin()
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Dirtbowl", mapAreaIndex: 2, preservePlayerStats: false));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Dirtbowl", mapAreaIndex: 2, preservePlayerStats: false));
         world.LocalPlayer.AddKill();
 
         ForceAutomaticMapChangeDue(world, PlayerTeam.Blue);

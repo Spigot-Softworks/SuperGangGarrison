@@ -74,7 +74,7 @@ public sealed class LastToDieEngineerAlternateWeaponReplicationTests
     public void EngineerBeamRemainsUsableThroughRepeatedAuthorityAndPredictionTicks(ExperimentalEngineerAlternateWeaponMode mode)
     {
         var source = JoinedEngineerWorld();
-        Assert.True(source.TryLoadLevel("Harvest"));
+        Assert.True(source.MapLifecycle.TryLoadLevel("Harvest"));
         var settings = new ExperimentalGameplaySettings(
             EnableEngineerEssenceExtractor: mode == ExperimentalEngineerAlternateWeaponMode.EssenceExtractor,
             EnableEngineerFreezeRay: mode == ExperimentalEngineerAlternateWeaponMode.FreezeRay);

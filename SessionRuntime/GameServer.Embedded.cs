@@ -58,7 +58,7 @@ partial class GameServer
             _outboundMessaging.SendMessage, () => _clock.Elapsed.TotalSeconds, Console.WriteLine,
             requireVoiceChannelJoin: options.LastToDie);
         ApplyHostGameplayDefaults();
-        _world.ConfigureMatchDefaults(timeLimitMinutes: options.TimeLimitMinutes,
+        _world.MapLifecycle.ConfigureMatchDefaults(timeLimitMinutes: options.TimeLimitMinutes,
             capLimit: options.CaptureLimit, respawnSeconds: options.RespawnSeconds);
         _lastToDieRunIdentity = options.RunIdentity;
         InitializeGameplayVariantRuntime();
@@ -69,9 +69,9 @@ partial class GameServer
             var map = ClassicStockMapCatalog.GetPreferredLevelName(options.Map, options.PreferClassicMaps);
             if ((!string.Equals(map, _world.Level.Name, StringComparison.OrdinalIgnoreCase)
                 || options.MapArea != _world.Level.MapAreaIndex)
-                && !_world.TryLoadLevel(map, options.MapArea, preservePlayerStats: false))
+                && !_world.MapLifecycle.TryLoadLevel(map, options.MapArea, preservePlayerStats: false))
                 throw new InvalidOperationException("The selected Practice map area could not load.");
-            _world.ConfigureMatchDefaults(timeLimitMinutes: options.TimeLimitMinutes,
+            _world.MapLifecycle.ConfigureMatchDefaults(timeLimitMinutes: options.TimeLimitMinutes,
                 capLimit: options.CaptureLimit, respawnSeconds: options.RespawnSeconds);
             var nextSlot = (byte)(options.MaximumPlayers + 1);
             foreach (var (team, count) in new[] { (PlayerTeam.Red, options.RedBots), (PlayerTeam.Blue, options.BlueBots) })

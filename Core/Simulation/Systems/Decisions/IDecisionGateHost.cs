@@ -10,7 +10,6 @@ internal interface IDecisionGateHost
     MatchRules MatchRules { get; }
     MatchState MatchState { get; set; }
     NetworkPlayerSystem NetworkPlayers { get; }
+    MapLifecycleSystem MapLifecycle { get; }
     int RedCaps { get; set; }
-
-    void QueuePendingMapChange();
 }

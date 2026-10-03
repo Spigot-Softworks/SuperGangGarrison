@@ -126,7 +126,7 @@ sealed class MapRotationManager
                 winner,
                 _world.MatchRules.Mode);
             _log(BuildStagedRoundHoldLogMessage(currentLevelName, currentArea, totalAreas, "defender win"));
-            _world.RestartCurrentRoundForMapRotation(preservePlayerStats: false);
+            _world.MapLifecycle.RestartCurrentRoundForMapRotation(preservePlayerStats: false);
             return true;
         }
         else if (isVipFullCompletion && !ShouldAdvanceRotation())
@@ -141,7 +141,7 @@ sealed class MapRotationManager
                 winner,
                 _world.MatchRules.Mode);
             _log(BuildStagedRoundHoldLogMessage(currentLevelName, currentArea, totalAreas, "offense completion"));
-            if (!_world.ApplyPendingMapChange(currentLevelName, mapAreaIndex: 1, preservePlayerStats: false))
+            if (!_world.MapLifecycle.ApplyPendingMapChange(currentLevelName, mapAreaIndex: 1, preservePlayerStats: false))
             {
                 _log($"[server] failed to restart {currentLevelName} area 1/{totalAreas}; restarting round.");
                 transition = default;
@@ -195,7 +195,7 @@ sealed class MapRotationManager
                 PreservePlayerStats: false,
                 winner,
                 _world.MatchRules.Mode);
-            _world.RestartCurrentRoundForMapRotation(preservePlayerStats: false);
+            _world.MapLifecycle.RestartCurrentRoundForMapRotation(preservePlayerStats: false);
             return true;
         }
 
@@ -209,7 +209,7 @@ sealed class MapRotationManager
             winner,
             _world.MatchRules.Mode);
 
-        if (!_world.ApplyPendingMapChange(nextMap, nextArea, preserveStats))
+        if (!_world.MapLifecycle.ApplyPendingMapChange(nextMap, nextArea, preserveStats))
         {
             _log($"[server] failed to apply map change to {nextMap}; restarting round.");
             transition = default;
@@ -218,7 +218,7 @@ sealed class MapRotationManager
 
         if (!preserveStats)
         {
-            _world.ResetPlayersToAwaitingJoinForFreshMap();
+            _world.MapLifecycle.ResetPlayersToAwaitingJoinForFreshMap();
             ResetPolicyCountersForCurrentMap();
         }
 
@@ -321,7 +321,7 @@ sealed class MapRotationManager
         _queuedNextRoundMap = null;
         if (!string.IsNullOrWhiteSpace(requestedMap))
         {
-            var loadedRequestedMap = _world.TryLoadLevel(requestedMap, mapAreaIndex: 1, preservePlayerStats: false);
+            var loadedRequestedMap = _world.MapLifecycle.TryLoadLevel(requestedMap, mapAreaIndex: 1, preservePlayerStats: false);
             if (!loadedRequestedMap)
             {
                 _log($"[server] unknown map \"{requestedMap}\"; falling back to {_world.Level.Name}.");
@@ -343,7 +343,7 @@ sealed class MapRotationManager
         }
 
         var requestedRotationMap = _mapRotation[0];
-        if (!_world.TryLoadLevel(requestedRotationMap, mapAreaIndex: 1, preservePlayerStats: false))
+        if (!_world.MapLifecycle.TryLoadLevel(requestedRotationMap, mapAreaIndex: 1, preservePlayerStats: false))
         {
             _log($"[server] unknown map \"{requestedRotationMap}\"; falling back to {_world.Level.Name}.");
         }

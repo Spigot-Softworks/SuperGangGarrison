@@ -24,6 +24,7 @@ internal interface ISnapshotApplyHost : ISimulationWorldState, ISimulationPlayer
     KillFeedSystem KillFeed { get; }
     LocalDeathCamState? LocalDeathCam { get; set; }
     PlayerEntity LocalPlayer { get; }
+    MapLifecycleSystem MapLifecycle { get; }
     MatchRules MatchRules { get; set; }
     MatchState MatchState { get; set; }
     IReadOnlyList<MineProjectileEntity> Mines { get; }
@@ -46,6 +47,4 @@ internal interface ISnapshotApplyHost : ISimulationWorldState, ISimulationPlayer
     WorldEffectsSystem WorldEffects { get; }
     WorldObjectStore WorldObjects { get; }
 
-    bool TryLoadLevel(string levelName);
-    bool TryLoadLevel(string levelName, int mapAreaIndex, bool preservePlayerStats, float? mapScale = null);
 }

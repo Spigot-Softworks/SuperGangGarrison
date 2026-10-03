@@ -190,7 +190,7 @@ internal sealed class DecisionGate
         }
 
         _host.MatchState = _host.MatchState with { Phase = MatchPhase.Ended, WinnerTeam = winnerTeam };
-        _host.QueuePendingMapChange();
+        _host.MapLifecycle.QueuePendingMapChange();
         return true;
     }
 }

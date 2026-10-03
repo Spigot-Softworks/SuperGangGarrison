@@ -21,6 +21,7 @@ public sealed partial class SimulationWorld : ISnapshotApplyHost
     KillFeedSystem ISnapshotApplyHost.KillFeed => KillFeed;
     LocalDeathCamState? ISnapshotApplyHost.LocalDeathCam { get => LocalDeathCam; set => LocalDeathCam = value; }
     PlayerEntity ISnapshotApplyHost.LocalPlayer => LocalPlayer;
+    MapLifecycleSystem ISnapshotApplyHost.MapLifecycle => MapLifecycle;
     MatchRules ISnapshotApplyHost.MatchRules { get => MatchRules; set => MatchRules = value; }
     MatchState ISnapshotApplyHost.MatchState { get => MatchState; set => MatchState = value; }
     IReadOnlyList<MineProjectileEntity> ISnapshotApplyHost.Mines => Mines;
@@ -40,10 +41,6 @@ public sealed partial class SimulationWorld : ISnapshotApplyHost
     IReadOnlyList<RocketProjectileEntity> ISnapshotApplyHost.Rockets => Rockets;
     IReadOnlyList<ShotProjectileEntity> ISnapshotApplyHost.Shots => Shots;
     int ISnapshotApplyHost.SpectatorCount { get => SpectatorCount; set => SpectatorCount = value; }
-    bool ISnapshotApplyHost.TryLoadLevel(string levelName)
-        => TryLoadLevel(levelName);
-    bool ISnapshotApplyHost.TryLoadLevel(string levelName, int mapAreaIndex, bool preservePlayerStats, float? mapScale)
-        => TryLoadLevel(levelName, mapAreaIndex, preservePlayerStats, mapScale);
     WorldEffectsSystem ISnapshotApplyHost.WorldEffects => WorldEffects;
     WorldObjectStore ISnapshotApplyHost.WorldObjects => WorldObjects;
 }

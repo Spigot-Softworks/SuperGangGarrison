@@ -670,7 +670,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         const byte enemySlot = 3;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(world.TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false));
+        Assert.True(world.MapLifecycle.TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false));
         Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(enemySlot));
         Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(enemySlot, PlayerTeam.Blue));
         Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(enemySlot, PlayerClass.Scout));
@@ -690,7 +690,7 @@ public sealed class SimulationWorldNetworkPlayerConfigurationTests
     {
         const byte slot = 3;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(world.TryLoadLevel("gg2_koth_harvest", mapAreaIndex: 1, preservePlayerStats: false));
+        Assert.True(world.MapLifecycle.TryLoadLevel("gg2_koth_harvest", mapAreaIndex: 1, preservePlayerStats: false));
         Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(slot));
         world.NetworkPlayers.TrySetNetworkPlayerTeam(slot, enemyTeam);
         Assert.True(world.NetworkPlayers.TryApplyNetworkPlayerClassSelection(slot, PlayerClass.Soldier));

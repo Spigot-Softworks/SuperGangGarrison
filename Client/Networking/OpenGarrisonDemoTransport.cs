@@ -331,7 +331,7 @@ public sealed class OpenGarrisonDemoTransport : ISeekablePlaybackMessageTranspor
                     }
 
                     world = new SimulationWorld();
-                    if (!world.TryLoadLevel(nextWelcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: nextWelcome.MapScale))
+                    if (!world.MapLifecycle.TryLoadLevel(nextWelcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: nextWelcome.MapScale))
                     {
                         throw new InvalidDataException($"Demo map '{nextWelcome.LevelName}' could not be loaded.");
                     }

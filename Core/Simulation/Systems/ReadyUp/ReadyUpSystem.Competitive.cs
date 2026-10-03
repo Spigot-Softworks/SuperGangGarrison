@@ -35,7 +35,7 @@ internal sealed partial class ReadyUpSystem
         _host.ReadyUpState.Enabled = enabled;
         if (enabled)
         {
-            _host.RestartCurrentRound(preservePlayerStats: false);
+            _host.MapLifecycle.RestartCurrentRound(preservePlayerStats: false);
             return;
         }
 
@@ -43,7 +43,7 @@ internal sealed partial class ReadyUpSystem
         ClearCompetitiveReadyUpState();
         if (wasLocked)
         {
-            _host.RestartCurrentRound(preservePlayerStats: false, enterCompetitiveSkirmish: false);
+            _host.MapLifecycle.RestartCurrentRound(preservePlayerStats: false, enterCompetitiveSkirmish: false);
         }
     }
 
@@ -181,7 +181,7 @@ internal sealed partial class ReadyUpSystem
         _host.ReadyUpState.SuppressSkirmishOnNextRoundRestart = true;
         try
         {
-            _host.RestartCurrentRound(preservePlayerStats: false, enterCompetitiveSkirmish: false);
+            _host.MapLifecycle.RestartCurrentRound(preservePlayerStats: false, enterCompetitiveSkirmish: false);
         }
         finally
         {
@@ -202,7 +202,7 @@ internal sealed partial class ReadyUpSystem
     private void BeginCompetitiveLive()
     {
         _host.Level.ForcedBlockingTeamGates = TeamGateLockMask.None;
-        _host.ResetModeStateForNewRound();
+        _host.MapLifecycle.ResetModeStateForNewRound();
         _host.ReadyUpState.ReadySlots.Clear();
         _host.ReadyUpState.Phase = CompetitiveReadyUpPhase.Live;
         _host.ReadyUpState.TicksRemaining = 0;

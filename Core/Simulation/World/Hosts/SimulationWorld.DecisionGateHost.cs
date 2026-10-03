@@ -7,6 +7,6 @@ public sealed partial class SimulationWorld : IDecisionGateHost
     MatchRules IDecisionGateHost.MatchRules => MatchRules;
     MatchState IDecisionGateHost.MatchState { get => MatchState; set => MatchState = value; }
     NetworkPlayerSystem IDecisionGateHost.NetworkPlayers => NetworkPlayers;
-    void IDecisionGateHost.QueuePendingMapChange() => QueuePendingMapChange();
+    MapLifecycleSystem IDecisionGateHost.MapLifecycle => MapLifecycle;
     int IDecisionGateHost.RedCaps { get => RedCaps; set => RedCaps = value; }
 }

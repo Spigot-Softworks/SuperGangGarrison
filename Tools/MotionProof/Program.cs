@@ -3193,7 +3193,7 @@ internal static class MotionProofRunner
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        if (!world.TryLoadLevel(options.MapName, options.MapAreaIndex, preservePlayerStats: false))
+        if (!world.MapLifecycle.TryLoadLevel(options.MapName, options.MapAreaIndex, preservePlayerStats: false))
         {
             failureReason = $"failed_to_load_level:{options.MapName}:a{options.MapAreaIndex}";
             return null;

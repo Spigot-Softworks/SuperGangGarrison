@@ -206,12 +206,12 @@ partial class GameServer
         _world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: host.SecondaryAbilitiesEnabled,
             EnableSoldierShotgunSecondaryWeapon: host.SecondaryAbilitiesEnabled));
-        _world.ConfigureMatchDefaults(
+        _world.MapLifecycle.ConfigureMatchDefaults(
             timeLimitMinutes: Math.Clamp(host.TimeLimitMinutes, 1, 255),
             capLimit: Math.Clamp(host.CapLimit, 1, 255),
             respawnSeconds: Math.Clamp(host.RespawnSeconds, 0, 255));
         _world.ServerTuning.SetPlayerScale(host.PlayerScale);
-        _world.SetMapScale(host.MapScale);
+        _world.MapLifecycle.SetMapScale(host.MapScale);
         _world.ServerTuning.SetMovementSpeedScale(host.MovementSpeedScale);
         _world.ServerTuning.SetProjectileSpeedScale(host.ProjectileSpeedScale);
         _world.ServerTuning.SetDamageScale(host.DamageScale);
@@ -1099,7 +1099,7 @@ partial class GameServer
             "Current match time limit in minutes.",
             _timeLimitMinutesOverride ?? _world.MatchRules.TimeLimitMinutes,
             () => _world.MatchRules.TimeLimitMinutes,
-            value => _world.SetTimeLimitMinutes(value),
+            value => _world.MapLifecycle.SetTimeLimitMinutes(value),
             minValue: 1,
             maxValue: 255);
         registry.RegisterInteger(
@@ -1107,7 +1107,7 @@ partial class GameServer
             "Current capture limit.",
             _capLimitOverride ?? _world.MatchRules.CapLimit,
             () => _world.MatchRules.CapLimit,
-            value => _world.SetCapLimit(value),
+            value => _world.MapLifecycle.SetCapLimit(value),
             minValue: 1,
             maxValue: 255);
         registry.RegisterInteger(
@@ -1115,7 +1115,7 @@ partial class GameServer
             "Current respawn time in seconds.",
             _respawnSecondsOverride ?? _world.ConfiguredRespawnSeconds,
             () => _world.ConfiguredRespawnSeconds,
-            value => _world.SetRespawnSeconds(value),
+            value => _world.MapLifecycle.SetRespawnSeconds(value),
             minValue: 0,
             maxValue: 255);
         registry.RegisterFloat(
@@ -1131,7 +1131,7 @@ partial class GameServer
             "Current map scale. Reloads the active map safely when changed.",
             _world.ConfiguredMapScale,
             () => _world.ConfiguredMapScale,
-            value => _world.SetMapScale(value),
+            value => _world.MapLifecycle.SetMapScale(value),
             minValue: 0.25f,
             maxValue: 4f);
         registry.RegisterFloat(

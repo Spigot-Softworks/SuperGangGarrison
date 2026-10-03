@@ -206,7 +206,7 @@ public sealed class OfflineSessionController
             _context.ResetGameplayRuntimeState();
             _context._world.ConfigureExperimentalGameplaySettings(experimentalSettings);
             _context._world.ObjectiveRules.ConfigureSpecialCaptureTheFlagRules(enableInstantRedTeamIntelCaptureWin);
-            _context._world.ConfigureMatchDefaults(
+            _context._world.MapLifecycle.ConfigureMatchDefaults(
                 timeLimitMinutes: timeLimitMinutes,
                 capLimit: capLimit,
                 respawnSeconds: respawnSeconds);
@@ -216,7 +216,7 @@ public sealed class OfflineSessionController
             }
             LogBrowserPracticeStartupStep("configure-world");
 
-            if (!_context._world.TryLoadLevel(levelName))
+            if (!_context._world.MapLifecycle.TryLoadLevel(levelName))
             {
                 _context._menuStatusMessage = $"Failed to load local map: {levelName}";
                 return false;

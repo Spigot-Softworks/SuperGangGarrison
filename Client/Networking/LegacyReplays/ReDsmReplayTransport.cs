@@ -304,7 +304,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                     }
 
                     world = new SimulationWorld();
-                    if (!world.TryLoadLevel(nextWelcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: nextWelcome.MapScale))
+                    if (!world.MapLifecycle.TryLoadLevel(nextWelcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: nextWelcome.MapScale))
                     {
                         throw new InvalidDataException($"Translated welcome map '{nextWelcome.LevelName}' could not be loaded.");
                     }

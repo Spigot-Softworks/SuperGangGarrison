@@ -1001,7 +1001,7 @@ internal static class Og2AlphaNavigationDiagnostics
         bool traceCapture)
     {
         var world = new SimulationWorld();
-        if (!world.TryLoadLevel(mapName, area, preservePlayerStats: false))
+        if (!world.MapLifecycle.TryLoadLevel(mapName, area, preservePlayerStats: false))
         {
             return CaptureTrialResult.Failed(expectedMode, "world_load_failed");
         }

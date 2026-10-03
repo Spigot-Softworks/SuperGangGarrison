@@ -9,7 +9,7 @@ internal sealed partial class SnapshotApplySystem
         return ((string.Equals(_host.Level.Name, snapshot.LevelName, StringComparison.OrdinalIgnoreCase)
                 && _host.Level.MapAreaIndex == snapshot.MapAreaIndex)
             && MathF.Abs(_host.Level.MapScale - snapshot.MapScale) <= 0.0001f)
-            || _host.TryLoadLevel(snapshot.LevelName, snapshot.MapAreaIndex, preservePlayerStats: false, mapScale: snapshot.MapScale);
+            || _host.MapLifecycle.TryLoadLevel(snapshot.LevelName, snapshot.MapAreaIndex, preservePlayerStats: false, mapScale: snapshot.MapScale);
     }
 
     private void ApplySnapshotWorldState(SnapshotMessage snapshot)

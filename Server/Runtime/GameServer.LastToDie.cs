@@ -350,8 +350,8 @@ partial class GameServer
         var previousAreaCount = _world.Level.MapAreaCount;
         var previousMode = _world.MatchRules.Mode;
         _world.ObjectiveRules.ConfigureSpecialCaptureTheFlagRules(endMatchOnRedTeamIntelCapture: true);
-        _world.ConfigureMatchDefaults(capLimit: 3);
-        if (!_world.TryLoadLevel(
+        _world.MapLifecycle.ConfigureMatchDefaults(capLimit: 3);
+        if (!_world.MapLifecycle.TryLoadLevel(
                 directorSnapshot.CurrentMap,
                 mapAreaIndex: 1,
                 preservePlayerStats: false))

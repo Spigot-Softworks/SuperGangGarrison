@@ -132,7 +132,7 @@ public sealed class KothHudOvertimeTests
     private static SimulationWorld CreateServerKothWorld()
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         Assert.Equal(GameModeKind.KingOfTheHill, world.MatchRules.Mode);
         return world;
     }

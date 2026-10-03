@@ -3456,7 +3456,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedSoldierWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Soldier);
@@ -3467,7 +3467,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedHeavyWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Heavy);
@@ -3478,7 +3478,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedPyroWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Pyro);
@@ -3491,7 +3491,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedDemomanWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Demoman);
@@ -3502,7 +3502,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedSniperWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Sniper);
@@ -3513,7 +3513,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedSpyWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Spy);
@@ -3524,7 +3524,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedCivilianWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Quote);
@@ -3535,7 +3535,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedScoutWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
@@ -3546,7 +3546,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedMedicWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Medic);
@@ -3557,7 +3557,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
     private static SimulationWorld CreateJoinedEngineerWorld(ExperimentalGameplaySettings settings)
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);

@@ -646,7 +646,7 @@ public partial class Game1
             case "load_map":
                 if (parts.Length >= 2)
                 {
-                    AddConsoleLine(_world.TryLoadLevel(parts[1])
+                    AddConsoleLine(_world.MapLifecycle.TryLoadLevel(parts[1])
                         ? $"loaded map {_world.Level.Name}"
                         : $"usage: load_map <{string.Join("|", SimpleLevelFactory.GetAvailableSourceLevels().Select(entry => entry.Name.ToLowerInvariant()))}>");
                 }

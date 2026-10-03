@@ -31,7 +31,7 @@ public sealed class VipModeRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("vip_egypt"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("vip_egypt"));
 
         Assert.True(world.VipRules.IsVipModeActive);
         Assert.True(world.VipRules.VipRequiresDualVip);
@@ -44,7 +44,7 @@ public sealed class VipModeRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("vip_dirtbowl"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("vip_dirtbowl"));
 
         Assert.True(world.VipRules.IsVipModeActive);
         Assert.False(world.VipRules.VipRequiresDualVip);
@@ -57,7 +57,7 @@ public sealed class VipModeRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("vip_dirtbowl"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("vip_dirtbowl"));
         var setupTicksBefore = world.ControlPointSetupTicksRemaining;
 
         world.AdvanceOneTick();
@@ -71,8 +71,8 @@ public sealed class VipModeRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("vip_dirtbowl"));
-        world.ResetPlayersToAwaitingJoinForFreshMap();
+        Assert.True(world.MapLifecycle.TryLoadLevel("vip_dirtbowl"));
+        world.MapLifecycle.ResetPlayersToAwaitingJoinForFreshMap();
 
         for (var tick = 0; tick < 60; tick += 1)
         {
@@ -88,8 +88,8 @@ public sealed class VipModeRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("vip_dirtbowl"));
-        world.ResetPlayersToAwaitingJoinForFreshMap();
+        Assert.True(world.MapLifecycle.TryLoadLevel("vip_dirtbowl"));
+        world.MapLifecycle.ResetPlayersToAwaitingJoinForFreshMap();
         var player = JoinPlayer(world, RedTeammateSlot, PlayerTeam.Red, PlayerClass.Scout);
 
         world.AdvanceOneTick();
@@ -105,7 +105,7 @@ public sealed class VipModeRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("vip_egypt"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("vip_egypt"));
 
         world.AdvanceOneTick();
 
@@ -118,7 +118,7 @@ public sealed class VipModeRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("Dirtbowl"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
         world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Quote);
 
@@ -140,7 +140,7 @@ public sealed class VipModeRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("Dirtbowl"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
         world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Quote);
         AdvancePastSetup(world);
@@ -161,7 +161,7 @@ public sealed class VipModeRulesTests
         const byte botSlot = 2;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("Dirtbowl"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
         Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot));
         Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(botSlot, PlayerTeam.Red));
@@ -186,7 +186,7 @@ public sealed class VipModeRulesTests
         const byte botSlot = 2;
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("Dirtbowl"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
         world.ClassRules.SetVipAllowDuplicateClasses(true);
         world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Quote);
@@ -208,7 +208,7 @@ public sealed class VipModeRulesTests
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
 
-        Assert.True(world.TryLoadLevel("Dirtbowl"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Dirtbowl"));
         world.VipRules.ConfigurePracticeVipRules(enabled: true);
         world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Quote);
         AdvancePastSetup(world);

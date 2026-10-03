@@ -90,7 +90,7 @@ public static class TraversalLabRunner
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        if (!world.TryLoadLevel(scenario.LevelName!, scenario.MapAreaIndex, preservePlayerStats: false))
+        if (!world.MapLifecycle.TryLoadLevel(scenario.LevelName!, scenario.MapAreaIndex, preservePlayerStats: false))
         {
             return CreateLoadFailure(variant, $"failed_to_load_level:{scenario.LevelName}:a{scenario.MapAreaIndex}");
         }

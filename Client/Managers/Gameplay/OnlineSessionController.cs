@@ -514,14 +514,14 @@ public sealed class OnlineSessionController
             _context.ResetGameplayRuntimeState();
             _context.LocalPrediction.ServerLocalPredictionEnabled = welcome.LocalPredictionEnabled && !_context._networkClient.IsSpectator;
             _context.ShowJoiningServerLoadingOverlay();
-            if (!_context._world.TryLoadLevel(welcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: welcome.MapScale))
+            if (!_context._world.MapLifecycle.TryLoadLevel(welcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: welcome.MapScale))
             {
                 var loadError = $"Failed to load map: {welcome.LevelName}";
                 _context.ReturnToMainMenuWithNetworkStatus(loadError);
                 return;
             }
 
-            _context._world.ConfigureSessionPresentationSeed(welcome.LevelName, welcome.MapContentHash);
+            _context._world.MapLifecycle.ConfigureSessionPresentationSeed(welcome.LevelName, welcome.MapContentHash);
 
             _context._world.NetworkPlayers.PrepareLocalPlayerJoin();
             _context.ResetGameplayTransitionEffects();

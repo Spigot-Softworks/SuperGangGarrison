@@ -476,7 +476,7 @@ public partial class Game1
     {
         var levelName = _world.Level.Name;
         var mapAreaIndex = _world.Level.MapAreaIndex;
-        if (!_world.TryLoadLevel(levelName, mapAreaIndex, preservePlayerStats: false))
+        if (!_world.MapLifecycle.TryLoadLevel(levelName, mapAreaIndex, preservePlayerStats: false))
         {
             LogGameplayMessageOnEndFailure(marker, $"map reset failed: {levelName}");
         }
@@ -491,7 +491,7 @@ public partial class Game1
             return;
         }
 
-        if (!_world.TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false))
+        if (!_world.MapLifecycle.TryLoadLevel(levelName, mapAreaIndex: 1, preservePlayerStats: false))
         {
             LogGameplayMessageOnEndFailure(marker, $"map transition failed: {levelName}");
         }

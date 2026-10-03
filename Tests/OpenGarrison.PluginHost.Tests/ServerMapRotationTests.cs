@@ -80,7 +80,7 @@ public sealed class ServerMapRotationTests
             static _ => { });
 
         manager.AlignExternalMapChange("Harvest");
-        Assert.True(world.TryLoadLevel("Harvest", mapAreaIndex: 1, preservePlayerStats: false));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest", mapAreaIndex: 1, preservePlayerStats: false));
         ForceMapChangeReady(world);
 
         Assert.True(manager.TryApplyPendingMapChange(out var transition));
@@ -256,7 +256,7 @@ public sealed class ServerMapRotationTests
             stockMapRotation: ["vip_dirtbowl", "Truefort"],
             static _ => { });
         manager.ConfigureAdvancePolicy(MapRotationAdvanceMode.RoundCount, roundCount: 2, timeMinutes: 15);
-        Assert.True(world.TryLoadLevel("vip_dirtbowl", mapAreaIndex: 3, preservePlayerStats: false));
+        Assert.True(world.MapLifecycle.TryLoadLevel("vip_dirtbowl", mapAreaIndex: 3, preservePlayerStats: false));
         manager.AlignCurrentMap(world.Level.Name);
 
         ForceMapChangeReady(world, PlayerTeam.Red);

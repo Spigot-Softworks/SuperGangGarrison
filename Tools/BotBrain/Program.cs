@@ -223,7 +223,7 @@ for (var i = 0; i < graph.NodeCount; i += 1)
 }
 
 var world = new SimulationWorld();
-if (!world.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats: false))
+if (!world.MapLifecycle.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats: false))
 {
     throw new InvalidOperationException($"SimulationWorld failed to load '{options.MapName}' area {options.AreaIndex}.");
 }
@@ -994,7 +994,7 @@ BotNavigationAsset CloneAsset(BotNavigationAsset source) =>
 BotBrainProofEvaluation EvaluateCandidateAsset(BotNavigationAsset candidateAsset)
 {
     var candidateWorld = new SimulationWorld();
-    if (!candidateWorld.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats: false))
+    if (!candidateWorld.MapLifecycle.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats: false))
     {
         return new BotBrainProofEvaluation(false, -1, 0f, 0, 0, "load_failed");
     }
@@ -1561,7 +1561,7 @@ static TraversalSoakRunResult RunBotTraversalSoakMap(
     var classCycle = ResolveTraversalSoakClassCycle(rawOptions, defaultClassCycle);
 
     var world = new SimulationWorld();
-    if (!world.TryLoadLevel(mapName, areaIndex, preservePlayerStats: false))
+    if (!world.MapLifecycle.TryLoadLevel(mapName, areaIndex, preservePlayerStats: false))
     {
         throw new InvalidOperationException($"SimulationWorld failed to load '{mapName}' area {areaIndex}.");
     }
@@ -2239,7 +2239,7 @@ static void RunPracticeRosterSimulation(
     ];
 
     var world = new SimulationWorld();
-    if (!world.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats: false))
+    if (!world.MapLifecycle.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats: false))
     {
         throw new InvalidOperationException($"SimulationWorld failed to load '{options.MapName}' area {options.AreaIndex}.");
     }
@@ -5428,7 +5428,7 @@ internal static class BotBrainToolCommandHelpers
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        if (!world.TryLoadLevel(mapName, area, preservePlayerStats: false))
+        if (!world.MapLifecycle.TryLoadLevel(mapName, area, preservePlayerStats: false))
         {
             Console.WriteLine($"directDriveLab=load_failed map={mapName} area={area}");
             return;
@@ -5695,7 +5695,7 @@ internal static class BotBrainToolCommandHelpers
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        if (!world.TryLoadLevel(mapName, area, preservePlayerStats: false))
+        if (!world.MapLifecycle.TryLoadLevel(mapName, area, preservePlayerStats: false))
         {
             return LocalMotionLabCaseResult.Failed("load_failed", scenario, mode, xOffset, bottomOffset, horizontalSpeed, verticalSpeed);
         }

@@ -29,7 +29,7 @@ public sealed class SessionPresentationRulesTests
     public void ConfigureSessionPresentationSeedMatchesWelcomeInputs()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false, TicksPerSecond = 30 });
-        world.ConfigureSessionPresentationSeed("ctf_conflict", "sha256:deadbeef");
+        world.MapLifecycle.ConfigureSessionPresentationSeed("ctf_conflict", "sha256:deadbeef");
 
         var expected = SessionPresentationRules.DerivePresentationSeed(
             "ctf_conflict",

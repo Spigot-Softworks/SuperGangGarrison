@@ -489,7 +489,7 @@ internal sealed class ServerAdminOperations(
         }
 
         var world = worldGetter();
-        world.SetTimeLimitMinutes(timeLimitMinutes);
+        world.MapLifecycle.SetTimeLimitMinutes(timeLimitMinutes);
         log($"[server] time limit set to {world.MatchRules.TimeLimitMinutes} minutes");
         return true;
     }
@@ -502,7 +502,7 @@ internal sealed class ServerAdminOperations(
         }
 
         var world = worldGetter();
-        world.SetCapLimit(capLimit);
+        world.MapLifecycle.SetCapLimit(capLimit);
         log($"[server] cap limit set to {world.MatchRules.CapLimit}");
         return true;
     }
@@ -515,7 +515,7 @@ internal sealed class ServerAdminOperations(
         }
 
         var world = worldGetter();
-        world.SetRespawnSeconds(respawnSeconds);
+        world.MapLifecycle.SetRespawnSeconds(respawnSeconds);
         log($"[server] respawn set to {world.ConfiguredRespawnSeconds} seconds");
         return true;
     }
@@ -537,14 +537,14 @@ internal sealed class ServerAdminOperations(
             preservePlayerStats,
             world.MatchState.WinnerTeam,
             world.MatchRules.Mode);
-        if (!world.TryLoadLevel(levelName, mapAreaIndex, preservePlayerStats))
+        if (!world.MapLifecycle.TryLoadLevel(levelName, mapAreaIndex, preservePlayerStats))
         {
             return false;
         }
 
         if (!preservePlayerStats)
         {
-            world.ResetPlayersToAwaitingJoinForFreshMap();
+            world.MapLifecycle.ResetPlayersToAwaitingJoinForFreshMap();
         }
 
         applyMapTransition?.Invoke(transition);

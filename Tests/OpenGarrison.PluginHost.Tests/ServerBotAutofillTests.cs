@@ -101,7 +101,7 @@ public sealed class ServerBotAutofillTests
         Assert.False(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(2));
         Assert.False(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(3));
 
-        world.ResetPlayersToAwaitingJoinForFreshMap();
+        world.MapLifecycle.ResetPlayersToAwaitingJoinForFreshMap();
 
         Assert.True(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(2));
         Assert.True(world.NetworkPlayers.IsNetworkPlayerAwaitingJoin(3));

@@ -55,7 +55,7 @@ public sealed class LastToDieCaptureTheFlagRulesTests
     public void KothTimeoutRequiresRedOwnership()
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("Harvest"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         Assert.False(world.LastToDieRules.CanCompleteLastToDieStageOnTimeout);
         world.Spawns.TestSetControlPointOwner(1, PlayerTeam.Blue);
         Assert.False(world.LastToDieRules.CanCompleteLastToDieStageOnTimeout);
@@ -66,8 +66,8 @@ public sealed class LastToDieCaptureTheFlagRulesTests
     private static SimulationWorld CreateJoinedEngineerWorld()
     {
         var world = new SimulationWorld();
-        Assert.True(world.TryLoadLevel("TwodFortTwo"));
-        world.ConfigureMatchDefaults(capLimit: 3);
+        Assert.True(world.MapLifecycle.TryLoadLevel("TwodFortTwo"));
+        world.MapLifecycle.ConfigureMatchDefaults(capLimit: 3);
         world.NetworkPlayers.PrepareLocalPlayerJoin();
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Engineer);

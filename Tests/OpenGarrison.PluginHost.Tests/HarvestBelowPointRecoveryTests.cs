@@ -26,7 +26,7 @@ public sealed class HarvestBelowPointRecoveryTests(ITestOutputHelper output)
         try
         {
             var world = new SimulationWorld(new SimulationConfig { EnableEnemyTrainingDummy = false, EnableFriendlySupportDummy = false });
-            Assert.True(world.TryLoadLevel("gg2_koth_harvest"));
+            Assert.True(world.MapLifecycle.TryLoadLevel("gg2_koth_harvest"));
             world.NetworkPlayers.SetPendingLocalPlayerClass(playerClass);
             Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, PlayerTeam.Blue));
             world.NetworkPlayers.ForceRespawnLocalPlayer();

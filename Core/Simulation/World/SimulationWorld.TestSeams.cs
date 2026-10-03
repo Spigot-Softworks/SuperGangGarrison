@@ -7,10 +7,10 @@ public sealed partial class SimulationWorld
     internal void TestSetLevel(SimpleLevel level)
     {
         Level = level;
-        MatchRules = CreateDefaultMatchRules(level.Mode);
-        MatchState = CreateInitialMatchState(MatchRules);
+        MatchRules = MapLifecycle.CreateDefaultMatchRules(level.Mode);
+        MatchState = MapLifecycleSystem.CreateInitialMatchState(MatchRules);
         MapLogic.RebuildForegroundJungleSpriteCache();
-        ResetModeStateForNewRound();
+        MapLifecycle.ResetModeStateForNewRound();
         Movement.ResetMovingPlatformsForLevel();
         Pickups.ResetHealthPackSpawnsForLevel();
         Structures.ResetJumpPadSpawnsForLevel();

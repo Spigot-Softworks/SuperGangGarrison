@@ -248,7 +248,7 @@ internal static partial class ServerHelpers
             log("[server] map rotation empty; restarting current map.");
         }
 
-        if (!world.ApplyPendingMapChange(nextMap, nextArea, preserveStats))
+        if (!world.MapLifecycle.ApplyPendingMapChange(nextMap, nextArea, preserveStats))
         {
             log($"[server] failed to apply map change to {nextMap}; restarting round.");
             return false;

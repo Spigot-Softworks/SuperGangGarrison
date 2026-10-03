@@ -223,7 +223,7 @@ public sealed class TopDownMovementTests
                     EnableEnemyTrainingDummy = false,
                     EnableFriendlySupportDummy = false,
                 });
-                Assert.True(world.TryLoadLevel("ctf_hangar"));
+                Assert.True(world.MapLifecycle.TryLoadLevel("ctf_hangar"));
 
                 const byte botSlot = 2;
                 Assert.True(world.NetworkPlayers.TryPrepareNetworkPlayerJoin(botSlot));

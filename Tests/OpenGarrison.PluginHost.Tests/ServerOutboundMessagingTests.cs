@@ -16,7 +16,7 @@ public sealed class ServerOutboundMessagingTests
     public void VipVotePassesWithStrictMajorityWithoutFullTurnout()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(world.TryLoadLevel("vip_egypt"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("vip_egypt"));
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
         JoinNetworkPlayer(world, 2);
         JoinNetworkPlayer(world, 3);

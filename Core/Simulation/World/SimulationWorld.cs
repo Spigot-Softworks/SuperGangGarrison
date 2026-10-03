@@ -17,17 +17,15 @@ public sealed partial class SimulationWorld
     private const string DefaultFriendlyDummyName = "Player 3";
     private const int DefaultRespawnSeconds = 5;
     private const int DefaultTimeLimitMinutes = 15;
-    private const int DefaultCapLimit = 5;
-    private const int DefaultTeamDeathmatchKillLimit = 30;
+    private const int DefaultCapLimit = MapLifecycleSystem.DefaultCapLimit;
     private const int ArenaPointCapTimeTicksDefault = ArenaObjectiveState.PointCapTimeTicksDefault;
-    private const int ArenaPointUnlockTicksDefault = 1800;
-    private const int PendingMapChangeTicks = 300;
     private const int LocalProjectileTerminationSuppressionTicks = 12;
     public EntityStore EntityStore { get; } = new();
     public CombatSystem Combat { get; }
     public SnapshotSystem Snapshots { get; }
     public ProjectileSystem Projectiles { get; }
     public MovementSystem Movement { get; }
+    internal MapLifecycleSystem MapLifecycle { get; }
     internal CombatResolver GeometryResolver => _combatResolver ??= new CombatResolver(this);
     internal WeaponFireHandler WeaponHandler => _weaponFireHandler ??= new WeaponFireHandler(this);
     internal PresentationEventLog PresentationEvents { get; } = new();
@@ -331,6 +329,7 @@ public sealed partial class SimulationWorld
 
     public SimulationWorld(SimulationConfig? config = null)
     {
+        MapLifecycle = new MapLifecycleSystem(this);
         WorldObjects = new WorldObjectStore(EntityStore);
         Structures = new StructureSystem(this);
         Pickups = new PickupSystem(this);
@@ -372,8 +371,8 @@ public sealed partial class SimulationWorld
         Movement = new MovementSystem(this);
         ObjectiveRules.RedIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Red);
         ObjectiveRules.BlueIntel = ObjectiveRules.CreateIntelState(PlayerTeam.Blue);
-        MatchRules = CreateDefaultMatchRules(Level.Mode);
-        MatchState = CreateInitialMatchState(MatchRules);
+        MatchRules = MapLifecycle.CreateDefaultMatchRules(Level.Mode);
+        MatchState = MapLifecycleSystem.CreateInitialMatchState(MatchRules);
         LocalPlayer = new PlayerEntity(AllocateEntityId(), LocalState.PlayerClassDefinition, DefaultLocalPlayerName);
         LocalPlayer.SetPlayerScale(MatchSettings.PlayerScale);
         ServerTuning.ApplyServerGameplayTuning(LocalPlayerSlot, LocalPlayer);
@@ -497,20 +496,6 @@ public sealed partial class SimulationWorld
     private int AllocateEntityId()
     {
         return EntityStore.AllocateId();
-    }
-
-    private MatchRules CreateDefaultMatchRules(GameModeKind mode)
-    {
-        var timeLimitTicks = MatchSettings.TimeLimitMinutes * Config.TicksPerSecond * 60;
-        var capLimit = mode == GameModeKind.TeamDeathmatch && MatchSettings.CapLimit == DefaultCapLimit
-            ? DefaultTeamDeathmatchKillLimit
-            : MatchSettings.CapLimit;
-        return new MatchRules(mode, MatchSettings.TimeLimitMinutes, timeLimitTicks, capLimit);
-    }
-
-    private static MatchState CreateInitialMatchState(MatchRules rules)
-    {
-        return new MatchState(MatchPhase.Running, rules.TimeLimitTicks, null);
     }
 
     public void ConfigureExperimentalGameplaySettings(ExperimentalGameplaySettings settings)

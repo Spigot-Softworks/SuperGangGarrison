@@ -23,7 +23,7 @@ public sealed class BotBrainLowerRouteRecoveryTests
             EnableEnemyTrainingDummy = false,
             EnableFriendlySupportDummy = false,
         });
-        Assert.True(world.TryLoadLevel(levelName, 1, preservePlayerStats: false));
+        Assert.True(world.MapLifecycle.TryLoadLevel(levelName, 1, preservePlayerStats: false));
         world.NetworkPlayers.SetPendingLocalPlayerClass(PlayerClass.Scout);
         Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot, team));
         world.NetworkPlayers.ForceRespawnLocalPlayer();

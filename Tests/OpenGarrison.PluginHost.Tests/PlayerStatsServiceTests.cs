@@ -268,7 +268,7 @@ public sealed class PlayerStatsServiceTests
             Flags: DamageEventFlags.None));
         Assert.Empty(api.Awards);
 
-        world.ResetPlayersToAwaitingJoinForFreshMap();
+        world.MapLifecycle.ResetPlayersToAwaitingJoinForFreshMap();
         service.HandleMapTransition();
 
         Assert.Contains(api.Awards, award => award.EventType == "damage_dealt" && award.RawValue == 100);
@@ -393,7 +393,7 @@ public sealed class PlayerStatsServiceTests
     private static SimulationWorld CreateWorld()
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
-        Assert.True(world.TryLoadLevel("ctf_truefort"));
+        Assert.True(world.MapLifecycle.TryLoadLevel("ctf_truefort"));
         return world;
     }
 

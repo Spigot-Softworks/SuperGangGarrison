@@ -1417,7 +1417,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false });
         if (enableExperimentalWeapons)
         {
-            Assert.True(world.TryLoadLevel("Harvest"));
+            Assert.True(world.MapLifecycle.TryLoadLevel("Harvest"));
         }
 
         world.NetworkPlayers.PrepareLocalPlayerJoin();

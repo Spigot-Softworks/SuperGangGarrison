@@ -917,7 +917,7 @@ public sealed class CustomMapPngExporterTests
             SimpleLevelFactory.ClearCachedCatalog();
 
             var world = new SimulationWorld();
-            Assert.True(world.TryLoadLevel("metadata_pkg", mapAreaIndex: 1, preservePlayerStats: false));
+            Assert.True(world.MapLifecycle.TryLoadLevel("metadata_pkg", mapAreaIndex: 1, preservePlayerStats: false));
             var resolver = new ServerMapMetadataResolver(world, ServerMapDownloadEndpoint.BuildRelativeDownloadUrl);
 
             var metadata = resolver.GetCurrentMapMetadata();
@@ -956,7 +956,7 @@ public sealed class CustomMapPngExporterTests
 
             var endpointAvailable = false;
             var world = new SimulationWorld();
-            Assert.True(world.TryLoadLevel("metadata_refresh_pkg", mapAreaIndex: 1, preservePlayerStats: false));
+            Assert.True(world.MapLifecycle.TryLoadLevel("metadata_refresh_pkg", mapAreaIndex: 1, preservePlayerStats: false));
             var resolver = new ServerMapMetadataResolver(
                 world,
                 descriptor => endpointAvailable ? ServerMapDownloadEndpoint.BuildRelativeDownloadUrl(descriptor) : string.Empty);
@@ -1002,7 +1002,7 @@ public sealed class CustomMapPngExporterTests
             SimpleLevelFactory.ClearCachedCatalog();
 
             var world = new SimulationWorld();
-            Assert.True(world.TryLoadLevel("unsupported_source_pkg", mapAreaIndex: 1, preservePlayerStats: false));
+            Assert.True(world.MapLifecycle.TryLoadLevel("unsupported_source_pkg", mapAreaIndex: 1, preservePlayerStats: false));
             var resolver = new ServerMapMetadataResolver(world);
 
             var metadata = resolver.GetCurrentMapMetadata();

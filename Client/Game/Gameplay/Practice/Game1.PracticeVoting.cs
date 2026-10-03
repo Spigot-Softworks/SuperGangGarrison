@@ -32,7 +32,7 @@ public partial class Game1
     {
         _offlinePracticeNextMap = null; _offlinePracticeMapChangeAt = 0;
         BeginPracticeSession(map);
-        if (area > 1) _world.TryLoadLevel(map, area, preservePlayerStats: false);
+        if (area > 1) _world.MapLifecycle.TryLoadLevel(map, area, preservePlayerStats: false);
     }
     public void UpdateOfflinePracticeMapVote()
     {

@@ -45,7 +45,7 @@ public sealed class ClassicBrowserMapTests
                 Assert.NotEmpty(level.BlueSpawns);
                 Assert.True(level.IntelBases.Count > 0 || level.RoomObjects.Any(o => o.Type == RoomObjectType.ControlPoint));
                 var world = new SimulationWorld(new() { EnableLocalDummies = false });
-                Assert.True(world.TryLoadLevel(variant.LevelName, 1, preservePlayerStats: false));
+                Assert.True(world.MapLifecycle.TryLoadLevel(variant.LevelName, 1, preservePlayerStats: false));
                 for (var tick = 0; tick < 60; tick++) world.AdvanceOneTick();
             }
         }

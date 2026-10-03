@@ -164,7 +164,7 @@ public sealed class LastToDieSurvivorRulesTests
         Assert.True(world.LastToDieRules.IsLastToDieGameplaySettingEnabled(settings => settings.EnableEnemyDroppedWeapons));
         world.LastToDieRules.ResetLastToDieClientSession();
         world.ConfigureExperimentalGameplaySettings(new());
-        world.ConfigureMatchDefaults(respawnSeconds: 1);
+        world.MapLifecycle.ConfigureMatchDefaults(respawnSeconds: 1);
         Assert.False(world.LastToDieRules.IsLastToDieGameplaySettingEnabled(settings => settings.EnableEnemyDroppedWeapons));
         Assert.False(world.NetworkPlayers.IsNetworkPlayerAutomaticRespawnSuppressed(world.LocalPlayer));
         Assert.False(world.LocalPlayer.HasLastToDieSurvivorBuff);

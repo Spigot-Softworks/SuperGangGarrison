@@ -257,7 +257,7 @@ public static class TopologyLocalMotionLab
             EnableFriendlySupportDummy = false,
         });
 
-        if (!world.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats: false))
+        if (!world.MapLifecycle.TryLoadLevel(options.MapName, options.AreaIndex, preservePlayerStats: false))
         {
             return CreateLoadFailure(options, caseIndex, "load_failed");
         }
