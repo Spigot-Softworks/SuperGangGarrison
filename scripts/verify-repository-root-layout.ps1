@@ -19,6 +19,7 @@ $allowedFiles = [System.Collections.Generic.HashSet[string]]::new([System.String
 foreach ($name in @(
     ".git",
     ".editorconfig",
+    ".git-blame-ignore-revs",
     ".gitattributes",
     ".gitignore",
     "Directory.Build.props",
