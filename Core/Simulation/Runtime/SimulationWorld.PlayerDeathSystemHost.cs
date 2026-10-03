@@ -29,7 +29,7 @@ public sealed partial class SimulationWorld : IPlayerDeathHost
     ScorekeepingSystem IPlayerDeathHost.Scorekeeping => Scorekeeping;
     SpawnSystem IPlayerDeathHost.Spawns => Spawns;
     bool IPlayerDeathHost.TryBeginPlayerDeath(PlayerEntity player, bool gibbed, PlayerEntity? killer, string? weaponSpriteName)
-        => TryBeginPlayerDeath(player, gibbed, killer, weaponSpriteName);
+        => Combat.TryBeginPlayerDeath(player, gibbed, killer, weaponSpriteName);
     VipRulesSystem IPlayerDeathHost.VipRules => VipRules;
     WorldEffectsSystem IPlayerDeathHost.WorldEffects => WorldEffects;
     WorldObjectStore IPlayerDeathHost.WorldObjects => WorldObjects;

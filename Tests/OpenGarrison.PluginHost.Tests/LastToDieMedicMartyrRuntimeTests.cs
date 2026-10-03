@@ -169,7 +169,7 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         Assert.Empty(world.PendingDamageEvents);
 
         target.ForceSetHealth(5);
-        var execute = world.ResolvePlayerDamage(
+        var execute = world.Combat.ResolvePlayerDamage(
             target,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,
@@ -297,7 +297,7 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         PlayerDamageApplicationKind applicationKind,
         PlayerDamageTraits traits)
     {
-        return world.ResolvePlayerDamage(
+        return world.Combat.ResolvePlayerDamage(
             target,
             new PlayerDamageRequest(
                 applicationKind,

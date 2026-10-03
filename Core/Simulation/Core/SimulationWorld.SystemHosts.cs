@@ -12,7 +12,7 @@ public sealed partial class SimulationWorld :
     SimpleLevel ISimulationWorldState.Level => Level;
     SimulationConfig ISimulationWorldState.Config => Config;
     long ISimulationWorldState.Frame => Frame;
-    int ISimulationWorldState.GetSimulationTicksFromSourceTicks(float sourceTicks) => GetSimulationTicksFromSourceTicks(sourceTicks);
+    int ISimulationWorldState.GetSimulationTicksFromSourceTicks(float sourceTicks) => Projectiles.GetSimulationTicksFromSourceTicks(sourceTicks);
 
     IEnumerable<PlayerEntity> ISimulationPlayerDirectory.EnumerateSimulatedPlayers() => EnumerateSimulatedPlayers();
     PlayerEntity? ISimulationPlayerDirectory.FindPlayerById(int playerId) => FindPlayerById(playerId);

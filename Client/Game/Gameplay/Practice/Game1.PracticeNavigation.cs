@@ -100,7 +100,7 @@ public partial class Game1
         // on the game thread after the background task has completed.
         if (levelToWarm is not null && ReferenceEquals(_world.Level, levelToWarm))
         {
-            _world.WarmCombatSpatialIndices();
+            _world.GeometryResolver.WarmSpatialIndices();
         }
 
         AddConsoleLine(GetPracticeNavigationDiagnosticsSummary() + result.Diagnostics);
@@ -164,7 +164,7 @@ public partial class Game1
         var provider = new NavigationGraphProvider();
         var alphaGraph = provider.PreloadGraph(_world.Level);
         var warmedAlphaPaths = alphaGraph.WarmAlphaObjectiveRoutes(_world.Level, GetEligiblePracticeBotClassCycle());
-        _world.WarmCombatSpatialIndices();
+        _world.GeometryResolver.WarmSpatialIndices();
         stopwatch.Stop();
 
         if (warmTrace)

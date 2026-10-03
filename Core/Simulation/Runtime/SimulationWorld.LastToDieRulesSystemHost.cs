@@ -39,7 +39,7 @@ public sealed partial class SimulationWorld : ILastToDieHost
         int sourceEntityId,
         ulong attackId,
         int attackerPlayerIdOverride)
-        => ResolvePlayerDamageWithContext(
+        => Combat.ResolvePlayerDamageWithContext(
             target,
             damage,
             attacker,

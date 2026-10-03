@@ -13,7 +13,7 @@ public sealed class PlayerDamageResolutionTests
         var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         var healthBefore = target.Health;
 
-        var resolution = world.ResolvePlayerDamage(
+        var resolution = world.Combat.ResolvePlayerDamage(
             target,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,
@@ -53,9 +53,9 @@ public sealed class PlayerDamageResolutionTests
             AllowOsmosisHealOwnedSentries: true,
             new PlayerDamageUmbrellaOptions(AllowBlock: false));
 
-        var first = world.ResolvePlayerDamage(target, request);
-        var second = world.ResolvePlayerDamage(target, request);
-        var third = world.ResolvePlayerDamage(target, request);
+        var first = world.Combat.ResolvePlayerDamage(target, request);
+        var second = world.Combat.ResolvePlayerDamage(target, request);
+        var third = world.Combat.ResolvePlayerDamage(target, request);
 
         Assert.Equal(PlayerDamageDisposition.Accumulated, first.Disposition);
         Assert.Equal(PlayerDamageDisposition.Accumulated, second.Disposition);
@@ -71,7 +71,7 @@ public sealed class PlayerDamageResolutionTests
         var target = AddNetworkPlayer(world, 2, PlayerClass.Heavy, PlayerTeam.Blue);
         target.RefreshUber();
 
-        var resolution = world.ResolvePlayerDamage(
+        var resolution = world.Combat.ResolvePlayerDamage(
             target,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,

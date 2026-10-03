@@ -7,7 +7,7 @@ public sealed partial class SimulationWorld : IStructureHost
     AirblastRulesSystem IStructureHost.AirblastRules => AirblastRules;
     int IStructureHost.AllocateEntityId() => AllocateEntityId();
     void IStructureHost.ApplyExplosionImpulse(PlayerEntity player, float originX, float originY, float impulse) => ExplosionGeometry.ApplyExplosionImpulse(player, originX, originY, impulse);
-    bool IStructureHost.ApplyPlayerDamage(PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha, DamageEventFlags damageFlags, bool allowOsmosisHealOwnedSentries, bool allowCivvieUmbrellaShield, float? civvieUmbrellaThreatSourceX, float? civvieUmbrellaThreatSourceY, int? civvieUmbrellaDrainTicks, bool civvieUmbrellaCriticalBoost) => ApplyPlayerDamage(target, damage, attacker, spyRevealAlpha, damageFlags, allowOsmosisHealOwnedSentries, allowCivvieUmbrellaShield, civvieUmbrellaThreatSourceX, civvieUmbrellaThreatSourceY, civvieUmbrellaDrainTicks, civvieUmbrellaCriticalBoost);
+    bool IStructureHost.ApplyPlayerDamage(PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha, DamageEventFlags damageFlags, bool allowOsmosisHealOwnedSentries, bool allowCivvieUmbrellaShield, float? civvieUmbrellaThreatSourceX, float? civvieUmbrellaThreatSourceY, int? civvieUmbrellaDrainTicks, bool civvieUmbrellaCriticalBoost) => Combat.ApplyPlayerDamage(target, damage, attacker, spyRevealAlpha, damageFlags, allowOsmosisHealOwnedSentries, allowCivvieUmbrellaShield, civvieUmbrellaThreatSourceX, civvieUmbrellaThreatSourceY, civvieUmbrellaDrainTicks, civvieUmbrellaCriticalBoost);
     WorldBounds IStructureHost.Bounds => Bounds;
     bool IStructureHost.ClientPredictionMode => ClientPredictionMode;
     SimulationConfig IStructureHost.Config => Config;
@@ -17,7 +17,7 @@ public sealed partial class SimulationWorld : IStructureHost
     ExperimentalRulesSystem IStructureHost.ExperimentalRules => ExperimentalRules;
     PlayerEntity? IStructureHost.FindPlayerById(int playerId) => FindPlayerById(playerId);
     CombatResolver IStructureHost.GeometryResolver => GeometryResolver;
-    float IStructureHost.GetExplosionImpulseMagnitude(PlayerEntity player, float originX, float originY, float knockbackPerTick, float distanceFactor, bool useMineVectorProfile) => GetExplosionImpulseMagnitude(player, originX, originY, knockbackPerTick, distanceFactor, useMineVectorProfile);
+    float IStructureHost.GetExplosionImpulseMagnitude(PlayerEntity player, float originX, float originY, float knockbackPerTick, float distanceFactor, bool useMineVectorProfile) => ExplosionGeometry.GetExplosionImpulseMagnitude(player, originX, originY, knockbackPerTick, distanceFactor, useMineVectorProfile);
     LastToDieState IStructureHost.LastToDieState => LastToDieState;
     SimpleLevel IStructureHost.Level => Level;
     PlayerEntity IStructureHost.LocalPlayer => LocalPlayer;

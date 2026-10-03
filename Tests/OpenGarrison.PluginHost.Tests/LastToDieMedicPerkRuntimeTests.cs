@@ -1176,7 +1176,7 @@ public sealed class LastToDieMedicPerkRuntimeTests
         PlayerEntity attacker,
         PlayerDamageTraits traits = PlayerDamageTraits.None)
     {
-        return world.ResolvePlayerDamage(
+        return world.Combat.ResolvePlayerDamage(
             target,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,

@@ -207,7 +207,7 @@ public sealed partial class SimulationWorld
         Lifecycle.NextRedSpawnIndex = 0;
         Lifecycle.NextBlueSpawnIndex = 0;
         ClearDynamicEntities();
-        ResetMovingPlatformsForLevel();
+        Movement.ResetMovingPlatformsForLevel();
         Pickups.ResetHealthPackSpawnsForLevel();
         Structures.ResetJumpPadSpawnsForLevel();
         Spawns.RespawnPlayersForNewRound();
@@ -247,7 +247,7 @@ public sealed partial class SimulationWorld
 
     private void ResetModeStateForNewRound()
     {
-        ResetTeleportTracking();
+        Movement.ResetTeleportTracking();
         Objectives.Arena.ResetForNewRound(MatchRules.Mode == GameModeKind.Arena ? ArenaPointUnlockTicksDefault : 0);
 
         if (ObjectiveRulesSystem.IsControlPointMode(MatchRules.Mode)

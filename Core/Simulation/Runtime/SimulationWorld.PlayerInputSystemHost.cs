@@ -19,13 +19,13 @@ public sealed partial class SimulationWorld : IPlayerInputHost
     PracticeDummySystem IPlayerInputHost.PracticeDummies => PracticeDummies;
     ProjectileSystem IPlayerInputHost.Projectiles => Projectiles;
     void IPlayerInputHost.RegisterDamageEvent(PlayerEntity? attacker, DamageTargetKind targetKind, int targetEntityId, float x, float y, int amount, bool wasFatal, PlayerEntity? playerTarget, DamageEventFlags flags, int assistPlayerIdOverride, int attackerPlayerIdOverride)
-        => RegisterDamageEvent(attacker, targetKind, targetEntityId, x, y, amount, wasFatal, playerTarget, flags, assistPlayerIdOverride, attackerPlayerIdOverride);
+        => Combat.RegisterDamageEvent(attacker, targetKind, targetEntityId, x, y, amount, wasFatal, playerTarget, flags, assistPlayerIdOverride, attackerPlayerIdOverride);
     IReadOnlyList<RocketProjectileEntity> IPlayerInputHost.Rockets => Rockets;
     RoomEffectsSystem IPlayerInputHost.RoomEffects => RoomEffects;
     StructureSystem IPlayerInputHost.Structures => Structures;
     SupportRulesSystem IPlayerInputHost.SupportRules => SupportRules;
     bool IPlayerInputHost.TryAbsorbCivvieUmbrellaDamage(PlayerEntity target, PlayerEntity? attacker, DamageEventFlags damageFlags, float? threatSourceX, float? threatSourceY, int? drainTicks, bool criticalBoost, bool useLiveAttackerCriticalBoost)
-        => TryAbsorbCivvieUmbrellaDamage(target, attacker, damageFlags, threatSourceX, threatSourceY, drainTicks, criticalBoost, useLiveAttackerCriticalBoost);
+        => Combat.TryAbsorbCivvieUmbrellaDamage(target, attacker, damageFlags, threatSourceX, threatSourceY, drainTicks, criticalBoost, useLiveAttackerCriticalBoost);
     void IPlayerInputHost.TryRegisterCivvieMoneyTrail(PlayerEntity player)
         => TryRegisterCivvieMoneyTrail(player);
     WeaponFireHandler IPlayerInputHost.WeaponHandler => WeaponHandler;

@@ -6,6 +6,8 @@ public sealed partial class SimulationWorld
 {
     private readonly SimulationRuntime _runtime;
     private readonly PlayerCountQueries _playerCounts;
+    private CombatResolver? _combatResolver;
+    private WeaponFireHandler? _weaponFireHandler;
     public const int MaxPlayableNetworkPlayers = SimulationConstants.MaxPlayableNetworkPlayers;
     public const byte LocalPlayerSlot = SimulationConstants.LocalPlayerSlot;
     public const byte FirstSpectatorSlot = 128;
@@ -25,6 +27,9 @@ public sealed partial class SimulationWorld
     public CombatSystem Combat { get; }
     public SnapshotSystem Snapshots { get; }
     public ProjectileSystem Projectiles { get; }
+    public MovementSystem Movement { get; }
+    internal CombatResolver GeometryResolver => _combatResolver ??= new CombatResolver(this);
+    internal WeaponFireHandler WeaponHandler => _weaponFireHandler ??= new WeaponFireHandler(this);
     internal PresentationEventLog PresentationEvents { get; } = new();
     internal WorldObjectStore WorldObjects { get; }
     internal ObjectiveStateStore Objectives { get; } = new();
@@ -290,13 +295,13 @@ public sealed partial class SimulationWorld
 
     public int ArenaBlueConsecutiveWins => Objectives.Arena.BlueConsecutiveWins;
 
-    public int ArenaRedAliveCount => CountAlivePlayers(PlayerTeam.Red);
+    public int ArenaRedAliveCount => _playerCounts.CountAlivePlayers(PlayerTeam.Red);
 
-    public int ArenaBlueAliveCount => CountAlivePlayers(PlayerTeam.Blue);
+    public int ArenaBlueAliveCount => _playerCounts.CountAlivePlayers(PlayerTeam.Blue);
 
-    public int ArenaRedPlayerCount => CountPlayers(PlayerTeam.Red);
+    public int ArenaRedPlayerCount => _playerCounts.CountPlayers(PlayerTeam.Red);
 
-    public int ArenaBluePlayerCount => CountPlayers(PlayerTeam.Blue);
+    public int ArenaBluePlayerCount => _playerCounts.CountPlayers(PlayerTeam.Blue);
 
     public bool IsPlayerHumiliated(PlayerEntity player)
     {
@@ -399,6 +404,11 @@ public sealed partial class SimulationWorld
         EntityStore.Add(FriendlyDummy);
         Pickups.ResetHealthPackSpawnsForLevel();
         Structures.ResetJumpPadSpawnsForLevel();
+    }
+
+    public void AdvanceOneTick()
+    {
+        _runtime.Tick();
     }
 
     public void SetLocalHealth(int health)

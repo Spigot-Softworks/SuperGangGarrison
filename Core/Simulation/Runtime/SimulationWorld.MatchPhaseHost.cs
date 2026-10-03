@@ -17,5 +17,18 @@ public sealed partial class SimulationWorld : IMatchPhaseHost
     void IMatchPhaseHost.TickForegroundSpriteJungle() => MapLogic.TickForegroundSpriteJungle();
     void IMatchPhaseHost.TickSpritesheetPlayback() => MapLogic.TickSpritesheetPlayback();
     bool IMatchPhaseHost.TryGetNetworkPlayer(byte slot, out PlayerEntity player) => NetworkPlayers.TryGetNetworkPlayer(slot, out player);
-    void IMatchPhaseHost.UpdateAuxiliaryControlPointStateIfNeeded() => UpdateAuxiliaryControlPointStateIfNeeded();
+    void IMatchPhaseHost.UpdateAuxiliaryControlPointStateIfNeeded()
+    {
+        if (!Level.ShowControlPoints
+            || Objectives.ControlPoints.Points.Count == 0
+            || MatchRules.Mode is GameModeKind.ControlPoint
+                or GameModeKind.Scr
+                or GameModeKind.KingOfTheHill
+                or GameModeKind.DoubleKingOfTheHill)
+        {
+            return;
+        }
+
+        ObjectiveRules.UpdateControlPointState();
+    }
 }

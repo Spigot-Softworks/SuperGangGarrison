@@ -11,7 +11,7 @@ public sealed partial class SimulationWorld
         MatchState = CreateInitialMatchState(MatchRules);
         MapLogic.RebuildForegroundJungleSpriteCache();
         ResetModeStateForNewRound();
-        ResetMovingPlatformsForLevel();
+        Movement.ResetMovingPlatformsForLevel();
         Pickups.ResetHealthPackSpawnsForLevel();
         Structures.ResetJumpPadSpawnsForLevel();
     }
@@ -89,7 +89,7 @@ public sealed partial class SimulationWorld
 
     internal void TestExplodeGrenade(GrenadeProjectileEntity grenade)
     {
-        ExplodeGrenade(grenade);
+        Projectiles.ExplodeGrenade(grenade);
     }
 
     internal FlameProjectileEntity TestSpawnFlame(PlayerEntity owner, float x, float y, float velocityX = 0f, float velocityY = 0f)
@@ -102,7 +102,7 @@ public sealed partial class SimulationWorld
             y,
             velocityX,
             velocityY,
-            GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks),
+            Projectiles.GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks),
             isPerseverant: false);
         Projectiles.AddProjectileEntity(flame);
         return flame;

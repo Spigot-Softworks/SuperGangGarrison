@@ -17,6 +17,6 @@ public sealed partial class SimulationWorld : IPracticeDummyHost
     PlayerInputSystem IPracticeDummyHost.PlayerInput => PlayerInput;
     SimulationRandomStreams IPracticeDummyHost.Randoms => Randoms;
     void IPracticeDummyHost.RegisterDamageEvent(PlayerEntity? attacker, DamageTargetKind targetKind, int targetEntityId, float x, float y, int amount, bool wasFatal, PlayerEntity? playerTarget, DamageEventFlags flags, int assistPlayerIdOverride, int attackerPlayerIdOverride)
-        => RegisterDamageEvent(attacker, targetKind, targetEntityId, x, y, amount, wasFatal, playerTarget, flags, assistPlayerIdOverride, attackerPlayerIdOverride);
+        => Combat.RegisterDamageEvent(attacker, targetKind, targetEntityId, x, y, amount, wasFatal, playerTarget, flags, assistPlayerIdOverride, attackerPlayerIdOverride);
     SpawnSystem IPracticeDummyHost.Spawns => Spawns;
 }

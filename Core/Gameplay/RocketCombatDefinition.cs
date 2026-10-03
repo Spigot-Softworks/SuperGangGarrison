@@ -5,5 +5,5 @@ public sealed record RocketCombatDefinition(
     float ExplosionDamage = RocketProjectileEntity.ExplosionDamage,
     float BlastRadius = RocketProjectileEntity.BlastRadius,
     float SplashThresholdFactor = RocketProjectileEntity.SplashThresholdFactor,
-    float MinimumSplashDamage = SimulationWorld.ExplosiveSplashMinimumDamage,
+    float MinimumSplashDamage = CombatSystem.ExplosiveSplashMinimumDamage,
     float SelfDamageMultiplier = 1f);

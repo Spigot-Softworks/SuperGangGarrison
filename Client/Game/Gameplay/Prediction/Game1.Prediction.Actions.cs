@@ -122,7 +122,7 @@ public partial class Game1
             {
                 if (predictedInput.Input.FirePrimary)
                 {
-                    _ = _world.TryLatchWhippingCordToTerrain(
+                    _ = _world.Movement.TryLatchWhippingCordToTerrain(
                         player, predictedInput.Input.AimWorldX, predictedInput.Input.AimWorldY);
                 }
 

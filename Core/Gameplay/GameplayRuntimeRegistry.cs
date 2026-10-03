@@ -573,7 +573,7 @@ public sealed partial class GameplayRuntimeRegistry
             ExplosionDamage: combat?.Rocket?.ExplosionDamage ?? RocketProjectileEntity.ExplosionDamage,
             BlastRadius: combat?.Rocket?.BlastRadius ?? RocketProjectileEntity.BlastRadius,
             SplashThresholdFactor: combat?.Rocket?.SplashThresholdFactor ?? RocketProjectileEntity.SplashThresholdFactor,
-            MinimumSplashDamage: MathF.Max(0f, combat?.Rocket?.MinimumSplashDamage ?? SimulationWorld.ExplosiveSplashMinimumDamage),
+            MinimumSplashDamage: MathF.Max(0f, combat?.Rocket?.MinimumSplashDamage ?? CombatSystem.ExplosiveSplashMinimumDamage),
             SelfDamageMultiplier: MathF.Max(0f, combat?.Rocket?.SelfDamageMultiplier ?? 1f));
     }
 

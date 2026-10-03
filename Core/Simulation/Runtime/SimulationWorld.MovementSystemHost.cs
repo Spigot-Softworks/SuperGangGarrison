@@ -14,7 +14,7 @@ public sealed partial class SimulationWorld
         float aimWorldY,
         out float contactX,
         out float contactY)
-        => TryFindWhippingCordTerrainContact(player, item, aimWorldX, aimWorldY, out contactX, out contactY);
+        => GeometryResolver.TryFindWhippingCordTerrainContact(player, item, aimWorldX, aimWorldY, out contactX, out contactY);
 
     bool IMovementSystemHost.IsWhippingCordTerrainLatchPathClear(
         PlayerEntity player,

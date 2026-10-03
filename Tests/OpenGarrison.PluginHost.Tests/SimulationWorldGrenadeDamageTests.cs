@@ -41,11 +41,11 @@ public sealed class SimulationWorldGrenadeDamageTests
     public void ExplosiveSplashUsesExpandedRadiusAndTwentyFiveDamageFloor()
     {
         Assert.Equal(
-            GrenadeProjectileEntity.BlastRadius * SimulationWorld.ExplosiveSplashRadiusMultiplier,
-            SimulationWorld.ResolveExplosiveSplashRadius(GrenadeProjectileEntity.BlastRadius));
+            GrenadeProjectileEntity.BlastRadius * CombatSystem.ExplosiveSplashRadiusMultiplier,
+            CombatSystem.ResolveExplosiveSplashRadius(GrenadeProjectileEntity.BlastRadius));
         Assert.Equal(
-            SimulationWorld.ExplosiveSplashMinimumDamage,
-            SimulationWorld.ResolveExplosiveSplashDamage(
+            CombatSystem.ExplosiveSplashMinimumDamage,
+            CombatSystem.ResolveExplosiveSplashDamage(
                 GrenadeProjectileEntity.BaseExplosionDamage,
                 distanceFactor: 0.01f));
 
@@ -63,7 +63,7 @@ public sealed class SimulationWorldGrenadeDamageTests
         ExplodeGrenade(world, grenade);
 
         Assert.Equal(
-            healthBefore - (int)SimulationWorld.ExplosiveSplashMinimumDamage,
+            healthBefore - (int)CombatSystem.ExplosiveSplashMinimumDamage,
             enemy.Health);
     }
 

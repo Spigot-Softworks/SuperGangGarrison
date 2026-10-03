@@ -609,7 +609,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
             [LastToDiePerkIds.Sniper.Spotted]));
         sniper.SetLastToDieSniperMarkedTargetSlot(2);
 
-        var markedResolution = world.ResolvePlayerDamage(
+        var markedResolution = world.Combat.ResolvePlayerDamage(
             marked,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,
@@ -620,7 +620,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
                 PlayerDamageTraits.Periodic | PlayerDamageTraits.BenefitFromLastToDieSpotted,
                 AllowOsmosisHealOwnedSentries: false,
                 new PlayerDamageUmbrellaOptions(AllowBlock: false)));
-        var unmarkedResolution = world.ResolvePlayerDamage(
+        var unmarkedResolution = world.Combat.ResolvePlayerDamage(
             unmarked,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,
@@ -832,7 +832,7 @@ public sealed class LastToDieSniperPerkRuntimeTests
         Assert.Equal(0.5f, target.LastToDieStatusMovementSpeedMultiplier, precision: 5);
         Assert.Equal(0.6f, target.LastToDieStatusOutgoingDamageMultiplier, precision: 5);
 
-        var outgoingResolution = world.ResolvePlayerDamage(
+        var outgoingResolution = world.Combat.ResolvePlayerDamage(
             sniper,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,

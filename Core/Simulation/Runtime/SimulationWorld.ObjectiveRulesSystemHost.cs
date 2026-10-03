@@ -16,7 +16,7 @@ public sealed partial class SimulationWorld : IObjectiveRulesHost
     ExperimentalRulesSystem IObjectiveRulesHost.ExperimentalRules => ExperimentalRules;
     ExplosionRulesSystem IObjectiveRulesHost.ExplosionRules => ExplosionRules;
     long IObjectiveRulesHost.Frame => Frame;
-    PlayerTeam IObjectiveRulesHost.GetOpposingTeam(PlayerTeam team) => GetOpposingTeam(team);
+    PlayerTeam IObjectiveRulesHost.GetOpposingTeam(PlayerTeam team) => team == PlayerTeam.Blue ? PlayerTeam.Red : PlayerTeam.Blue;
     bool IObjectiveRulesHost.IsVipModeActive => VipRules.IsVipModeActive;
     KillFeedSystem IObjectiveRulesHost.KillFeed => KillFeed;
     LastToDieRulesSystem IObjectiveRulesHost.LastToDieRules => LastToDieRules;
@@ -28,7 +28,7 @@ public sealed partial class SimulationWorld : IObjectiveRulesHost
     MatchRules IObjectiveRulesHost.MatchRules { get => MatchRules; set => MatchRules = value; }
     MatchState IObjectiveRulesHost.MatchState { get => MatchState; set => MatchState = value; }
     IReadOnlyList<MineProjectileEntity> IObjectiveRulesHost.Mines => Mines;
-    bool IObjectiveRulesHost.NearlyEqual(float left, float right) => NearlyEqual(left, right);
+    bool IObjectiveRulesHost.NearlyEqual(float left, float right) => MathF.Abs(left - right) <= 0.01f;
     ObjectiveStateStore IObjectiveRulesHost.Objectives => Objectives;
     PlayerDeathSystem IObjectiveRulesHost.PlayerDeaths => PlayerDeaths;
     int IObjectiveRulesHost.RedCaps { get => RedCaps; set => RedCaps = value; }

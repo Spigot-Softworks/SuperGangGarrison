@@ -46,7 +46,7 @@ public sealed class NeutralJumpPadTests
         world.NetworkPlayers.SetLocalPlayerTeam(PlayerTeam.Red);
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
         world.LocalPlayer.SetSpawnRoomState(false);
-        Assert.True(world.TryApplyJumpPadJumpBoostForPrediction(
+        Assert.True(world.Movement.TryApplyJumpPadJumpBoostForPrediction(
             PlacePlayerOnPad(world.LocalPlayer, pad),
             jumped: true));
         Assert.True(world.LocalPlayer.VerticalSpeed < -world.LocalPlayer.JumpSpeed);
@@ -57,7 +57,7 @@ public sealed class NeutralJumpPadTests
         Assert.True(world.NetworkPlayers.TryGetNetworkPlayer(2, out var bluePlayer));
         bluePlayer.SetSpawnRoomState(false);
         PlacePlayerOnPad(bluePlayer, pad);
-        Assert.True(world.TryApplyJumpPadJumpBoostForPrediction(bluePlayer, jumped: true));
+        Assert.True(world.Movement.TryApplyJumpPadJumpBoostForPrediction(bluePlayer, jumped: true));
         Assert.True(bluePlayer.VerticalSpeed < -bluePlayer.JumpSpeed);
 
         world.AdvanceOneTick();

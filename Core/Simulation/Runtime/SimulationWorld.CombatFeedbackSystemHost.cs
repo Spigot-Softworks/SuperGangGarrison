@@ -11,5 +11,5 @@ public sealed partial class SimulationWorld : ICombatFeedbackHost
     NetworkPlayerSystem ICombatFeedbackHost.NetworkPlayers => NetworkPlayers;
     SimulationRandomStreams ICombatFeedbackHost.Randoms => Randoms;
     void ICombatFeedbackHost.SpawnFlame(PlayerEntity owner, float x, float y, float velocityX, float velocityY, float directHitDamage, float burnDamagePerTick)
-        => SpawnFlame(owner, x, y, velocityX, velocityY, directHitDamage, burnDamagePerTick);
+        => Projectiles.SpawnFlame(owner, x, y, velocityX, velocityY, directHitDamage, burnDamagePerTick);
 }

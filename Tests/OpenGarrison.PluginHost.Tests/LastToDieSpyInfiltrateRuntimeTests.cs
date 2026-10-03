@@ -292,7 +292,7 @@ public sealed class LastToDieSpyInfiltrateRuntimeTests
         PlayerDamageApplicationKind applicationKind,
         PlayerDamageTraits traits)
     {
-        return world.ResolvePlayerDamage(
+        return world.Combat.ResolvePlayerDamage(
             target,
             new PlayerDamageRequest(
                 applicationKind,

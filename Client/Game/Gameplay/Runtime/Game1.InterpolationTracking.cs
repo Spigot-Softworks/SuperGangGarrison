@@ -2199,25 +2199,25 @@ public partial class Game1
         foreach (var rocket in _world.Rockets)
         {
             if (rocket.Id != entityId) continue;
-            var position = _world.ClampProjectilePresentationPath(rocket.Team,
+            var position = _world.GeometryResolver.ClampProjectilePresentationPath(rocket.Team,
                 start.X, start.Y, end.X, end.Y, RocketProjectileEntity.EnvironmentCollisionBackoffDistance);
             return new Vector2(position.X, position.Y);
         }
         foreach (var flare in _world.Flares)
         {
             if (flare.Id != entityId) continue;
-            var position = _world.ClampProjectilePresentationPath(flare.Team, start.X, start.Y, end.X, end.Y);
+            var position = _world.GeometryResolver.ClampProjectilePresentationPath(flare.Team, start.X, start.Y, end.X, end.Y);
             return new Vector2(position.X, position.Y);
         }
         if (_retainedRocketPresentationEntities.TryGetValue(entityId, out var retainedRocket))
         {
-            var position = _world.ClampProjectilePresentationPath(retainedRocket.Team,
+            var position = _world.GeometryResolver.ClampProjectilePresentationPath(retainedRocket.Team,
                 start.X, start.Y, end.X, end.Y, RocketProjectileEntity.EnvironmentCollisionBackoffDistance);
             return new Vector2(position.X, position.Y);
         }
         if (_retainedFlarePresentationEntities.TryGetValue(entityId, out var retainedFlare))
         {
-            var position = _world.ClampProjectilePresentationPath(retainedFlare.Team,
+            var position = _world.GeometryResolver.ClampProjectilePresentationPath(retainedFlare.Team,
                 start.X, start.Y, end.X, end.Y);
             return new Vector2(position.X, position.Y);
         }

@@ -69,7 +69,7 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
 
     int IMatchObjectiveHost.ArenaBluePlayerCount => ArenaBluePlayerCount;
 
-    int IMatchObjectiveHost.CountPlayersInArenaCaptureZone(PlayerTeam team) => CountPlayersInArenaCaptureZone(team);
+    int IMatchObjectiveHost.CountPlayersInArenaCaptureZone(PlayerTeam team) => _playerCounts.CountPlayersInArenaCaptureZone(team);
 
     // Control point, KOTH, VIP and generator
     void IMatchObjectiveHost.UpdateControlPointState() => ObjectiveRules.UpdateControlPointState();

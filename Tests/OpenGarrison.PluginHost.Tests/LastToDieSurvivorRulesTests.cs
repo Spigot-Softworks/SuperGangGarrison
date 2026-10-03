@@ -231,7 +231,7 @@ public sealed class LastToDieSurvivorRulesTests
     }
 
     private static PlayerDamageResolution Damage(SimulationWorld world, PlayerEntity target, PlayerEntity attacker,
-        float amount, PlayerDamageApplicationKind kind = PlayerDamageApplicationKind.Instant) => world.ResolvePlayerDamage(target,
+        float amount, PlayerDamageApplicationKind kind = PlayerDamageApplicationKind.Instant) => world.Combat.ResolvePlayerDamage(target,
             new PlayerDamageRequest(kind, amount, attacker, PlayerEntity.SpyDamageRevealAlpha, DamageEventFlags.None,
                 PlayerDamageTraits.None, false, new PlayerDamageUmbrellaOptions(AllowBlock: false)));
 

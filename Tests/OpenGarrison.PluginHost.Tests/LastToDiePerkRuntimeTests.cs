@@ -1044,7 +1044,7 @@ public sealed class LastToDiePerkRuntimeTests
             [LastToDiePerkIds.Spy.Grounded, LastToDiePerkIds.Spy.Vampire]));
 
         var attackerHealthBefore = world.LocalPlayer.Health;
-        var resolution = world.ResolvePlayerDamage(
+        var resolution = world.Combat.ResolvePlayerDamage(
             enemy,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,
@@ -1271,7 +1271,7 @@ public sealed class LastToDiePerkRuntimeTests
                 world.LocalPlayer.AdvanceTickState(default, world.Config.FixedDeltaSeconds);
             }
 
-            resolution = world.ResolvePlayerDamage(
+            resolution = world.Combat.ResolvePlayerDamage(
                 world.LocalPlayer,
                 new PlayerDamageRequest(
                     PlayerDamageApplicationKind.Instant,

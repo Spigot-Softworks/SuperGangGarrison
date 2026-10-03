@@ -43,11 +43,19 @@ foreach ($file in Get-CSharpFiles "Core/Simulation/Systems") {
     }
 }
 
+# The world's main partial (construction, stores, system properties). Located by name so
+# the rules do not depend on which folder holds the world partials.
+$simWorldCore = Get-CSharpFiles "Core/Simulation" |
+    Where-Object { $_.Name -eq "SimulationWorld.cs" } |
+    Select-Object -First 1 -ExpandProperty FullName
+if (-not $simWorldCore) {
+    Add-Failure "Core/Simulation must contain SimulationWorld.cs"
+}
+
 # Rule 2: No new SimulationWorld fields duplicating system-owned projectile collections.
 # ProjectileSystem owns projectile storage; SimulationWorld must not reintroduce
 # its own _shots/_mines/_grenades/etc. lists.
-$simWorldCore = Join-Path $rootPath "Core/Simulation/Core/SimulationWorld.cs"
-if (Test-Path -LiteralPath $simWorldCore) {
+if ($simWorldCore) {
     $content = Get-Content -LiteralPath $simWorldCore -Raw
     $legacyProjectileFields = @(
         '_shots', '_bubbles', '_blades', '_needles', '_revolverShots',
@@ -120,9 +128,8 @@ if (-not (Test-Path -LiteralPath $simulationRuntimeFile -PathType Leaf) `
         -or (Remove-CSharpComments (Get-Content -LiteralPath $simulationRuntimeFile -Raw)) -notmatch '\bclass\s+SimulationRuntime\b') {
     Add-Failure "Core/Simulation/Systems/SimulationRuntime.cs must define SimulationRuntime (tick ordering owner)"
 }
-$advanceFile = Join-Path $rootPath "Core/Simulation/Runtime/SimulationWorld.Advance.cs"
-if (-not (Test-Path -LiteralPath $advanceFile -PathType Leaf) `
-        -or (Remove-CSharpComments (Get-Content -LiteralPath $advanceFile -Raw)) -notmatch '_runtime\s*\.\s*Tick\s*\(') {
+if (-not $simWorldCore `
+        -or (Remove-CSharpComments (Get-Content -LiteralPath $simWorldCore -Raw)) -notmatch '_runtime\s*\.\s*Tick\s*\(') {
     Add-Failure "SimulationWorld.AdvanceOneTick must delegate to SimulationRuntime.Tick()"
 }
 foreach ($file in Get-CSharpFiles "Core/Simulation") {

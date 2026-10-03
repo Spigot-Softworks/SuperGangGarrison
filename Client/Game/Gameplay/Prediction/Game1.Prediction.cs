@@ -540,11 +540,11 @@ public partial class Game1
             player.Team,
             _config.FixedDeltaSeconds,
             out var canMove,
-            isSupportedByOneWayPlatform: _world.HasLandedArrowGroundSupport(player, movementInput.Down));
+            isSupportedByOneWayPlatform: _world.Movement.HasLandedArrowGroundSupport(player, movementInput.Down));
         var jumped = player.TryJumpIfPossible(canMove, jumpPressed);
         if (jumped)
         {
-            _world.TryApplyJumpPadJumpBoostForPrediction(player, jumped);
+            _world.Movement.TryApplyJumpPadJumpBoostForPrediction(player, jumped);
         }
         ApplyPredictedSecondaryFire(player, predictedInput);
         ApplyPredictedUtilityAbility(player, predictedInput);
@@ -553,7 +553,7 @@ public partial class Game1
             player.ReleaseWhippingCord();
         }
         player.CompleteMovement(_world.Level, player.Team, _config.FixedDeltaSeconds, startedGrounded, jumped, movementInput.Down);
-        _world.ResolveLandedArrowLanding(player, previousBottom, movementInput.Down);
+        _world.Movement.ResolveLandedArrowLanding(player, previousBottom, movementInput.Down);
         player.AdvanceLastToDieSpyCloakMeter(_config.TicksPerSecond);
         SyncPredictedLocalPlayerState(player);
     }

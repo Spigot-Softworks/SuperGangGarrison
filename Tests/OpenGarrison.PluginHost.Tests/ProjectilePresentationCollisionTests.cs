@@ -17,7 +17,7 @@ public sealed class ProjectilePresentationCollisionTests
     public void ExtrapolatedRocketStopsBeforeAThinWallRegardlessOfNetworkGap(float desiredX)
     {
         var world = CreateWorld([new LevelSolid(100f, 0f, 1f, 512f)], []);
-        var result = world.ClampProjectilePresentationPath(PlayerTeam.Red, 20f, 50f, desiredX, 50f,
+        var result = world.GeometryResolver.ClampProjectilePresentationPath(PlayerTeam.Red, 20f, 50f, desiredX, 50f,
             RocketProjectileEntity.EnvironmentCollisionBackoffDistance);
 
         Assert.Equal(100f - RocketProjectileEntity.EnvironmentCollisionBackoffDistance, result.X, precision: 3);
@@ -33,8 +33,8 @@ public sealed class ProjectilePresentationCollisionTests
         var gate = new RoomObjectMarker(RoomObjectType.TeamGate, 100f, 0f, 20f, 512f, "RedGate", PlayerTeam.Red);
         var world = CreateWorld([], [gate]);
 
-        var friendly = world.ClampProjectilePresentationPath(PlayerTeam.Red, 20f, 50f, 200f, 50f);
-        var hostile = world.ClampProjectilePresentationPath(PlayerTeam.Blue, 20f, 50f, 200f, 50f);
+        var friendly = world.GeometryResolver.ClampProjectilePresentationPath(PlayerTeam.Red, 20f, 50f, 200f, 50f);
+        var hostile = world.GeometryResolver.ClampProjectilePresentationPath(PlayerTeam.Blue, 20f, 50f, 200f, 50f);
 
         // Team gates admit friendly players, but block projectiles of both teams.
         Assert.Equal(100f, friendly.X);

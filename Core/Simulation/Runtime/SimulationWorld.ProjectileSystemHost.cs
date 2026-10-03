@@ -14,53 +14,56 @@ public sealed partial class SimulationWorld
     void IProjectileSpawnContext.SuppressProjectileRespawn(int projectileId, int ticks) => SnapshotApply.SuppressProjectileRespawn(projectileId, ticks);
 
     ShotHitResult? IProjectileHitQueries.GetNearestShotHit(ShotProjectileEntity shot, float directionX, float directionY, float distance)
-        => GetNearestShotHit(shot, directionX, directionY, distance);
+        => GeometryResolver.GetNearestShotHit(shot, directionX, directionY, distance);
     ShotHitResult? IProjectileHitQueries.GetNearestNeedleHit(NeedleProjectileEntity needle, float directionX, float directionY, float distance)
-        => GetNearestNeedleHit(needle, directionX, directionY, distance);
+        => GeometryResolver.GetNearestNeedleHit(needle, directionX, directionY, distance);
     ShotHitResult? IProjectileHitQueries.GetNearestMedicHealNeedleHit(MedicHealNeedleProjectileEntity needle, float directionX, float directionY, float distance)
-        => GetNearestMedicHealNeedleHit(needle, directionX, directionY, distance);
+        => GeometryResolver.GetNearestMedicHealNeedleHit(needle, directionX, directionY, distance);
     ShotHitResult? IProjectileHitQueries.GetNearestRevolverHit(RevolverProjectileEntity shot, float directionX, float directionY, float distance)
-        => GetNearestRevolverHit(shot, directionX, directionY, distance);
+        => GeometryResolver.GetNearestRevolverHit(shot, directionX, directionY, distance);
     ShotHitResult? IProjectileHitQueries.GetNearestBladeHit(BladeProjectileEntity blade, float directionX, float directionY, float distance)
-        => GetNearestBladeHit(blade, directionX, directionY, distance);
+        => GeometryResolver.GetNearestBladeHit(blade, directionX, directionY, distance);
     ShotHitResult? IProjectileHitQueries.GetNearestStabHit(StabMaskEntity mask, float directionX, float directionY)
-        => GetNearestStabHit(mask, directionX, directionY);
+        => GeometryResolver.GetNearestStabHit(mask, directionX, directionY);
     ShotHitResult? IProjectileHitQueries.GetNearestHealstabHit(StabMaskEntity mask, float directionX, float directionY)
-        => GetNearestHealstabHit(mask, directionX, directionY);
+        => GeometryResolver.GetNearestHealstabHit(mask, directionX, directionY);
     bool IProjectileHitQueries.HasStabChainLineOfSight(float x1, float y1, float x2, float y2)
-        => HasStabChainLineOfSight(x1, y1, x2, y2);
+        => GeometryResolver.HasStabChainLineOfSight(x1, y1, x2, y2);
     RocketHitResult? IProjectileHitQueries.GetNearestRocketHit(RocketProjectileEntity rocket, float directionX, float directionY, float distance)
-        => GetNearestRocketHit(rocket, directionX, directionY, distance);
+        => GeometryResolver.GetNearestRocketHit(rocket, directionX, directionY, distance);
     MineHitResult? IProjectileHitQueries.GetNearestMineHit(MineProjectileEntity mine, float directionX, float directionY, float distance)
-        => GetNearestMineHit(mine, directionX, directionY, distance);
+        => GeometryResolver.GetNearestMineHit(mine, directionX, directionY, distance);
     GrenadeEnvironmentHit? IProjectileHitQueries.GetNearestGrenadeEnvironmentHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float distance)
-        => GetNearestGrenadeEnvironmentHit(grenade, directionX, directionY, distance);
+        => GeometryResolver.GetNearestGrenadeEnvironmentHit(grenade, directionX, directionY, distance);
     PlayerEntity? IProjectileHitQueries.GetNearestGrenadePlayerHit(GrenadeProjectileEntity grenade, float directionX, float directionY, float distance)
-        => GetNearestGrenadePlayerHit(grenade, directionX, directionY, distance);
+        => GeometryResolver.GetNearestGrenadePlayerHit(grenade, directionX, directionY, distance);
     bool IProjectileHitQueries.TryGetGrenadeDamageableZoneContact(GrenadeProjectileEntity grenade, float directionX, float directionY, float maxDistance, out float hitX, out float hitY, out int roomObjectIndex)
-        => TryGetGrenadeDamageableZoneContact(grenade, directionX, directionY, maxDistance, out hitX, out hitY, out roomObjectIndex);
+        => GeometryResolver.TryGetGrenadeDamageableZoneContact(grenade, directionX, directionY, maxDistance, out hitX, out hitY, out roomObjectIndex);
     FlameHitResult? IProjectileHitQueries.GetNearestFlameHit(FlameProjectileEntity flame, float directionX, float directionY, float distance)
-        => GetNearestFlameHit(flame, directionX, directionY, distance);
+        => GeometryResolver.GetNearestFlameHit(flame, directionX, directionY, distance);
     ShotHitResult? IProjectileHitQueries.GetNearestFlareHit(FlareProjectileEntity flare, float directionX, float directionY, float distance)
-        => GetNearestFlareHit(flare, directionX, directionY, distance);
+        => GeometryResolver.GetNearestFlareHit(flare, directionX, directionY, distance);
     ShotHitResult? IProjectileHitQueries.GetNearestFlareHit(FlareProjectileEntity flare, float directionX, float directionY, float distance, bool includePlayers)
         => GeometryResolver.GetNearestFlareHit(flare, directionX, directionY, distance, includePlayers);
     ShotHitResult? IProjectileHitQueries.GetNearestFlarePlayerHit(FlareProjectileEntity flare, float directionX, float directionY, float distance, ShotHitResult? blockingHit)
         => GeometryResolver.GetNearestFlarePlayerHit(flare, directionX, directionY, distance, blockingHit);
     bool IProjectileHitQueries.IsProjectilePathBlocked(float x1, float y1, float x2, float y2, PlayerTeam team)
-        => IsProjectilePathBlocked(x1, y1, x2, y2, team);
+        => GeometryResolver.IsProjectilePathBlocked(x1, y1, x2, y2, team);
     bool IProjectileHitQueries.TryInterceptWithCivilDefenseTurret(PlayerTeam team, float x, float y, float directionX, float directionY, float distance)
         => Structures.TryInterceptWithCivilDefenseTurret(team, x, y, directionX, directionY, distance);
     void IProjectileHitQueries.GetCachedPlayerPresentationHitBounds(PlayerEntity player, out float left, out float top, out float right, out float bottom)
         => PresentationBounds.GetPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
     float IProjectileHitQueries.GetExplosionDistanceToPlayer(PlayerEntity player, float x, float y)
-        => GetExplosionDistanceToPlayer(this, player, x, y);
+    {
+        PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+        return ExplosionGeometry.GetDistanceToBounds(left, top, right, bottom, x, y);
+    }
 
     void IProjectileImpactTargets.KillPlayer(PlayerEntity player, bool gibbed, PlayerEntity? killer, string? weaponSpriteName, DeadBodyAnimationKind deadBodyAnimationKind)
         => PlayerDeaths.KillPlayer(player, gibbed, killer, weaponSpriteName, deadBodyAnimationKind);
     void IProjectileImpactTargets.DestroySentry(SentryEntity sentry, PlayerEntity? attacker) => Structures.DestroySentry(sentry, attacker);
-    bool IProjectileImpactTargets.ApplySentryDamage(SentryEntity sentry, int damage, PlayerEntity? attacker) => ApplySentryDamage(sentry, damage, attacker);
-    bool IProjectileImpactTargets.ApplyGeneratorDamage(GeneratorState generator, float damage, PlayerEntity? attacker) => ApplyGeneratorDamage(generator, damage, attacker);
+    bool IProjectileImpactTargets.ApplySentryDamage(SentryEntity sentry, int damage, PlayerEntity? attacker) => Combat.ApplySentryDamage(sentry, damage, attacker);
+    bool IProjectileImpactTargets.ApplyGeneratorDamage(GeneratorState generator, float damage, PlayerEntity? attacker) => Combat.ApplyGeneratorDamage(generator, damage, attacker);
     bool IProjectileImpactTargets.TryDamageGenerator(PlayerTeam team, float damage, PlayerEntity? attacker) => ObjectiveRules.TryDamageGenerator(team, damage, attacker);
     void IProjectileImpactTargets.ApplyJumpPadDamage(JumpPadEntity jumpPad, int damage) => jumpPad.TakeDamage(damage);
     void IProjectileImpactTargets.ApplyExplosiveDamageToJumpPads(float x, float y, float radius, float damage, PlayerTeam team, float minimumDamage)
@@ -82,7 +85,7 @@ public sealed partial class SimulationWorld
     void IProjectileExplosionEffects.ApplyPlayerGibExplosionImpulse(float x, float y, float radius, float impulse, float? falloff)
         => ExplosionRules.ApplyPlayerGibExplosionImpulse(x, y, radius, impulse, falloff);
     void IProjectileExplosionEffects.ApplyMineExplosionImpulse(PlayerEntity player, float x, float y, float factor)
-        => ApplyMineExplosionImpulse(player, x, y, factor);
+        => ExplosionGeometry.ApplyMineExplosionImpulse(player, x, y, factor);
     bool IProjectileExplosionEffects.ShouldSkipFriendlyExplosionBoost(PlayerEntity player, PlayerTeam team, int ownerId)
         => ExplosionRules.ShouldSkipFriendlyExplosionBoost(player, team, ownerId);
     bool IProjectileExplosionEffects.ShouldIgnoreFriendlyGroundedBlast(PlayerEntity player, PlayerTeam team, int ownerId)
