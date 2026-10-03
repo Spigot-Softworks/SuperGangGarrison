@@ -1,6 +1,5 @@
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Core.LastToDie;
-using System.Collections.Generic;
 using System.Globalization;
 
 namespace OpenGarrison.Core;
@@ -214,15 +213,15 @@ internal sealed partial class SupportRulesSystem
                 : 0f;
         if (healAmount > 0f)
         {
-            healAmount *= _host.GetLastToDieMedicHealingMultiplier(medic, target);
+            healAmount *= _host.LastToDieRules.GetLastToDieMedicHealingMultiplier(medic, target);
             if (medic.IsMedicRejuvenationRayDeliveryActive)
             {
                 healAmount *= global::OpenGarrison.Core.LastToDie.LastToDieDerivedModifiers.MedicRejuvenationRayHealingMultiplier;
             }
 
             var appliedHealing = target.ApplyContinuousHealingAndGetAmount(healAmount);
-            _host.AwardHealingPoints(medic, appliedHealing);
-            _host.ApplyLastToDieMedicHomeostasis(medic, appliedHealing);
+            _host.Scorekeeping.AwardHealingPoints(medic, appliedHealing);
+            _host.LastToDieRules.ApplyLastToDieMedicHomeostasis(medic, appliedHealing);
         }
 
         if (!medic.IsMedicUbering)
@@ -230,7 +229,7 @@ internal sealed partial class SupportRulesSystem
             var uberGain = target.Health < target.MaxHealth || _host.ControlPointSetupActive
                 ? MedicUberChargeGainPerTickDamagedTarget
                 : MedicUberChargeGainPerTickHealthyTarget;
-            medic.AddMedicUberCharge(uberGain * _host.GetLastToDieMedicUberChargeGainMultiplier(medic));
+            medic.AddMedicUberCharge(uberGain * _host.LastToDieRules.GetLastToDieMedicUberChargeGainMultiplier(medic));
         }
 
         medic.SetMedicHealingTarget(target);
@@ -262,7 +261,7 @@ internal sealed partial class SupportRulesSystem
         target.ReduceBurnDuration((float)_host.Config.FixedDeltaSeconds * LegacyMovementModel.SourceTicksPerSecond);
 
         var healedAmount = needle.HealPerHit > 0
-            ? _host.ApplyHealingWithFeedback(
+            ? _host.DamageRules.ApplyHealingWithFeedback(
                 target,
                 needle.HealPerHit,
                 "HealSnd",
@@ -282,8 +281,8 @@ internal sealed partial class SupportRulesSystem
 
         if (healedAmount > 0)
         {
-            _host.AwardHealingPoints(medic, healedAmount);
-            _host.ApplyLastToDieMedicHomeostasis(medic, healedAmount);
+            _host.Scorekeeping.AwardHealingPoints(medic, healedAmount);
+            _host.LastToDieRules.ApplyLastToDieMedicHomeostasis(medic, healedAmount);
         }
 
         if (!medic.IsMedicUbering)
@@ -293,10 +292,10 @@ internal sealed partial class SupportRulesSystem
                 : target.Health < target.MaxHealth || _host.ControlPointSetupActive
                     ? MedicHealNeedleProjectileEntity.DamagedTargetUberChargePerHealedHealth
                     : MedicHealNeedleProjectileEntity.HealthyTargetUberChargePerHit;
-            medic.AddMedicUberCharge(uberGain * _host.GetLastToDieMedicUberChargeGainMultiplier(medic));
+            medic.AddMedicUberCharge(uberGain * _host.LastToDieRules.GetLastToDieMedicUberChargeGainMultiplier(medic));
         }
 
-        _ = _host.TryApplyLastToDieMedicSupportRelay(medic, target);
+        _ = _host.LastToDieRules.TryApplyLastToDieMedicSupportRelay(medic, target);
     }
 
     private void ApplyExperimentalEngineerEssenceExtractor(PlayerEntity engineer, PlayerEntity target)
@@ -306,25 +305,25 @@ internal sealed partial class SupportRulesSystem
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerEssenceExtractorDrainPerSecond);
         if (_host.ApplyPlayerContinuousDamage(target, damagePerTick, engineer, PlayerEntity.SpyDamageRevealAlpha))
         {
-            _host.KillPlayer(target, killer: engineer, weaponSpriteName: "NeedleKL");
+            _host.PlayerDeaths.KillPlayer(target, killer: engineer, weaponSpriteName: "NeedleKL");
         }
 
         var appliedDamage = Math.Max(0, healthBefore - target.Health);
         if (appliedDamage > 0)
         {
             var appliedHealing = engineer.ApplyContinuousHealingAndGetAmount(appliedDamage);
-            _host.AwardHealingPoints(engineer, appliedHealing);
+            _host.Scorekeeping.AwardHealingPoints(engineer, appliedHealing);
             var chunkHealing = engineer.AccumulateExperimentalEngineerEssenceExtractorHealing(
                 appliedHealing,
                 global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerEssenceExtractorHealingChunkSize);
             if (chunkHealing > 0)
             {
-                _host.RegisterHealingFeedbackOnly(engineer, chunkHealing);
+                _host.DamageRules.RegisterHealingFeedbackOnly(engineer, chunkHealing);
             }
         }
 
         target.RefreshExperimentalDamageTakenDebuff(
-            _host.GetExperimentalEngineerEssenceExtractorDebuffTicks(),
+            _host.ExperimentalRules.GetExperimentalEngineerEssenceExtractorDebuffTicks(),
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerEssenceExtractorVulnerabilityMultiplier);
         target.RefreshExperimentalEngineerEssenceExtractorSlow(
             GetExperimentalEngineerEssenceExtractorSlowTicks(),
@@ -339,17 +338,17 @@ internal sealed partial class SupportRulesSystem
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayDamagePerSecond);
         if (_host.ApplyPlayerContinuousDamage(target, damagePerTick, engineer, PlayerEntity.SpyDamageRevealAlpha))
         {
-            _host.KillPlayer(target, killer: engineer, weaponSpriteName: "NeedleKL", gibbed: target.IsExperimentalCryoFrozen);
+            _host.PlayerDeaths.KillPlayer(target, killer: engineer, weaponSpriteName: "NeedleKL", gibbed: target.IsExperimentalCryoFrozen);
         }
         target.AccumulateExperimentalCryoExposure(
             engineer.Id,
-            freezeThresholdTicks: _host.GetExperimentalEngineerFreezeRayFreezeThresholdTicks(),
-            exposureWindowTicks: _host.GetExperimentalEngineerFreezeRayExposureWindowTicks(),
-            freezeDurationTicks: _host.GetExperimentalEngineerCryoFreezeDurationTicks(),
+            freezeThresholdTicks: _host.ExperimentalRules.GetExperimentalEngineerFreezeRayFreezeThresholdTicks(),
+            exposureWindowTicks: _host.ExperimentalRules.GetExperimentalEngineerFreezeRayExposureWindowTicks(),
+            freezeDurationTicks: _host.ExperimentalRules.GetExperimentalEngineerCryoFreezeDurationTicks(),
             slowMovementMultiplier: global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRaySlowMovementMultiplier,
-            slowTicks: _host.GetExperimentalEngineerFreezeRaySlowTicks());
+            slowTicks: _host.ExperimentalRules.GetExperimentalEngineerFreezeRaySlowTicks());
         target.RefreshExperimentalFreezeRayCombatDebuff(
-            _host.GetExperimentalEngineerFreezeRaySlowTicks(),
+            _host.ExperimentalRules.GetExperimentalEngineerFreezeRaySlowTicks(),
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayAttackCycleMultiplier,
             global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerFreezeRayOutgoingDamageMultiplier);
     }
@@ -362,18 +361,18 @@ internal sealed partial class SupportRulesSystem
             : GetContinuousPerTickRate(damagePerSecond);
         if (_host.ApplyPlayerContinuousDamage(target, damagePerTick, medic, PlayerEntity.SpyDamageRevealAlpha))
         {
-            _host.KillPlayer(target, killer: medic, weaponSpriteName: "NeedleKL");
+            _host.PlayerDeaths.KillPlayer(target, killer: medic, weaponSpriteName: "NeedleKL");
         }
 
         if (healthBefore > target.Health)
         {
-            _host.RegisterBloodEffect(target.X, target.Y, SimulationMath.PointDirectionDegrees(medic.X, medic.Y, target.X, target.Y) - 180f, 4);
+            _host.WorldEffects.RegisterBloodEffect(target.X, target.Y, SimulationMath.PointDirectionDegrees(medic.X, medic.Y, target.X, target.Y) - 180f, 4);
         }
 
         if (!medic.IsMedicUbering)
         {
             medic.AddMedicUberCharge(
-                Math.Max(0f, chargePerTick) * _host.GetLastToDieMedicUberChargeGainMultiplier(medic));
+                Math.Max(0f, chargePerTick) * _host.LastToDieRules.GetLastToDieMedicUberChargeGainMultiplier(medic));
         }
 
         medic.SetMedicHealingTarget(target);
@@ -395,7 +394,7 @@ internal sealed partial class SupportRulesSystem
 
             if (player.IsMedicKritzUberDeliveryActive)
             {
-                _host.TryGetPlayerNetworkSlot(player, out var providerSlot);
+                _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var providerSlot);
                 var criticalDamageMultiplier = LastToDieRulesSystem.GetLastToDieMedicKritzCriticalDamageMultiplier(player);
                 player.RefreshKritzCritBoost(
                     player.Id,
@@ -417,7 +416,7 @@ internal sealed partial class SupportRulesSystem
             {
                 if (player.IsMedicKritzUberDeliveryActive)
                 {
-                    _host.TryGetPlayerNetworkSlot(player, out var providerSlot);
+                    _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var providerSlot);
                     healTarget.RefreshKritzCritBoost(
                         player.Id,
                         providerSlot,
@@ -442,7 +441,7 @@ internal sealed partial class SupportRulesSystem
             }
 
             player.TriggerChatBubble(ChatBubbleFrameCatalog.UberReady);
-            _host.RegisterWorldSoundEvent("UberChargedSnd", player.X, player.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("UberChargedSnd", player.X, player.Y);
         }
     }
 
@@ -609,8 +608,8 @@ internal sealed partial class SupportRulesSystem
             return;
         }
 
-        var appliedHealing = _host.ApplyHealingWithFeedback(engineer, pendingHealing);
-        _host.AwardHealingPoints(engineer, appliedHealing);
+        var appliedHealing = _host.DamageRules.ApplyHealingWithFeedback(engineer, pendingHealing);
+        _host.Scorekeeping.AwardHealingPoints(engineer, appliedHealing);
     }
 
     private int GetExperimentalEngineerEssenceExtractorSlowTicks()
@@ -630,10 +629,10 @@ internal sealed partial class SupportRulesSystem
     {
         var medicAimOriginY = GetMedicAimOriginY(medic);
         var targetFocusY = GetMedicTargetFocusY(target);
-        return _host.HasObstacleLineOfSight(medic.X, medic.Y, target.X, target.Y)
-            || _host.HasObstacleLineOfSight(medic.X, medicAimOriginY, target.X, targetFocusY)
-            || _host.HasObstacleLineOfSight(medic.X, medicAimOriginY, target.X, target.Y)
-            || _host.HasObstacleLineOfSight(medic.X, medic.Y, target.X, targetFocusY);
+        return _host.GeometryResolver.HasObstacleLineOfSight(medic.X, medic.Y, target.X, target.Y)
+            || _host.GeometryResolver.HasObstacleLineOfSight(medic.X, medicAimOriginY, target.X, targetFocusY)
+            || _host.GeometryResolver.HasObstacleLineOfSight(medic.X, medicAimOriginY, target.X, target.Y)
+            || _host.GeometryResolver.HasObstacleLineOfSight(medic.X, medic.Y, target.X, targetFocusY);
     }
 
     internal bool TryTriggerAcquiredMedigunHealsplosion(PlayerEntity player)
@@ -643,13 +642,13 @@ internal sealed partial class SupportRulesSystem
             return false;
         }
 
-        _host.RegisterWorldSoundEvent("HealExplosionSnd", player.X, player.Y);
-        _host.RegisterVisualEffect("HealExplosion", player.X, player.Y);
-        _host.ApplyHealingWithFeedback(player, AcquiredMedigunHealsplosionSelfHealing);
+        _host.WorldEffects.RegisterWorldSoundEvent("HealExplosionSnd", player.X, player.Y);
+        _host.WorldEffects.RegisterVisualEffect("HealExplosion", player.X, player.Y);
+        _host.DamageRules.ApplyHealingWithFeedback(player, AcquiredMedigunHealsplosionSelfHealing);
 
         foreach (var candidate in _host.EnumerateSimulatedPlayers())
         {
-            if (!_host.CanPlayerDamagePlayer(player, candidate) || candidate.Id == player.Id)
+            if (!_host.DamageRules.CanPlayerDamagePlayer(player, candidate) || candidate.Id == player.Id)
             {
                 continue;
             }
@@ -666,10 +665,10 @@ internal sealed partial class SupportRulesSystem
                 continue;
             }
 
-            _host.RegisterBloodEffect(candidate.X, candidate.Y, SimulationMath.PointDirectionDegrees(player.X, player.Y, candidate.X, candidate.Y) - 180f, 3);
+            _host.WorldEffects.RegisterBloodEffect(candidate.X, candidate.Y, SimulationMath.PointDirectionDegrees(player.X, player.Y, candidate.X, candidate.Y) - 180f, 3);
             if (_host.ApplyPlayerContinuousDamage(candidate, AcquiredMedigunHealsplosionMaxDamage * distanceFactor, player, PlayerEntity.SpyDamageRevealAlpha))
             {
-                _host.KillPlayer(candidate, killer: player, weaponSpriteName: "NeedleKL");
+                _host.PlayerDeaths.KillPlayer(candidate, killer: player, weaponSpriteName: "NeedleKL");
             }
         }
 

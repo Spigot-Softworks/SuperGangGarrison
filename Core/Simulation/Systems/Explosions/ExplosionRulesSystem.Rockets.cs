@@ -22,8 +22,8 @@ internal sealed partial class ExplosionRulesSystem
         RemoveExplodedRocket(rocket.Id);
         if (_host.ClientPredictionMode)
         {
-            _host.RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
-            _host.RegisterVisualEffect("Explosion", rocket.X, rocket.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
+            _host.WorldEffects.RegisterVisualEffect("Explosion", rocket.X, rocket.Y);
             return;
         }
 
@@ -34,8 +34,8 @@ internal sealed partial class ExplosionRulesSystem
             directHitGenerator,
             directHitDamageableZoneRoomObjectIndex);
 
-        _host.RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
-        _host.RegisterVisualEffect("Explosion", rocket.X, rocket.Y);
+        _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", rocket.X, rocket.Y);
+        _host.WorldEffects.RegisterVisualEffect("Explosion", rocket.X, rocket.Y);
         ApplyDeadBodyExplosionImpulse(rocket.X, rocket.Y, blastRadius, 10f);
         ApplyPlayerGibExplosionImpulse(rocket.X, rocket.Y, blastRadius, 15f);
         RegisterExplosionTraces(rocket.X, rocket.Y);
@@ -53,7 +53,7 @@ internal sealed partial class ExplosionRulesSystem
         ApplySplashDamageToDamageableZones(rocket, blastRadius, directHitDamageableZoneRoomObjectIndex);
         TriggerMinesInBlast(rocket, blastRadius);
         DestroyBubblesInBlast(rocket, blastRadius);
-        _host.TryApplyExperimentalSoldierRocketHitReloadReward(owner, rocket, hitEnemyPlayer);
+        _host.ExperimentalRules.TryApplyExperimentalSoldierRocketHitReloadReward(owner, rocket, hitEnemyPlayer);
     }
 
     private void RemoveExplodedRocket(int rocketId)
@@ -80,7 +80,7 @@ internal sealed partial class ExplosionRulesSystem
         if (directHitPlayer is not null && !ReferenceEquals(directHitPlayer, owner))
         {
             hitEnemyPlayer = directHitPlayer.Team != rocket.Team;
-            var hitDamage = _host.ApplyExperimentalAirshotDamageMultiplier(
+            var hitDamage = _host.ExperimentalRules.ApplyExperimentalAirshotDamageMultiplier(
                 owner,
                 directHitPlayer,
                 Math.Max(1, (int)MathF.Round(rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier)),
@@ -100,7 +100,7 @@ internal sealed partial class ExplosionRulesSystem
                     civvieUmbrellaUseLiveAttackerCriticalBoost: false,
                     additionalTraits: PlayerDamageTraits.DirectProjectile))
             {
-                _host.KillPlayer(
+                _host.PlayerDeaths.KillPlayer(
                     directHitPlayer,
                     gibbed: true,
                     killer: owner,
@@ -122,23 +122,23 @@ internal sealed partial class ExplosionRulesSystem
 
             if (hitEnemyPlayer && owner is not null && rocket.DirectHitHealAmountValue > 0f)
             {
-                var appliedHealing = _host.ApplyHealingWithFeedback(owner, rocket.DirectHitHealAmountValue);
-                _host.AwardHealingPoints(owner, appliedHealing);
+                var appliedHealing = _host.DamageRules.ApplyHealingWithFeedback(owner, rocket.DirectHitHealAmountValue);
+                _host.Scorekeeping.AwardHealingPoints(owner, appliedHealing);
             }
         }
 
         if (directHitSentry is not null)
         {
             var sentryDamage = Math.Max(1, (int)MathF.Round(rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier));
-            if (_host.ApplySentryDamage(directHitSentry, sentryDamage, owner))
+            if (_host.Combat.ApplySentryDamage(directHitSentry, sentryDamage, owner))
             {
-                _host.DestroySentry(directHitSentry, owner);
+                _host.Structures.DestroySentry(directHitSentry, owner);
             }
         }
 
         if (directHitGenerator is not null)
         {
-            _host.TryDamageGenerator(
+            _host.ObjectiveRules.TryDamageGenerator(
                 directHitGenerator.Team,
                 rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
                 owner);
@@ -146,7 +146,7 @@ internal sealed partial class ExplosionRulesSystem
 
         if (directHitDamageableZoneRoomObjectIndex >= 0)
         {
-            _host.TryApplyDamageableZoneDamage(
+            _host.MapLogic.TryApplyDamageableZoneDamage(
                 directHitDamageableZoneRoomObjectIndex,
                 rocket.DirectHitDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
                 rocket.Team);
@@ -160,7 +160,7 @@ internal sealed partial class ExplosionRulesSystem
         float blastRadius,
         int excludeRoomObjectIndex)
     {
-        _host.ApplyExplosiveDamageToDamageableZones(
+        _host.MapLogic.ApplyExplosiveDamageToDamageableZones(
             rocket.X,
             rocket.Y,
             blastRadius,
@@ -250,7 +250,7 @@ internal sealed partial class ExplosionRulesSystem
             {
                 appliedDamage *= rocket.SelfDamageMultiplier;
             }
-            _host.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
+            _host.WorldEffects.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
             hitEnemyPlayer |= player.Team != rocket.Team;
             var umbrellaDrainTicks = ReferenceEquals(player, directHitPlayer)
                 ? PlayerEntity.CivvieUmbrellaRocketDirectHitSplashDrainTicks
@@ -268,7 +268,7 @@ internal sealed partial class ExplosionRulesSystem
                     attackerWasGrounded: attackerWasGrounded,
                     targetWasGrounded: playerSnapshot.WasGrounded))
             {
-                _host.KillPlayer(
+                _host.PlayerDeaths.KillPlayer(
                     player,
                     gibbed: true,
                     killer: owner,
@@ -419,9 +419,9 @@ internal sealed partial class ExplosionRulesSystem
                 rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
                 1f - (distance / blastRadius),
                 rocket.MinimumSplashDamageValue);
-            if (_host.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
+            if (_host.Combat.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
-                _host.DestroySentry(sentry, owner);
+                _host.Structures.DestroySentry(sentry, owner);
             }
         }
     }
@@ -441,7 +441,7 @@ internal sealed partial class ExplosionRulesSystem
                 rocket.ExplosionDamageValue * rocket.ExperimentalStingerDamageMultiplier * rocket.CriticalDamageMultiplier,
                 1f - (distance / blastRadius),
                 rocket.MinimumSplashDamageValue);
-            _host.TryDamageGenerator(generator.Team, damage, owner);
+            _host.ObjectiveRules.TryDamageGenerator(generator.Team, damage, owner);
         }
     }
 

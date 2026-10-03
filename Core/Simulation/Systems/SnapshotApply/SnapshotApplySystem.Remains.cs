@@ -1,5 +1,3 @@
-using System;
-using OpenGarrison.Core.LastToDie;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 
@@ -7,44 +5,6 @@ namespace OpenGarrison.Core;
 
 internal sealed partial class SnapshotApplySystem
 {
-    private void ApplySnapshotBloodDrops(IReadOnlyList<SnapshotBloodDropState> bloodDrops)
-    {
-        SyncSnapshotEntities(
-            bloodDrops,
-            _host.WorldObjects.BloodDrops,
-            static state => state.Id,
-            static (_, _) => true,
-            state => new BloodDropEntity(
-                state.Id,
-                state.X,
-                state.Y,
-                state.VelocityX,
-                state.VelocityY,
-                state.Scale),
-            static (entity, state) => entity.ApplyNetworkState(
-                state.X,
-                state.Y,
-                state.VelocityX,
-                state.VelocityY,
-                state.IsStuck,
-                state.TicksRemaining,
-                state.Scale),
-            static (entity, state, isNewEntity) =>
-            {
-                if (isNewEntity)
-                {
-                    entity.ApplyNetworkState(
-                        state.X,
-                        state.Y,
-                        state.VelocityX,
-                        state.VelocityY,
-                        state.IsStuck,
-                        state.TicksRemaining,
-                        state.Scale);
-                }
-            });
-    }
-
     private void ApplySnapshotDeadBodies(IReadOnlyList<SnapshotDeadBodyState> deadBodies)
     {
         SyncSnapshotEntities(

@@ -28,22 +28,22 @@ internal sealed partial class WeaponFireHandler
         bool isSniperTracer = false,
         bool isCritical = false)
     {
-        _host.RegisterCombatTrace(originX, originY, directionX, directionY, distance, hitCharacter, team, isSniperTracer, isCritical);
+        _host.WorldEffects.RegisterCombatTrace(originX, originY, directionX, directionY, distance, hitCharacter, team, isSniperTracer, isCritical);
     }
 
     private void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1)
     {
-        _host.RegisterBloodEffect(x, y, directionDegrees, count);
+        _host.WorldEffects.RegisterBloodEffect(x, y, directionDegrees, count);
     }
 
     private void RegisterImpactEffect(float x, float y, float directionDegrees)
     {
-        _host.RegisterImpactEffect(x, y, directionDegrees);
+        _host.WorldEffects.RegisterImpactEffect(x, y, directionDegrees);
     }
 
     private void RegisterSoundEvent(PlayerEntity attacker, string soundName)
     {
-        _host.RegisterSoundEvent(attacker, soundName);
+        _host.WorldEffects.RegisterSoundEvent(attacker, soundName);
     }
 
     private bool ApplyPlayerDamage(
@@ -63,12 +63,12 @@ internal sealed partial class WeaponFireHandler
 
     private bool ApplySentryDamage(SentryEntity sentry, int damage, PlayerEntity? attacker)
     {
-        return _host.ApplySentryDamage(sentry, damage, attacker);
+        return _host.Combat.ApplySentryDamage(sentry, damage, attacker);
     }
 
     private bool TryDamageGenerator(PlayerTeam targetTeam, float damage, PlayerEntity? attacker)
     {
-        return _host.TryDamageGenerator(targetTeam, damage, attacker);
+        return _host.ObjectiveRules.TryDamageGenerator(targetTeam, damage, attacker);
     }
 
     private void KillPlayer(
@@ -78,32 +78,27 @@ internal sealed partial class WeaponFireHandler
         string? weaponSpriteName = null,
         DeadBodyAnimationKind deadBodyAnimationKind = DeadBodyAnimationKind.Default)
     {
-        _host.KillPlayer(player, gibbed, killer, weaponSpriteName, deadBodyAnimationKind);
+        _host.PlayerDeaths.KillPlayer(player, gibbed, killer, weaponSpriteName, deadBodyAnimationKind);
     }
 
     private void DestroySentry(SentryEntity sentry, PlayerEntity? attacker = null)
     {
-        _host.DestroySentry(sentry, attacker);
+        _host.Structures.DestroySentry(sentry, attacker);
     }
 
     private int CountOwnedMines(int ownerId)
     {
-        return _host.CountOwnedMines(ownerId);
+        return _host.Projectiles.CountOwnedMines(ownerId);
     }
 
     private bool IsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
     {
-        return _host.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
-    }
-
-    private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance)
-    {
-        return _host.ResolveRifleHit(attacker, directionX, directionY, maxDistance);
+        return _host.GeometryResolver.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
     }
 
     private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float originX, float originY, float directionX, float directionY, float maxDistance)
     {
-        return _host.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
+        return _host.GeometryResolver.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
     }
 
     private OrderedRifleHitResult ResolveOrderedRifleHits(
@@ -162,12 +157,12 @@ internal sealed partial class WeaponFireHandler
 
     private void SpawnBubble(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
     {
-        _host.SpawnBubble(owner, x, y, velocityX, velocityY);
+        _host.Projectiles.SpawnBubble(owner, x, y, velocityX, velocityY);
     }
 
     private void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks)
     {
-        _host.SpawnBlade(owner, x, y, velocityX, velocityY, hitDamage, lifetimeTicks);
+        _host.Projectiles.SpawnBlade(owner, x, y, velocityX, velocityY, hitDamage, lifetimeTicks);
     }
 
     private void SpawnFlame(
@@ -272,12 +267,12 @@ internal sealed partial class WeaponFireHandler
 
     private void SpawnMine(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
     {
-        _host.SpawnMine(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
+        _host.Projectiles.SpawnMine(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
     }
 
     private void SpawnGrenade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, string? killFeedWeaponSpriteNameOverride = null)
     {
-        _host.SpawnGrenade(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
+        _host.Projectiles.SpawnGrenade(owner, x, y, velocityX, velocityY, killFeedWeaponSpriteNameOverride);
     }
 
     private void SpawnGrenade(
@@ -292,7 +287,7 @@ internal sealed partial class WeaponFireHandler
         float initialSpinSpeed,
         float gravityPerTick = GrenadeProjectileEntity.StrongDrinkGravityPerTick)
     {
-        _host.SpawnGrenade(
+        _host.Projectiles.SpawnGrenade(
             owner,
             x,
             y,
@@ -338,12 +333,12 @@ internal sealed partial class WeaponFireHandler
 
     private void SpawnNail(PlayerEntity owner, float x, float y, float velocityX, float velocityY)
     {
-        _host.SpawnNail(owner, x, y, velocityX, velocityY);
+        _host.Projectiles.SpawnNail(owner, x, y, velocityX, velocityY);
     }
 
     private void SpawnArrow(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int damage, float fakeSpeedMultiplier)
     {
-        _host.SpawnArrow(owner, x, y, velocityX, velocityY, damage, fakeSpeedMultiplier);
+        _host.Projectiles.SpawnArrow(owner, x, y, velocityX, velocityY, damage, fakeSpeedMultiplier);
     }
 
     private static float DegreesToRadians(float degrees)
@@ -353,7 +348,7 @@ internal sealed partial class WeaponFireHandler
 
     private int GetExperimentalProjectilesPerShot(PlayerEntity attacker, int baseCount)
     {
-        if (!_host.IsExperimentalPracticePowerOwner(attacker) || _host.ExperimentalGameplaySettings.BonusProjectilesPerShot <= 0)
+        if (!_host.ExperimentalRules.IsExperimentalPracticePowerOwner(attacker) || _host.ExperimentalGameplaySettings.BonusProjectilesPerShot <= 0)
         {
             return Math.Max(1, baseCount);
         }

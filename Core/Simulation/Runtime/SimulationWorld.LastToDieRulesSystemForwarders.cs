@@ -16,9 +16,6 @@ public sealed partial class SimulationWorld
     public IReadOnlyList<LastToDieActiveStatusEffectSnapshot> GetLastToDieStatusEffects(int targetPlayerId)
         => LastToDieRules.GetLastToDieStatusEffects(targetPlayerId);
 
-    internal bool TryGetLastToDieMartyrProtector(PlayerEntity protectedTarget, out PlayerEntity protector)
-        => LastToDieRules.TryGetLastToDieMartyrProtector(protectedTarget, out protector);
-
 
     // Perks, afterlife, javelin, sniper explosive tip, survivor/stage objectives.
     public bool CanPlayerCaptureControlPointsWhileCloaked(PlayerEntity player)
@@ -31,8 +28,6 @@ public sealed partial class SimulationWorld
         => LastToDieRules.ClearLastToDiePlayerPredictionProfile(slot);
     public void ConfigureLastToDieCombatSeed(ulong seed)
         => LastToDieRules.ConfigureLastToDieCombatSeed(seed);
-    internal bool IsLastToDieGameplaySettingEnabled(Func<ExperimentalGameplaySettings, bool> selector)
-        => LastToDieRules.IsLastToDieGameplaySettingEnabled(selector);
     public void ResetLastToDieClientSession()
         => LastToDieRules.ResetLastToDieClientSession();
     public bool TryApplyLastToDiePlayerPredictionProfile(byte slot, IEnumerable<string> ownedPerkIds, int runKills = 0, bool secondChanceConsumed = false)
@@ -53,8 +48,6 @@ public sealed partial class SimulationWorld
         => LastToDieRules.ConsumeLastToDieSpyAfterlifeDisconnectFailure(slot);
     public bool IsLastToDieSpyAfterlifeWindowActive(byte slot)
         => LastToDieRules.IsLastToDieSpyAfterlifeWindowActive(slot);
-    private bool TryStartLastToDieSpyAfterlife(PlayerEntity player, bool gibbed, PlayerEntity? killer, string? weaponSpriteName, DeadBodyAnimationKind deadBodyAnimationKind, string? deathCamMessage, SentryEntity? deathCamSentry, string? killFeedMessage, bool createDeathCam, bool spawnRemains, bool forceCorpseRemains, bool recordKillFeed, int assistingPlayerId)
-        => LastToDieRules.TryStartLastToDieSpyAfterlife(player, gibbed, killer, weaponSpriteName, deadBodyAnimationKind, deathCamMessage, deathCamSentry, killFeedMessage, createDeathCam, spawnRemains, forceCorpseRemains, recordKillFeed, assistingPlayerId);
     public void ConfigureLastToDieStage(int stageNumber)
         => LastToDieRules.ConfigureLastToDieStage(stageNumber);
     public bool TrySetLastToDieSurvivorBuff(byte slot, bool enabled)

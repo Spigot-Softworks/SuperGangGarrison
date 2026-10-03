@@ -64,17 +64,17 @@ internal sealed partial class ObjectiveRulesSystem
         {
             if (redQualifies && blueQualifies)
             {
-                return _host.TryEndRound(settings.ResolveRoundEndWinner(_host.RedCaps, _host.BlueCaps), "scr_start_tiebreak");
+                return _host.Decisions.TryEndRound(settings.ResolveRoundEndWinner(_host.RedCaps, _host.BlueCaps), "scr_start_tiebreak");
             }
 
             if (redQualifies)
             {
-                return _host.TryEndRound(PlayerTeam.Red, "scr_start_threshold");
+                return _host.Decisions.TryEndRound(PlayerTeam.Red, "scr_start_threshold");
             }
 
             if (blueQualifies)
             {
-                return _host.TryEndRound(PlayerTeam.Blue, "scr_start_threshold");
+                return _host.Decisions.TryEndRound(PlayerTeam.Blue, "scr_start_threshold");
             }
 
             UpdateScrQualificationTracking();
@@ -84,13 +84,13 @@ internal sealed partial class ObjectiveRulesSystem
         if (!_host.Objectives.Scr.RedWasQualified && redQualifies)
         {
             UpdateScrQualificationTracking();
-            return _host.TryEndRound(PlayerTeam.Red, "scr_threshold");
+            return _host.Decisions.TryEndRound(PlayerTeam.Red, "scr_threshold");
         }
 
         if (!_host.Objectives.Scr.BlueWasQualified && blueQualifies)
         {
             UpdateScrQualificationTracking();
-            return _host.TryEndRound(PlayerTeam.Blue, "scr_threshold");
+            return _host.Decisions.TryEndRound(PlayerTeam.Blue, "scr_threshold");
         }
 
         UpdateScrQualificationTracking();

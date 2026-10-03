@@ -2234,7 +2234,7 @@ public sealed class SimulationWorldExperimentalPerkRegressionTests
             SwapWeapon: true);
         world.LocalPlayer.ApplyVelocityImpulse(0f, 0f);
 
-        var result = world.ExecuteHeavyGhostDashAbility(new GameplayAbilityContext
+        var result = world.Abilities.ExecuteHeavyGhostDashAbility(new GameplayAbilityContext
             {
                 World = world,
                 Player = world.LocalPlayer,

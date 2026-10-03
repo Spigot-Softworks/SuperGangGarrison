@@ -1,4 +1,3 @@
-using System.Linq;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
@@ -87,6 +86,6 @@ internal sealed partial class ObjectiveRulesSystem
         var enteredSetupPhase = ControlPointSetupDurationTicks > 0
             && _host.Objectives.ControlPoints.SetupTicksRemaining >= ControlPointSetupDurationTicks
             && previousSetupTicksRemaining < _host.Objectives.ControlPoints.SetupTicksRemaining;
-        _host.SyncMapLogicRuntimeFromAuthoritativeControlPoints(enteredSetupPhase);
+        _host.MapLogic.SyncMapLogicRuntimeFromAuthoritativeControlPoints(enteredSetupPhase);
     }
 }

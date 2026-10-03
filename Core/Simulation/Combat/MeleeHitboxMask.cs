@@ -235,31 +235,6 @@ public sealed class MeleeHitboxMask
         }
     }
 
-    private static void WorldDeltaToMaskLocal(
-        ref float localX,
-        ref float localY,
-        bool facingLeft,
-        float? rotationRadians)
-    {
-        if (rotationRadians is float aimRadians)
-        {
-            var facingScale = facingLeft ? -1f : 1f;
-            var rotation = ResolveAimDrawRotation(aimRadians, facingLeft);
-            var cos = DeterministicMath.Cos(-rotation);
-            var sin = DeterministicMath.Sin(-rotation);
-            var unrotatedX = (localX * cos) - (localY * sin);
-            var unrotatedY = (localX * sin) + (localY * cos);
-            localX = unrotatedX * facingScale;
-            localY = unrotatedY;
-            return;
-        }
-
-        if (facingLeft)
-        {
-            localX = -localX;
-        }
-    }
-
     private static float ComputeMaxReach(
         int width,
         int height,

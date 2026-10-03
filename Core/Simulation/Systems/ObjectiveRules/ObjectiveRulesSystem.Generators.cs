@@ -61,7 +61,7 @@ internal sealed partial class ObjectiveRulesSystem
             return false;
         }
 
-        var destroyed = _host.ApplyGeneratorDamage(generator, damage, attacker);
+        var destroyed = _host.Combat.ApplyGeneratorDamage(generator, damage, attacker);
         if (!destroyed)
         {
             return false;
@@ -79,19 +79,19 @@ internal sealed partial class ObjectiveRulesSystem
         }
 
         var winner = _host.GetOpposingTeam(generator.Team);
-        if (!_host.TryAwardTeamScore(winner, 1, "generator_destroyed"))
+        if (!_host.Decisions.TryAwardTeamScore(winner, 1, "generator_destroyed"))
         {
             return;
         }
 
-        _host.RegisterWorldSoundEvent("ExplosionSnd", generator.Marker.CenterX, generator.Marker.CenterY);
-        _host.RegisterWorldSoundEvent("RevolverSnd", generator.Marker.CenterX, generator.Marker.CenterY);
-        _host.RegisterWorldSoundEvent("CPBeginCapSnd", generator.Marker.CenterX, generator.Marker.CenterY);
-        _host.RegisterVisualEffect("Explosion", generator.Marker.CenterX, generator.Marker.CenterY, count: 2);
-        _host.RecordGeneratorDestroyedObjectiveLog(winner);
+        _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", generator.Marker.CenterX, generator.Marker.CenterY);
+        _host.WorldEffects.RegisterWorldSoundEvent("RevolverSnd", generator.Marker.CenterX, generator.Marker.CenterY);
+        _host.WorldEffects.RegisterWorldSoundEvent("CPBeginCapSnd", generator.Marker.CenterX, generator.Marker.CenterY);
+        _host.WorldEffects.RegisterVisualEffect("Explosion", generator.Marker.CenterX, generator.Marker.CenterY, count: 2);
+        _host.KillFeedRules.RecordGeneratorDestroyedObjectiveLog(winner);
         ApplyGeneratorExplosion(generator);
 
-        _host.TryEndRound(winner, "generator_destroyed");
+        _host.Decisions.TryEndRound(winner, "generator_destroyed");
     }
 
     internal void ApplyGeneratorExplosion(GeneratorState generator)
@@ -123,7 +123,7 @@ internal sealed partial class ObjectiveRulesSystem
             var player = playersToKill[index];
             if (player.IsAlive)
             {
-                _host.KillPlayer(player, gibbed: true, weaponSpriteName: "ExplodeKL");
+                _host.PlayerDeaths.KillPlayer(player, gibbed: true, weaponSpriteName: "ExplodeKL");
             }
         }
 
@@ -143,7 +143,7 @@ internal sealed partial class ObjectiveRulesSystem
             {
                 if (_host.WorldObjects.Sentries[sentryIndex].Id == sentryIdsToDestroy[index])
                 {
-                    _host.DestroySentry(_host.WorldObjects.Sentries[sentryIndex]);
+                    _host.Structures.DestroySentry(_host.WorldObjects.Sentries[sentryIndex]);
                     break;
                 }
             }
@@ -164,13 +164,13 @@ internal sealed partial class ObjectiveRulesSystem
             {
                 if (_host.Rockets[rocketIndex].Id == rocketIdsToExplode[index])
                 {
-                    _host.ExplodeRocket(_host.Rockets[rocketIndex], directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
+                    _host.ExplosionRules.ExplodeRocket(_host.Rockets[rocketIndex], directHitPlayer: null, directHitSentry: null, directHitGenerator: null);
                     break;
                 }
             }
         }
 
-        _host.ApplyDeadBodyExplosionImpulse(centerX, centerY, GeneratorExplosionBlastRadius, GeneratorExplosionDeadBodyKnockback);
+        _host.ExplosionRules.ApplyDeadBodyExplosionImpulse(centerX, centerY, GeneratorExplosionBlastRadius, GeneratorExplosionDeadBodyKnockback);
 
         var mineIdsToExplode = new List<int>();
         for (var mineIndex = 0; mineIndex < _host.Mines.Count; mineIndex += 1)
@@ -183,14 +183,14 @@ internal sealed partial class ObjectiveRulesSystem
 
         for (var index = 0; index < mineIdsToExplode.Count; index += 1)
         {
-            var mine = _host.FindMineById(mineIdsToExplode[index]);
+            var mine = _host.ExplosionRules.FindMineById(mineIdsToExplode[index]);
             if (mine is not null)
             {
-                _host.ExplodeMine(mine);
+                _host.ExplosionRules.ExplodeMine(mine);
             }
         }
 
-        _host.ApplyPlayerGibExplosionImpulse(centerX, centerY, GeneratorExplosionBlastRadius, GeneratorExplosionGibKnockback);
+        _host.ExplosionRules.ApplyPlayerGibExplosionImpulse(centerX, centerY, GeneratorExplosionBlastRadius, GeneratorExplosionGibKnockback);
 
         for (var bubbleIndex = _host.Bubbles.Count - 1; bubbleIndex >= 0; bubbleIndex -= 1)
         {

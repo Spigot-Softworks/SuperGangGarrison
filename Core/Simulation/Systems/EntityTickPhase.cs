@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 
 namespace OpenGarrison.Core;
 
@@ -102,7 +101,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
 
         foreach (var slot in _host.PlayerRegistry.EnabledAdditionalSlots)
         {
-            if (_host.TryGetNetworkPlayer(slot, out var player)
+            if (_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
                 && player.IsAlive
                 && player.IsSniperScoped
                 && !player.IsSniperBowEquipped)
@@ -171,14 +170,14 @@ internal sealed class EntityTickPhase : IEntityTickPhase
 
     public void AdvanceRemoteSnapshotPlayerTauntStates()
     {
-        _host.AdvanceRemoteSnapshotPlayerTauntStates();
+        _host.SnapshotApply.AdvanceRemoteSnapshotPlayerTauntStates();
     }
 
     public void AdvancePlayerSimulationPhase()
     {
-        _host.ApplyBuffBannerRegeneration();
-        _host.UpdateDispenserAuras();
-        _host.UpdateBuffBannerAuras();
+        _host.SupportRules.ApplyBuffBannerRegeneration();
+        _host.Structures.UpdateDispenserAuras();
+        _host.SupportRules.UpdateBuffBannerAuras();
         var phaseStartTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
         var enabledAdditionalSlots = _host.PlayerRegistry.EnabledAdditionalSlots;
         byte[]? playerTimingSlots = SlowPlayerTracingEnabled ? new byte[1 + enabledAdditionalSlots.Count] : null;
@@ -192,28 +191,28 @@ internal sealed class EntityTickPhase : IEntityTickPhase
         }
 
         TracePlayerPhaseBreakdown(phaseStartTimestamp, playerTimingSlots, playerTimingMilliseconds);
-        _host.UpdateBuffBannerAuras();
+        _host.SupportRules.UpdateBuffBannerAuras();
 
         // Taunt frames are advanced inside PlayerEntity.AdvanceTickState during full
         // simulation. AdvanceRemoteSnapshotPlayerTauntStates is client-prediction only.
-        _host.AdvanceEnemyDummy();
+        _host.PracticeDummies.AdvanceEnemyDummy();
 
         if (_host.FriendlyDummyEnabled && _host.FriendlyDummy.IsAlive)
         {
-            _host.ApplyRoomForces(_host.FriendlyDummy);
+            _host.Movement.ApplyRoomForces(_host.FriendlyDummy);
             _host.FriendlyDummy.Advance(default, false, _host.Level, _host.FriendlyDummy.Team, _host.Config.FixedDeltaSeconds);
-            _host.UpdateSpawnRoomState(_host.FriendlyDummy);
-            _host.TryActivatePendingSpyBackstab(_host.FriendlyDummy);
-            _host.ApplyHealingCabinets(_host.FriendlyDummy);
-            _host.ApplyRoomHazards(_host.FriendlyDummy);
+            _host.RoomEffects.UpdateSpawnRoomState(_host.FriendlyDummy);
+            _host.PlayerInput.TryActivatePendingSpyBackstab(_host.FriendlyDummy);
+            _host.RoomEffects.ApplyHealingCabinets(_host.FriendlyDummy);
+            _host.RoomEffects.ApplyRoomHazards(_host.FriendlyDummy);
         }
 
         void AdvancePlayerSlot(byte slot)
         {
             var startTimestamp = SlowPlayerTracingEnabled ? Stopwatch.GetTimestamp() : 0L;
-            _host.AdvancePlayableNetworkPlayer(slot);
+            _host.NetworkPlayerRules.AdvancePlayableNetworkPlayer(slot);
             if (_host.LastToDieState.StageNumber > 0 && _host.IsNetworkPlayerActive(slot)
-                && _host.TryGetNetworkPlayer(slot, out var survivor))
+                && _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var survivor))
             {
                 survivor.AdvanceLastToDieSurvivorRegeneration(_host.Config.TicksPerSecond);
             }
@@ -229,14 +228,14 @@ internal sealed class EntityTickPhase : IEntityTickPhase
 
     public void AdvancePostPlayerEntityPhase()
     {
-        _host.AdvanceMovingPlatforms();
-        _host.AdvanceHealthPacks();
+        _host.Movement.AdvanceMovingPlatforms();
+        _host.Pickups.AdvanceHealthPacks();
         _host.AdvanceCivvieMoneyPickups();
-        _host.AdvanceDroppedWeapons();
-        _host.AdvanceAfterburnAlertBubbles();
-        _host.AdvanceSentries();
-        _host.UpdateDispenserAuras();
-        _host.AdvanceJumpPads();
+        _host.Pickups.AdvanceDroppedWeapons();
+        _host.CombatFeedback.AdvanceAfterburnAlertBubbles();
+        _host.Structures.AdvanceSentries();
+        _host.Structures.UpdateDispenserAuras();
+        _host.Movement.AdvanceJumpPads();
     }
 
     private static double ResolveSlowPlayerThresholdMilliseconds()
@@ -286,7 +285,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
             }
 
             var slot = slots[index];
-            var className = _host.TryGetNetworkPlayer(slot, out var player)
+            var className = _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
                 ? player.ClassId.ToString()
                 : "missing";
             builder.Append(slot.ToString(CultureInfo.InvariantCulture));
@@ -316,7 +315,7 @@ internal sealed class EntityTickPhase : IEntityTickPhase
             return;
         }
 
-        var className = _host.TryGetNetworkPlayer(slot, out var player)
+        var className = _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             ? player.ClassId.ToString()
             : "missing";
         var line = string.Create(

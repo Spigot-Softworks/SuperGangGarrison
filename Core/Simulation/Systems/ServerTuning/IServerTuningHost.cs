@@ -10,10 +10,8 @@ internal interface IServerTuningHost : ISimulationWorldState, ISimulationPlayerD
     PlayerEntity FriendlyDummy { get; }
     PlayerEntity LocalPlayer { get; }
     MatchSettingsState MatchSettings { get; }
+    NetworkPlayerSystem NetworkPlayerRules { get; }
     NetworkPlayerRegistry PlayerRegistry { get; }
+    SpawnSystem Spawns { get; }
 
-    PlayerTeam GetNetworkPlayerConfiguredTeam(byte slot);
-    SpawnPoint ReserveSpawn(PlayerEntity player, PlayerTeam team);
-    SpawnPoint ReserveSpawn(PlayerEntity player, PlayerTeam team, byte slot);
-    bool TryGetNetworkPlayer(byte slot, out PlayerEntity player);
 }

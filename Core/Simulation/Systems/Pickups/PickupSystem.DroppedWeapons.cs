@@ -36,7 +36,7 @@ internal sealed partial class PickupSystem
 
             var previousWeaponClassId = player.AcquiredWeaponClassId;
             var pickedWeaponClassId = nearbyWeapon.WeaponClassId;
-            if (_host.ShouldCancelPickup(
+            if (_host.Decisions.ShouldCancelPickup(
                     WorldPickupKind.DroppedWeapon,
                     player,
                     nearbyWeapon.Id,
@@ -65,7 +65,7 @@ internal sealed partial class PickupSystem
 
             player.SetAcquiredWeapon(pickedWeaponClassId);
             player.EquipAcquiredWeapon();
-            _host.RegisterWorldSoundEvent("PickupSnd", nearbyWeapon.X, nearbyWeapon.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("PickupSnd", nearbyWeapon.X, nearbyWeapon.Y);
             RemoveDroppedWeaponAt(nearbyIndex);
             return;
         }
@@ -121,8 +121,8 @@ internal sealed partial class PickupSystem
     internal bool CanUseExperimentalDroppedWeapons(PlayerEntity? player)
     {
         return player is not null
-            && _host.GetLastToDieGameplaySettings(player).EnableEnemyDroppedWeapons
-            && _host.IsExperimentalPracticePowerOwner(player)
+            && _host.LastToDieRules.GetLastToDieGameplaySettings(player).EnableEnemyDroppedWeapons
+            && _host.ExperimentalRules.IsExperimentalPracticePowerOwner(player)
             && player.ClassId == PlayerClass.Soldier;
     }
 

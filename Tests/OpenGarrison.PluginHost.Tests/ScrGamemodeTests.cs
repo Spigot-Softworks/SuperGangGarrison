@@ -96,7 +96,7 @@ public sealed class ScrGamemodeTests
         world.ObjectiveRules.CombatTestFinalizeScrRoundStart();
         Assert.False(world.MatchState.IsEnded);
 
-        Assert.True(world.TryModifyTeamScore(PlayerTeam.Red, 1, "logic_score"));
+        Assert.True(world.ObjectiveRules.TryModifyTeamScore(PlayerTeam.Red, 1, "logic_score"));
         Assert.True(world.MatchState.IsEnded);
         Assert.Equal(PlayerTeam.Red, world.MatchState.WinnerTeam);
     }

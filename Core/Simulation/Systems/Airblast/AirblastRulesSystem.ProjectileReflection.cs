@@ -84,7 +84,7 @@ internal sealed partial class AirblastRulesSystem
                 continue;
             }
 
-            _host.ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
+            _host.Projectiles.ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
             flare.Reflect(player.Id, player.Team, aimRadians);
             reflectedCount += 1;
         }
@@ -145,7 +145,7 @@ internal sealed partial class AirblastRulesSystem
                 return false;
         }
 
-        _host.RegisterImpactEffect(targetX, targetY, 0f);
+        _host.WorldEffects.RegisterImpactEffect(targetX, targetY, 0f);
         return true;
     }
 
@@ -199,7 +199,7 @@ internal sealed partial class AirblastRulesSystem
             var deltaY = projectileY - y;
             var distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
             if (distanceSquared > nearestDistanceSquared
-                || !_host.HasDirectLineOfSight(x, y, projectileX, projectileY, projectileTeam))
+                || !_host.GeometryResolver.HasDirectLineOfSight(x, y, projectileX, projectileY, projectileTeam))
             {
                 continue;
             }

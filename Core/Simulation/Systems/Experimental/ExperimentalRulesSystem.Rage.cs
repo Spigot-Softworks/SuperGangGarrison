@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace OpenGarrison.Core;
 
 internal sealed partial class ExperimentalRulesSystem
@@ -75,7 +72,7 @@ internal sealed partial class ExperimentalRulesSystem
         bool enableStingerTracking,
         string? killFeedWeaponSpriteNameOverride)
     {
-        if (!_host.GetLastToDieGameplaySettings(owner).EnableSoldierFinalClipRocketBurst
+        if (!_host.LastToDieRules.GetLastToDieGameplaySettings(owner).EnableSoldierFinalClipRocketBurst
             || !IsExperimentalPracticePowerOwner(owner)
             || owner.ClassId != PlayerClass.Soldier)
         {
@@ -101,7 +98,7 @@ internal sealed partial class ExperimentalRulesSystem
     private bool CanUseExperimentalRage(PlayerEntity? player)
     {
         return player is not null
-            && _host.GetLastToDieGameplaySettings(player).EnableRage
+            && _host.LastToDieRules.GetLastToDieGameplaySettings(player).EnableRage
             && IsExperimentalPracticePowerOwner(player)
             && (player.ClassId == PlayerClass.Soldier
                 || player.ClassId == PlayerClass.Engineer
@@ -128,7 +125,7 @@ internal sealed partial class ExperimentalRulesSystem
         {
             player.RefreshUber();
         }
-        if (_host.GetLastToDieGameplaySettings(player).EnableDemoknightPostRageRegeneration
+        if (_host.LastToDieRules.GetLastToDieGameplaySettings(player).EnableDemoknightPostRageRegeneration
             && player.IsExperimentalDemoknightEnabled)
         {
             player.ConfigureExperimentalDemoknightPostRageRegeneration(GetExperimentalDemoknightPostRageRegenerationPerSecond());
@@ -143,7 +140,7 @@ internal sealed partial class ExperimentalRulesSystem
 
     internal void ApplyExperimentalRageEffects()
     {
-        if (!_host.IsLastToDieGameplaySettingEnabled(settings => settings.EnableRage))
+        if (!_host.LastToDieRules.IsLastToDieGameplaySettingEnabled(settings => settings.EnableRage))
         {
             _host.CombatRuntime.RageEnemyHumiliationTicksRemaining = 0;
             return;
@@ -217,7 +214,7 @@ internal sealed partial class ExperimentalRulesSystem
 
     internal bool IsExperimentalRageHumiliationActiveForPlayer(PlayerEntity player)
     {
-        return _host.IsLastToDieGameplaySettingEnabled(settings => settings.EnableRage)
+        return _host.LastToDieRules.IsLastToDieGameplaySettingEnabled(settings => settings.EnableRage)
             && _host.CombatRuntime.RageEnemyHumiliationTicksRemaining > 0
             && !ReferenceEquals(player, _host.LocalPlayer)
             && player.Team != _host.LocalPlayer.Team;

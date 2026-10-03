@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
 
@@ -21,14 +20,7 @@ public sealed partial class SimulationWorld
     private const int ArenaPointCapTimeTicksDefault = ArenaObjectiveState.PointCapTimeTicksDefault;
     private const int ArenaPointUnlockTicksDefault = 1800;
     private const int PendingMapChangeTicks = 300;
-    private const string ClassChangeKillFeedSuffix = SimulationConstants.ClassChangeKillFeedSuffix;
-    private const int CombatTraceLifetimeTicks = SimulationConstants.CombatTraceLifetimeTicks;
-    private const int KillFeedLifetimeTicks = SimulationConstants.KillFeedLifetimeTicks;
-    private const int KillFeedLocalInvolvedLifetimeTicks = SimulationConstants.KillFeedLocalInvolvedLifetimeTicks;
-    private const int DeathCamFocusFreezeDelayTicks = SimulationConstants.DeathCamFocusFreezeDelayTicks;
-    private const int DefaultGibLevel = SimulationConstants.DefaultGibLevel;
     private const int LocalProjectileTerminationSuppressionTicks = 12;
-    private const int NetworkProjectileRemovalSuppressionTicks = SimulationConstants.NetworkProjectileRemovalSuppressionTicks;
     public EntityStore EntityStore { get; } = new();
     public CombatSystem Combat { get; }
     public SnapshotSystem Snapshots { get; }
@@ -513,9 +505,4 @@ public sealed partial class SimulationWorld
 
     public void ConfigureExperimentalGameplaySettings(ExperimentalGameplaySettings settings)
         => ExperimentalRules.ConfigureExperimentalGameplaySettings(settings);
-
-    private void SyncExperimentalGameplayLoadout(byte slot, PlayerEntity player)
-        => ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
-
-
 }

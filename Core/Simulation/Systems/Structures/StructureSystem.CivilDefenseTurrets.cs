@@ -21,8 +21,8 @@ internal sealed partial class StructureSystem
             turret.Advance(_host.Level, _host.Bounds);
             if (!wasLanded && turret.HasLanded)
             {
-                _host.RegisterWorldSoundEvent("SentryFloorSnd", turret.X, turret.Y);
-                _host.RegisterWorldSoundEvent("SentryBuildSnd", turret.X, turret.Y);
+                _host.WorldEffects.RegisterWorldSoundEvent("SentryFloorSnd", turret.X, turret.Y);
+                _host.WorldEffects.RegisterWorldSoundEvent("SentryBuildSnd", turret.X, turret.Y);
             }
 
             if (turret.IsDead || turret.IsExpired)
@@ -36,7 +36,7 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
-            if (!_host.TryDestroyNearestEnemyDefensibleProjectile(
+            if (!_host.AirblastRules.TryDestroyNearestEnemyDefensibleProjectile(
                     turret.Team,
                     turret.X,
                     turret.Y,
@@ -54,9 +54,9 @@ internal sealed partial class StructureSystem
     internal void FireCivilDefenseTurret(CivilDefenseTurretEntity turret, float targetX, float targetY)
     {
         turret.FireAt(targetX, targetY);
-        _host.RegisterWorldSoundEvent("ShotgunSnd", turret.X, turret.Y);
+        _host.WorldEffects.RegisterWorldSoundEvent("ShotgunSnd", turret.X, turret.Y);
         var distance = MathF.Max(1f, SimulationMath.DistanceBetween(turret.X, turret.Y, targetX, targetY));
-        _host.RegisterCombatTrace(turret.X, turret.Y, (targetX - turret.X) / distance,
+        _host.WorldEffects.RegisterCombatTrace(turret.X, turret.Y, (targetX - turret.X) / distance,
             (targetY - turret.Y) / distance, distance, hitCharacter: false, turret.Team);
     }
 
@@ -84,7 +84,7 @@ internal sealed partial class StructureSystem
                 if (distance < 0f) continue;
             }
             if (distance > nearest) continue;
-            if (!_host.HasDirectLineOfSight(turret.X, turret.Y, x + directionX * distance, y + directionY * distance, projectileTeam)) continue;
+            if (!_host.GeometryResolver.HasDirectLineOfSight(turret.X, turret.Y, x + directionX * distance, y + directionY * distance, projectileTeam)) continue;
             if (selected is not null && distance == nearest && turret.Id > selected.Id) continue;
             selected = turret;
             nearest = distance;
@@ -93,7 +93,7 @@ internal sealed partial class StructureSystem
         var hitX = x + directionX * nearest;
         var hitY = y + directionY * nearest;
         FireCivilDefenseTurret(selected, hitX, hitY);
-        _host.RegisterImpactEffect(hitX, hitY, 0f);
+        _host.WorldEffects.RegisterImpactEffect(hitX, hitY, 0f);
         return true;
     }
 
@@ -135,14 +135,14 @@ internal sealed partial class StructureSystem
             player.FacingDirectionX);
         _host.WorldObjects.CivilDefenseTurrets.Add(entity);
         _host.EntityStore.Add(entity);
-        _host.RegisterWorldSoundEvent("SentryBuildSnd", entity.X, entity.Y);
+        _host.WorldEffects.RegisterWorldSoundEvent("SentryBuildSnd", entity.X, entity.Y);
         return true;
     }
 
     public bool TryDeployLastToDieDefenseBattery(byte ownerSlot)
     {
         if (_host.ClientPredictionMode
-            || !_host.TryGetNetworkPlayer(ownerSlot, out var owner)
+            || !_host.NetworkPlayerRules.TryGetNetworkPlayer(ownerSlot, out var owner)
             || !owner.IsAlive)
         {
             return false;
@@ -159,7 +159,7 @@ internal sealed partial class StructureSystem
             lifetimeTicks: Math.Max(1, _host.Config.TicksPerSecond * 30));
         _host.WorldObjects.CivilDefenseTurrets.Add(turret);
         _host.EntityStore.Add(turret);
-        _host.RegisterWorldSoundEvent("SentryBuildSnd", turret.X, turret.Y);
+        _host.WorldEffects.RegisterWorldSoundEvent("SentryBuildSnd", turret.X, turret.Y);
         return true;
     }
 
@@ -174,8 +174,8 @@ internal sealed partial class StructureSystem
 
             _host.EntityStore.Remove(turret.Id);
             _host.WorldObjects.CivilDefenseTurrets.RemoveAt(index);
-            _host.RegisterWorldSoundEvent("ExplosionSnd", turret.X, turret.Y);
-            _host.RegisterVisualEffect("Explosion", turret.X, turret.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", turret.X, turret.Y);
+            _host.WorldEffects.RegisterVisualEffect("Explosion", turret.X, turret.Y);
             break;
         }
     }

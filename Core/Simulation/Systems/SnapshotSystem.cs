@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using OpenGarrison.Protocol;
 
@@ -7,7 +5,6 @@ namespace OpenGarrison.Core;
 
 public sealed class SnapshotSystem
 {
-    private readonly EntityStore _entities;
     private readonly CombatSystem _combat;
     private readonly ISnapshotSystemHost _host;
 
@@ -18,7 +15,7 @@ public sealed class SnapshotSystem
 
     internal SnapshotSystem(EntityStore entities, CombatSystem combat, ISnapshotSystemHost host)
     {
-        _entities = entities ?? throw new ArgumentNullException(nameof(entities));
+        ArgumentNullException.ThrowIfNull(entities);
         _combat = combat ?? throw new ArgumentNullException(nameof(combat));
         _host = host ?? throw new ArgumentNullException(nameof(host));
     }

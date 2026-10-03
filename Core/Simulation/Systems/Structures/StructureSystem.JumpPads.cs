@@ -22,8 +22,8 @@ internal sealed partial class StructureSystem
 
             _host.EntityStore.Remove(pad.Id);
             _host.WorldObjects.JumpPads.RemoveAt(index);
-            _host.RegisterWorldSoundEvent("ExplosionSnd", pad.X, pad.Y);
-            _host.RegisterVisualEffect("Explosion", pad.X, pad.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", pad.X, pad.Y);
+            _host.WorldEffects.RegisterVisualEffect("Explosion", pad.X, pad.Y);
             SpawnJumpPadGibs(pad.Team, pad.X, pad.Y);
             break;
         }

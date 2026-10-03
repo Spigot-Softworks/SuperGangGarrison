@@ -2,11 +2,6 @@ namespace OpenGarrison.Core;
 
 internal sealed partial class WeaponFireHandler
 {
-    private void FireRifle(PlayerEntity attacker, float aimWorldX, float aimWorldY)
-    {
-        FireRifle(attacker, attacker.PrimaryWeapon, attacker.ClassId, aimWorldX, aimWorldY, "RifleKL");
-    }
-
     private void FireRifle(
         PlayerEntity attacker,
         PrimaryWeaponDefinition weaponDefinition,
@@ -126,10 +121,10 @@ internal sealed partial class WeaponFireHandler
         {
             if (playerHit.IsFriendlySupport)
             {
-                _host.TryApplyLastToDieSniperGuardian(attacker, playerHit.Player);
+                _host.LastToDieRules.TryApplyLastToDieSniperGuardian(attacker, playerHit.Player);
                 if (sniperProfile.ExplosiveTipEnabled)
                 {
-                    _host.TryExplodeLastToDieSniperRifleImpact(
+                    _host.LastToDieRules.TryExplodeLastToDieSniperRifleImpact(
                         attacker,
                         weaponOrigin.BaseX + (directionX * playerHit.Distance),
                         weaponOrigin.BaseY + (directionY * playerHit.Distance),
@@ -177,7 +172,7 @@ internal sealed partial class WeaponFireHandler
             }
             if (resolution.ShouldApplyOnHitEffects && sniperProfile.TranqDartsEnabled)
             {
-                _host.TryApplyLastToDieSniperStatusPayload(
+                _host.LastToDieRules.TryApplyLastToDieSniperStatusPayload(
                     attacker,
                     playerHit.Player,
                     appliesTranqDarts: true,
@@ -201,7 +196,7 @@ internal sealed partial class WeaponFireHandler
                     && !executesFromFiftyCal
                     && !playerHit.Player.IsAlive)
                 {
-                    _host.TrySpawnExperimentalDemoknightDecapitationRemains(
+                    _host.PlayerRemains.TrySpawnExperimentalDemoknightDecapitationRemains(
                         playerHit.Player,
                         directionX,
                         directionY);
@@ -210,7 +205,7 @@ internal sealed partial class WeaponFireHandler
 
             if (sniperProfile.ExplosiveTipEnabled)
             {
-                _host.TryExplodeLastToDieSniperRifleImpact(
+                _host.LastToDieRules.TryExplodeLastToDieSniperRifleImpact(
                     attacker,
                     weaponOrigin.BaseX + (directionX * playerHit.Distance),
                     weaponOrigin.BaseY + (directionY * playerHit.Distance),
@@ -228,7 +223,7 @@ internal sealed partial class WeaponFireHandler
         if (sniperProfile.ExplosiveTipEnabled
             && hasTerminalCollision)
         {
-            _host.TryExplodeLastToDieSniperRifleImpact(
+            _host.LastToDieRules.TryExplodeLastToDieSniperRifleImpact(
                 attacker,
                 weaponOrigin.BaseX + (directionX * result.Distance),
                 weaponOrigin.BaseY + (directionY * result.Distance),
@@ -288,7 +283,7 @@ internal sealed partial class WeaponFireHandler
             traits |= PlayerDamageTraits.ExecuteAfterDefenses;
         }
 
-        return _host.ResolvePlayerDamage(
+        return _host.Combat.ResolvePlayerDamage(
             target,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,

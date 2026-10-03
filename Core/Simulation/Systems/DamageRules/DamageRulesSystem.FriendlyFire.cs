@@ -23,7 +23,7 @@ internal sealed partial class DamageRulesSystem
         {
             var selfAttacker = _host.FindPlayerById(attackerId);
             return selfAttacker is null
-                || !_host.GetLastToDieGameplaySettings(selfAttacker).DisableSelfDamage;
+                || !_host.LastToDieRules.GetLastToDieGameplaySettings(selfAttacker).DisableSelfDamage;
         }
 
         var attacker = _host.FindPlayerById(attackerId);
@@ -34,7 +34,7 @@ internal sealed partial class DamageRulesSystem
 
     private bool IsExperimentalConfusionFriendlyFireAllowed(PlayerEntity attacker, PlayerEntity target)
     {
-        return _host.GetLastToDieGameplaySettings(attacker).EnableEngineerConfusionField
+        return _host.LastToDieRules.GetLastToDieGameplaySettings(attacker).EnableEngineerConfusionField
             && attacker.Team == target.Team
             && attacker.Id != target.Id
             && (attacker.ExperimentalConfusedAttackTargetPlayerId == target.Id

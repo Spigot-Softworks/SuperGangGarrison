@@ -19,7 +19,7 @@ internal sealed partial class GameplayAbilitySystem
         var player = _host.FindPlayerById(playerId);
         return player is not null
             && player.IsAlive
-            && _host.ApplyHealingWithFeedback(player, MathF.Max(0f, amount)) > 0;
+            && _host.DamageRules.ApplyHealingWithFeedback(player, MathF.Max(0f, amount)) > 0;
     }
 
     public bool TryApplyGameplayDamage(int targetPlayerId, float amount, int? attackerPlayerId, string? weaponSpriteName)
@@ -31,14 +31,14 @@ internal sealed partial class GameplayAbilitySystem
         }
 
         var attacker = attackerPlayerId.HasValue ? _host.FindPlayerById(attackerPlayerId.Value) : null;
-        if (attacker is not null && !_host.CanTeamDamagePlayer(attacker.Team, attacker.Id, target))
+        if (attacker is not null && !_host.DamageRules.CanTeamDamagePlayer(attacker.Team, attacker.Id, target))
         {
             return false;
         }
 
         if (_host.ApplyPlayerContinuousDamage(target, amount, attacker, PlayerEntity.SpyDamageRevealAlpha))
         {
-            _host.KillPlayer(target, killer: attacker, weaponSpriteName: string.IsNullOrWhiteSpace(weaponSpriteName) ? null : weaponSpriteName.Trim());
+            _host.PlayerDeaths.KillPlayer(target, killer: attacker, weaponSpriteName: string.IsNullOrWhiteSpace(weaponSpriteName) ? null : weaponSpriteName.Trim());
         }
 
         return true;
@@ -144,10 +144,10 @@ internal sealed partial class GameplayAbilitySystem
                     killFeedWeaponSpriteNameOverride: request.KillFeedWeaponSpriteName);
                 return true;
             case GameplayProjectileKinds.Mine:
-                _host.SpawnMine(owner, request.X, request.Y, request.VelocityX, request.VelocityY, request.KillFeedWeaponSpriteName);
+                _host.Projectiles.SpawnMine(owner, request.X, request.Y, request.VelocityX, request.VelocityY, request.KillFeedWeaponSpriteName);
                 return true;
             case GameplayProjectileKinds.Grenade:
-                _host.SpawnGrenade(owner, request.X, request.Y, request.VelocityX, request.VelocityY, request.KillFeedWeaponSpriteName);
+                _host.Projectiles.SpawnGrenade(owner, request.X, request.Y, request.VelocityX, request.VelocityY, request.KillFeedWeaponSpriteName);
                 return true;
             case GameplayProjectileKinds.Flame:
                 _host.SpawnFlame(owner, request.X, request.Y, request.VelocityX, request.VelocityY);
@@ -156,10 +156,10 @@ internal sealed partial class GameplayAbilitySystem
                 _host.SpawnFlare(owner, request.X, request.Y, request.VelocityX, request.VelocityY);
                 return true;
             case GameplayProjectileKinds.Bubble:
-                _host.SpawnBubble(owner, request.X, request.Y, request.VelocityX, request.VelocityY);
+                _host.Projectiles.SpawnBubble(owner, request.X, request.Y, request.VelocityX, request.VelocityY);
                 return true;
             case GameplayProjectileKinds.Blade:
-                _host.SpawnBlade(
+                _host.Projectiles.SpawnBlade(
                     owner,
                     request.X,
                     request.Y,

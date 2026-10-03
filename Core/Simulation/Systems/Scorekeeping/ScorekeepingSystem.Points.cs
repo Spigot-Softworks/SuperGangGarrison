@@ -1,5 +1,3 @@
-using System;
-
 namespace OpenGarrison.Core;
 
 internal sealed partial class ScorekeepingSystem

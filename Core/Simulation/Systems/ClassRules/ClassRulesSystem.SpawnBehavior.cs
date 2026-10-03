@@ -1,5 +1,3 @@
-using System;
-
 namespace OpenGarrison.Core;
 
 internal sealed partial class ClassRulesSystem
@@ -61,7 +59,7 @@ internal sealed partial class ClassRulesSystem
     {
         marker = default;
         return ShouldApplyMapSpawnClassBehaviorToSlot(slot)
-            && TryGetMapSpawnClassBehavior(_host.GetNetworkPlayerConfiguredTeam(slot), out marker);
+            && TryGetMapSpawnClassBehavior(_host.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(slot), out marker);
     }
 
     internal bool TryGetMapForcedClassDefinition(byte slot, out CharacterClassDefinition definition)
@@ -84,7 +82,7 @@ internal sealed partial class ClassRulesSystem
             return true;
         }
 
-        return behavior.AllowTeamChange || _host.IsNetworkPlayerAwaitingJoin(slot);
+        return behavior.AllowTeamChange || _host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot);
     }
 
     internal bool CanNetworkPlayerSelectClassByMapBehavior(byte slot, CharacterClassDefinition definition)
@@ -94,7 +92,7 @@ internal sealed partial class ClassRulesSystem
             return true;
         }
 
-        if (!behavior.AllowClassChange && !_host.IsNetworkPlayerAwaitingJoin(slot))
+        if (!behavior.AllowClassChange && !_host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot))
         {
             return false;
         }
@@ -129,7 +127,7 @@ internal sealed partial class ClassRulesSystem
             return true;
         }
 
-        if (_host.TryFindSafeObjectiveSpawnPosition(player, team, behavior.X, behavior.Y, out var safeX, out var safeY))
+        if (_host.Spawns.TryFindSafeObjectiveSpawnPosition(player, team, behavior.X, behavior.Y, out var safeX, out var safeY))
         {
             spawn = new SpawnPoint(safeX, safeY);
             return true;

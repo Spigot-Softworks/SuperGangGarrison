@@ -9,21 +9,28 @@ namespace OpenGarrison.Core;
 internal interface IExperimentalRulesHost : ISimulationWorldState, ISimulationPlayerDirectory
 {
     WorldBounds Bounds { get; }
+    CombatSystem Combat { get; }
+    CombatRuntimeState CombatRuntime { get; }
+    DamageRulesSystem DamageRules { get; }
     ExperimentalGameplaySettings ExperimentalGameplaySettings { get; set; }
+    CombatResolver GeometryResolver { get; }
+    LastToDieRulesSystem LastToDieRules { get; }
+    PlayerEntity LocalPlayer { get; }
+    MapLogicSystem MapLogic { get; }
+    MatchSettingsState MatchSettings { get; }
+    NetworkPlayerSystem NetworkPlayerRules { get; }
+    ObjectiveRulesSystem ObjectiveRules { get; }
+    ObjectiveStateStore Objectives { get; }
+    PickupSystem Pickups { get; }
+    PlayerDeathSystem PlayerDeaths { get; }
     SimulationRandomStreams Randoms { get; }
     IReadOnlyList<RocketProjectileEntity> Rockets { get; }
+    ServerTuningSystem ServerTuning { get; }
+    StructureSystem Structures { get; }
+    SupportRulesSystem SupportRules { get; }
+    WorldEffectsSystem WorldEffects { get; }
     WorldObjectStore WorldObjects { get; }
-    PlayerEntity LocalPlayer { get; }
-    CombatRuntimeState CombatRuntime { get; }
-    MatchSettingsState MatchSettings { get; }
-    ObjectiveStateStore Objectives { get; }
 
-    int ApplyHealingWithFeedback(PlayerEntity target, float healing, string? soundName = null, float soundX = 0f, float soundY = 0f);
-    bool ApplySentryDamage(SentryEntity target, int damage, PlayerEntity? attacker);
-    void DestroySentry(SentryEntity sentry, PlayerEntity? attacker = null);
-    void FlushExperimentalEngineerEssenceExtractorHealing(PlayerEntity engineer);
-    bool IsLastToDieDroneSentry(SentryEntity sentry);
-    bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam);
     int ReflectEnemyExplosiveProjectiles(
         PlayerEntity player,
         float aimRadians,
@@ -31,26 +38,6 @@ internal interface IExperimentalRulesHost : ISimulationWorldState, ISimulationPl
         float poofY,
         bool radial = false,
         float radialRadius = SimulationConstants.PyroAirblastDistance);
-    void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1);
-    void RegisterCombatTrace(
-        float originX,
-        float originY,
-        float directionX,
-        float directionY,
-        float distance,
-        bool hitCharacter,
-        PlayerTeam team = PlayerTeam.Red,
-        bool isSniperTracer = false,
-        bool isCritical = false);
-    void RegisterImpactEffect(float x, float y, float directionDegrees);
-    void RegisterVisualEffect(
-        string effectName,
-        float x,
-        float y,
-        float directionDegrees = 0f,
-        int count = 1,
-        bool normalizeDirection = true);
-    void RegisterWorldSoundEvent(string soundName, float x, float y, int sourcePlayerId = -1);
     PlayerDamageResolution ResolvePlayerDamageWithContext(
         PlayerEntity target,
         int damage,
@@ -70,14 +57,6 @@ internal interface IExperimentalRulesHost : ISimulationWorldState, ISimulationPl
         int sourceEntityId = 0,
         ulong attackId = 0,
         int attackerPlayerIdOverride = -1);
-    RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance);
-    RifleHitResult ResolveRifleHit(
-        PlayerEntity attacker,
-        float originX,
-        float originY,
-        float directionX,
-        float directionY,
-        float maxDistance);
     void SpawnFlame(
         PlayerEntity owner,
         float x,
@@ -124,23 +103,6 @@ internal interface IExperimentalRulesHost : ISimulationWorldState, ISimulationPl
         float playerKnockbackAirborneVerticalScale = 1f,
         float playerKnockbackGroundedVerticalScale = 1f,
         bool isBoomstickPellet = false);
-    bool TryApplyDamageableZoneDamage(int roomObjectIndex, float damage, PlayerTeam? damagingTeam = null);
-    bool TryDamageGenerator(PlayerTeam targetTeam, float damage, PlayerEntity? attacker = null);
-    void KillPlayer(
-        PlayerEntity player,
-        bool gibbed = false,
-        PlayerEntity? killer = null,
-        string? weaponSpriteName = null,
-        DeadBodyAnimationKind deadBodyAnimationKind = DeadBodyAnimationKind.Default,
-        string? deathCamMessage = null,
-        SentryEntity? deathCamSentry = null,
-        string? killFeedMessage = null,
-        bool createDeathCam = true,
-        bool spawnRemains = true,
-        bool forceCorpseRemains = false,
-        bool recordKillFeed = true,
-        int assistingPlayerIdOverride = -1,
-        bool completingLastToDieSpyAfterlifeDeath = false);
     bool ApplyPlayerDamageWithContext(
         PlayerEntity target,
         int damage,
@@ -160,13 +122,4 @@ internal interface IExperimentalRulesHost : ISimulationWorldState, ISimulationPl
         int sourceEntityId = 0,
         ulong attackId = 0,
         int attackerPlayerIdOverride = -1);
-    ExperimentalGameplaySettings GetLastToDieGameplaySettings(PlayerEntity? player);
-    bool IsLastToDieGameplaySettingEnabled(Func<ExperimentalGameplaySettings, bool> selector);
-    bool TryGetLastToDieLegacyGameplaySettings(byte slot, out ExperimentalGameplaySettings settings);
-    bool TryGetPlayerNetworkSlot(PlayerEntity player, out byte slot);
-    void ApplyNetworkPlayerMaxHealthOverride(byte slot, PlayerEntity player, bool refillHealth);
-    void ClearTemporaryHealthPacks();
-    void ClearDroppedWeapons();
-    bool IsNetworkPlayerEnabled(byte slot);
-    bool TryGetNetworkPlayer(byte slot, out PlayerEntity player);
 }

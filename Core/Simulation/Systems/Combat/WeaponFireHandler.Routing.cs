@@ -10,8 +10,8 @@ internal sealed partial class WeaponFireHandler
     public void FireSoldierShotgun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
     {
         var weaponDefinition = attacker.ExperimentalOffhandWeapon ?? CharacterClassCatalog.SoldierShotgun;
-        var pelletCountMultiplier = _host.IsExperimentalPracticePowerOwner(attacker)
-            ? Math.Max(1, _host.GetLastToDieGameplaySettings(attacker).SoldierShotgunPelletMultiplier)
+        var pelletCountMultiplier = _host.ExperimentalRules.IsExperimentalPracticePowerOwner(attacker)
+            ? Math.Max(1, _host.LastToDieRules.GetLastToDieGameplaySettings(attacker).SoldierShotgunPelletMultiplier)
             : 1;
         DispatchPrimaryWeaponFire(
             attacker,

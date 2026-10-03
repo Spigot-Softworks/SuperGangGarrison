@@ -201,35 +201,14 @@ public sealed partial class SimulationWorld
             maxDistance);
     }
 
-    private bool HasLineOfSight(PlayerEntity attacker, PlayerEntity target)
-        => GeometryResolver.HasLineOfSight(attacker, target);
-
-    private bool HasSentryLineOfSight(SentryEntity sentry, PlayerEntity target)
-        => GeometryResolver.HasSentryLineOfSight(sentry, target);
-
     private bool HasDirectLineOfSight(float originX, float originY, float targetX, float targetY, PlayerTeam targetTeam)
         => GeometryResolver.HasDirectLineOfSight(originX, originY, targetX, targetY, targetTeam);
 
     private bool HasObstacleLineOfSight(float originX, float originY, float targetX, float targetY)
         => GeometryResolver.HasObstacleLineOfSight(originX, originY, targetX, targetY);
 
-    private bool IsFlameSpawnBlocked(float originX, float originY, float spawnX, float spawnY, PlayerTeam team)
-        => GeometryResolver.IsFlameSpawnBlocked(originX, originY, spawnX, spawnY, team);
-
-    private bool IsProjectileSpawnBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
-        => GeometryResolver.IsProjectileSpawnBlocked(originX, originY, targetX, targetY, shotTeam);
-
     private bool IsProjectilePathBlocked(float originX, float originY, float targetX, float targetY, PlayerTeam shotTeam)
         => GeometryResolver.IsProjectilePathBlocked(originX, originY, targetX, targetY, shotTeam);
-
-    private float? GetLineIntersectionDistanceToPlayer(
-        float originX,
-        float originY,
-        float endX,
-        float endY,
-        PlayerEntity player,
-        float maxDistance)
-        => GeometryResolver.GetLineIntersectionDistanceToPlayer(originX, originY, endX, endY, player, maxDistance);
 
     private float? GetThickLineIntersectionDistanceToPlayer(
         float originX,
@@ -292,12 +271,6 @@ public sealed partial class SimulationWorld
 
     private ShotHitResult? GetNearestFlareHit(FlareProjectileEntity flare, float directionX, float directionY, float maxDistance)
         => GeometryResolver.GetNearestFlareHit(flare, directionX, directionY, maxDistance);
-
-    private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float directionX, float directionY, float maxDistance)
-        => GeometryResolver.ResolveRifleHit(attacker, directionX, directionY, maxDistance);
-
-    private RifleHitResult ResolveRifleHit(PlayerEntity attacker, float originX, float originY, float directionX, float directionY, float maxDistance)
-        => GeometryResolver.ResolveRifleHit(attacker, originX, originY, directionX, directionY, maxDistance);
 
     private OrderedRifleHitResult ResolveOrderedRifleHits(
         PlayerEntity attacker,

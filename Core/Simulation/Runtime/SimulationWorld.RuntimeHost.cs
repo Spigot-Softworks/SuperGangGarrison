@@ -2,27 +2,16 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld : ISimulationTickHost
 {
-    long ISimulationTickHost.Frame => Frame;
-
-    bool ISimulationTickHost.ClientPredictionMode => ClientPredictionMode;
-
-    bool ISimulationTickHost.AdvancePendingMapChange() => AdvancePendingMapChange();
-
     void ISimulationTickHost.AdvanceAuthoritativeMapLogicRuntime() => MapLogic.AdvanceAuthoritativeMapLogicRuntime();
-
-    void ISimulationTickHost.AdvanceMovingPlatforms() => AdvanceMovingPlatforms();
-
-    void ISimulationTickHost.BeginLastToDieStatusEffectsTick() => LastToDieRules.BeginLastToDieStatusEffectsTick();
-
-    void ISimulationTickHost.RefreshLastToDieMedicLinkProjections() => LastToDieRules.RefreshLastToDieMedicLinkProjections();
-
     void ISimulationTickHost.AdvanceCivilDefenseTurrets() => Structures.AdvanceCivilDefenseTurrets();
-
-    void ISimulationTickHost.EndLastToDieStatusEffectsTick() => LastToDieRules.EndLastToDieStatusEffectsTick();
-
-    void ISimulationTickHost.TickMapLogicTimersOncePerFrame() => MapLogic.TickMapLogicTimersOncePerFrame();
-
-    void ISimulationTickHost.CommitLocalInputForTick() => LocalState.PreviousInput = LocalState.Input;
-
     void ISimulationTickHost.AdvanceFrameCounter() => Frame += 1;
+    void ISimulationTickHost.AdvanceMovingPlatforms() => Movement.AdvanceMovingPlatforms();
+    bool ISimulationTickHost.AdvancePendingMapChange() => AdvancePendingMapChange();
+    void ISimulationTickHost.BeginLastToDieStatusEffectsTick() => LastToDieRules.BeginLastToDieStatusEffectsTick();
+    bool ISimulationTickHost.ClientPredictionMode => ClientPredictionMode;
+    void ISimulationTickHost.CommitLocalInputForTick() => LocalState.PreviousInput = LocalState.Input;
+    void ISimulationTickHost.EndLastToDieStatusEffectsTick() => LastToDieRules.EndLastToDieStatusEffectsTick();
+    long ISimulationTickHost.Frame => Frame;
+    void ISimulationTickHost.RefreshLastToDieMedicLinkProjections() => LastToDieRules.RefreshLastToDieMedicLinkProjections();
+    void ISimulationTickHost.TickMapLogicTimersOncePerFrame() => MapLogic.TickMapLogicTimersOncePerFrame();
 }

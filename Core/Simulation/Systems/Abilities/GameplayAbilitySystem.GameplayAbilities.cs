@@ -280,12 +280,12 @@ internal sealed partial class GameplayAbilitySystem
 
     internal GameplayAbilityResult ExecuteEngineerPdaAbility(GameplayAbilityContext context)
     {
-        if (_host.TryHandleExperimentalEngineerDestinyPunctuatorBlast(context.Player, context.Input))
+        if (_host.PlayerInput.TryHandleExperimentalEngineerDestinyPunctuatorBlast(context.Player, context.Input))
         {
             return GameplayAbilityResult.HandledAndConsumed;
         }
 
-        _host.HandleEngineerPdaSentryCommand(context.Player);
+        _host.PlayerInput.HandleEngineerPdaSentryCommand(context.Player);
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
@@ -329,11 +329,11 @@ internal sealed partial class GameplayAbilitySystem
 
         if (isAirburst)
         {
-            _host.TriggerPyroSelfAirblast(player, context.Input.AimWorldX, context.Input.AimWorldY);
+            _host.AirblastRules.TriggerPyroSelfAirblast(player, context.Input.AimWorldX, context.Input.AimWorldY);
         }
         else
         {
-            _host.TriggerPyroAirblast(player, context.Input.AimWorldX, context.Input.AimWorldY);
+            _host.AirblastRules.TriggerPyroAirblast(player, context.Input.AimWorldX, context.Input.AimWorldY);
         }
 
         return GameplayAbilityResult.HandledAndConsumed;
@@ -346,15 +346,15 @@ internal sealed partial class GameplayAbilitySystem
             return ExecuteExperimentalDemoknightSecondaryAbility(context);
         }
 
-        _host.DetonateOwnedMines(context.Player.Id);
+        _host.ExplosionRules.DetonateOwnedMines(context.Player.Id);
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
     internal GameplayAbilityResult ExecuteExperimentalSoldierSecondaryAbility(GameplayAbilityContext context)
     {
-        if (_host.TryHandleExperimentalSoldierStingerDetonation(context.Player)
-            || _host.TryHandleExperimentalSoldierCivilDefenseTurret(context.Player)
-            || _host.TryHandleExperimentalSoldierThundergunner(context.Player, context.Input))
+        if (_host.PlayerInput.TryHandleExperimentalSoldierStingerDetonation(context.Player)
+            || _host.PlayerInput.TryHandleExperimentalSoldierCivilDefenseTurret(context.Player)
+            || _host.PlayerInput.TryHandleExperimentalSoldierThundergunner(context.Player, context.Input))
         {
             return GameplayAbilityResult.HandledAndConsumed;
         }
@@ -364,13 +364,13 @@ internal sealed partial class GameplayAbilitySystem
 
     internal GameplayAbilityResult ExecuteExperimentalLtdPassiveAbility(GameplayAbilityContext context)
     {
-        _host.ApplyExperimentalPassivePlayerEffects(context.Player);
+        _host.ExperimentalRules.ApplyExperimentalPassivePlayerEffects(context.Player);
         return new GameplayAbilityResult(Handled: true, ConsumedInput: false);
     }
 
     internal GameplayAbilityResult ExecuteExperimentalLtdRageAbility(GameplayAbilityContext context)
     {
-        return _host.TryHandleExperimentalRageActivation(context.Player)
+        return _host.ExperimentalRules.TryHandleExperimentalRageActivation(context.Player)
             ? GameplayAbilityResult.HandledAndConsumed
             : GameplayAbilityResult.Ignored;
     }
@@ -383,15 +383,15 @@ internal sealed partial class GameplayAbilitySystem
             return GameplayAbilityResult.Ignored;
         }
 
-        if (_host.GetLastToDieGameplaySettings(player).EnableDemoknightGhostDash)
+        if (_host.LastToDieRules.GetLastToDieGameplaySettings(player).EnableDemoknightGhostDash)
         {
             if (player.TryStartExperimentalGhostDash(
-                    _host.GetExperimentalGhostDashDurationTicks(),
-                    _host.GetExperimentalGhostDashCooldownTicks(),
+                    _host.ExperimentalRules.GetExperimentalGhostDashDurationTicks(),
+                    _host.ExperimentalRules.GetExperimentalGhostDashCooldownTicks(),
                     global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultGhostDashNextAttackDamageMultiplier,
                     _host.GetExperimentalGhostDashImpulse()))
             {
-                _host.RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
+                _host.WorldEffects.RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
             }
 
             return GameplayAbilityResult.HandledAndConsumed;
@@ -403,7 +403,7 @@ internal sealed partial class GameplayAbilitySystem
         }
         else if (player.TryStartExperimentalDemoknightCharge())
         {
-            _host.RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, player.X, player.Y);
         }
 
         return GameplayAbilityResult.HandledAndConsumed;
@@ -592,7 +592,7 @@ internal sealed partial class GameplayAbilitySystem
         }
         else if (player.TryFireMedicNeedle(fireCooldownTicks, refillTicks))
         {
-            _host.FireMedicNeedle(player, context.Input.AimWorldX, context.Input.AimWorldY);
+            _host.WeaponHandler.FireMedicNeedle(player, context.Input.AimWorldX, context.Input.AimWorldY);
             return GameplayAbilityResult.HandledAndConsumed;
         }
 
@@ -704,8 +704,8 @@ internal sealed partial class GameplayAbilitySystem
             return new GameplayAbilityResult(Handled: false, ConsumedInput: true);
         }
 
-        _host.AwardMedicUberActivationPoints(context.Player);
-        _host.RegisterWorldSoundEvent("UberStartSnd", context.Player.X, context.Player.Y);
+        _host.Scorekeeping.AwardMedicUberActivationPoints(context.Player);
+        _host.WorldEffects.RegisterWorldSoundEvent("UberStartSnd", context.Player.X, context.Player.Y);
         return GameplayAbilityResult.HandledAndConsumed;
     }
 
@@ -757,7 +757,7 @@ internal sealed partial class GameplayAbilitySystem
                 player.ApplyVelocityImpulse(velocityX, velocityY);
                 if (player.LastToDieHealingHarnessEnabled)
                 {
-                    _host.ApplyHealingWithFeedback(
+                    _host.DamageRules.ApplyHealingWithFeedback(
                         player,
                         LastToDieDerivedModifiers.SpyHealingHarnessHealing,
                         "HealSnd",
@@ -765,7 +765,7 @@ internal sealed partial class GameplayAbilitySystem
                         player.Y);
                     player.ExtinguishAfterburn();
                 }
-                _host.RegisterWorldSoundEvent("JumpSnd", player.X, player.Y, player.Id);
+                _host.WorldEffects.RegisterWorldSoundEvent("JumpSnd", player.X, player.Y, player.Id);
                 return GameplayAbilityResult.HandledAndConsumed;
             }
 
@@ -851,7 +851,7 @@ internal sealed partial class GameplayAbilitySystem
             "openingChargeCost", PlayerEntity.CivvieUmbrellaOpeningChargeCost, minValue: 0);
         if (context.Player.TrySpendCivvieUmbrellaOpeningCharge(openingChargeCost))
         {
-            _host.TriggerCivvieUmbrellaAirblast(context.Player, context.Input.AimWorldX, context.Input.AimWorldY);
+            _host.AirblastRules.TriggerCivvieUmbrellaAirblast(context.Player, context.Input.AimWorldX, context.Input.AimWorldY);
         }
 
         return GameplayAbilityResult.HandledAndConsumed;
@@ -1047,7 +1047,7 @@ internal sealed partial class GameplayAbilitySystem
                 continue;
             }
 
-            _host.ApplyHealingWithFeedback(target, healAmount, "HealSnd", player.X, player.Y);
+            _host.DamageRules.ApplyHealingWithFeedback(target, healAmount, "HealSnd", player.X, player.Y);
         }
     }
 
@@ -1102,7 +1102,7 @@ internal sealed partial class GameplayAbilitySystem
             healthRegenPerSecond);
         if (started)
         {
-            _host.RegisterWorldSoundEvent("BuffbannerSnd", context.Player.X, context.Player.Y, context.Player.Id);
+            _host.WorldEffects.RegisterWorldSoundEvent("BuffbannerSnd", context.Player.X, context.Player.Y, context.Player.Id);
         }
 
         return new GameplayAbilityResult(Handled: started, ConsumedInput: true);
@@ -1200,9 +1200,9 @@ internal sealed partial class GameplayAbilitySystem
         // Retained ability path for future loadouts / non-menu callers.
         // The Constructor build menu now uses BuildJumpPad / DestroyJumpPad
         // structure commands instead of routing through UseAbility.
-        if (!_host.TryDestroyJumpPad(context.Player))
+        if (!_host.Structures.TryDestroyJumpPad(context.Player))
         {
-            _host.TryBuildJumpPad(context.Player);
+            _host.Structures.TryBuildJumpPad(context.Player);
         }
 
         return GameplayAbilityResult.HandledAndConsumed;
@@ -1214,19 +1214,19 @@ internal sealed partial class GameplayAbilitySystem
             context.Ability,
             "durationTicks",
             "durationSeconds",
-            _host.GetHeavyGhostDashDurationTicks(),
+            _host.ExperimentalRules.GetHeavyGhostDashDurationTicks(),
             _host.Config.TicksPerSecond);
         var cooldownTicks = GameplayAbilityParameterReader.GetTicks(
             context.Ability,
             "cooldownTicks",
             "cooldownSeconds",
-            _host.GetHeavyGhostDashCooldownTicks(),
+            _host.ExperimentalRules.GetHeavyGhostDashCooldownTicks(),
             _host.Config.TicksPerSecond);
         var movementTicks = GameplayAbilityParameterReader.GetTicks(
             context.Ability,
             "movementDurationTicks",
             "movementDurationSeconds",
-            _host.GetHeavyGhostDashMovementDurationTicks(),
+            _host.ExperimentalRules.GetHeavyGhostDashMovementDurationTicks(),
             _host.Config.TicksPerSecond);
         var impulse = GameplayAbilityParameterReader.GetFloat(
             context.Ability,
@@ -1293,7 +1293,7 @@ internal sealed partial class GameplayAbilitySystem
                 velocityY: 0f);
         }
 
-        _host.RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, context.Player.X, context.Player.Y);
+        _host.WorldEffects.RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, context.Player.X, context.Player.Y);
         return GameplayAbilityResult.HandledAndConsumed;
     }
 

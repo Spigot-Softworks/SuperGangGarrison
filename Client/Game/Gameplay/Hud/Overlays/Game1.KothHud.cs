@@ -177,6 +177,7 @@ public partial class Game1
             _world.KothBlueTimerTicksRemaining,
             _world.KothUnlockTicksRemaining,
             _world.MatchState.TimeRemainingTicks,
+            _world.MatchState.IsOvertime,
             _world.MatchState.IsEnded);
     }
 
@@ -193,7 +194,7 @@ public partial class Game1
                 }
             }
 
-            return false;
+            return _world.ControlPoints.Count > 0 && _world.ControlPoints[0].Team == team;
         }
 
         for (var index = 0; index < _world.ControlPoints.Count; index += 1)
@@ -224,10 +225,12 @@ internal static class KothHudOvertimeResolver
         int blueTimerTicksRemaining,
         int unlockTicksRemaining,
         int matchTimeRemainingTicks,
+        bool matchOvertime,
         bool matchEnded)
     {
         if (team is not (PlayerTeam.Red or PlayerTeam.Blue)
             || mode is not (GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+            || !matchOvertime
             || unlockTicksRemaining > 0
             || matchTimeRemainingTicks <= 0
             || matchEnded)
@@ -249,9 +252,9 @@ internal static class KothHudOvertimeResolver
             return false;
         }
 
-        var opposingTeam = team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red;
-        var opposingCappers = opposingTeam == PlayerTeam.Red ? point.RedCappers : point.BlueCappers;
-        return opposingCappers > 0 || point.CappingTicks > 0f;
+        // Opponent cappers are not in SnapshotControlPointState, so use the
+        // server's authoritative MatchState overtime phase for the contest test.
+        return true;
     }
 
     private static ControlPointState? FindTeamVictoryPoint(
@@ -273,6 +276,8 @@ internal static class KothHudOvertimeResolver
             }
         }
 
-        return null;
+        return mode == GameModeKind.KingOfTheHill && controlPoints.Count > 0
+            ? controlPoints[0]
+            : null;
     }
 }

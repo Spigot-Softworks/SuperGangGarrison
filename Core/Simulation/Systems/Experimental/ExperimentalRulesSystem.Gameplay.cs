@@ -1,5 +1,3 @@
-using System;
-
 namespace OpenGarrison.Core;
 
 internal sealed partial class ExperimentalRulesSystem
@@ -30,8 +28,8 @@ internal sealed partial class ExperimentalRulesSystem
         // network slot. The local-player check remains the practice/offline
         // fallback for worlds without an authoritative Last to Die build.
         return ReferenceEquals(player, _host.LocalPlayer)
-            || (_host.TryGetPlayerNetworkSlot(player, out var slot)
-                && _host.TryGetLastToDieLegacyGameplaySettings(slot, out _));
+            || (_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot)
+                && _host.LastToDieRules.TryGetLastToDieLegacyGameplaySettings(slot, out _));
     }
 
     private int GetExperimentalDamageBuffTicks()
@@ -46,7 +44,7 @@ internal sealed partial class ExperimentalRulesSystem
 
     private int GetExperimentalKillInvulnerabilityTicks(PlayerEntity player)
     {
-        return Math.Max(1, (int)MathF.Round(_host.Config.TicksPerSecond * _host.GetLastToDieGameplaySettings(player).KillInvincibilityDurationSeconds));
+        return Math.Max(1, (int)MathF.Round(_host.Config.TicksPerSecond * _host.LastToDieRules.GetLastToDieGameplaySettings(player).KillInvincibilityDurationSeconds));
     }
 
     private int GetExperimentalRageExtensionTicksPerKill()
@@ -75,7 +73,7 @@ internal sealed partial class ExperimentalRulesSystem
 
     private float GetExperimentalPassiveHealthRegenerationPerTick(PlayerEntity player)
     {
-        return _host.GetLastToDieGameplaySettings(player).PassiveHealthRegenerationPerSecond / Math.Max(1, _host.Config.TicksPerSecond);
+        return _host.LastToDieRules.GetLastToDieGameplaySettings(player).PassiveHealthRegenerationPerSecond / Math.Max(1, _host.Config.TicksPerSecond);
     }
 
     private float GetExperimentalCapturedPointHealingPerTick()
@@ -94,7 +92,7 @@ internal sealed partial class ExperimentalRulesSystem
             return;
         }
 
-        var settings = _host.GetLastToDieGameplaySettings(attacker);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(attacker);
 
         if (settings.EnableHealOnDamage)
         {
@@ -146,7 +144,7 @@ internal sealed partial class ExperimentalRulesSystem
             return;
         }
 
-        var settings = _host.GetLastToDieGameplaySettings(target);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(target);
 
         if (settings.EnableRage)
         {
@@ -176,7 +174,7 @@ internal sealed partial class ExperimentalRulesSystem
             return;
         }
 
-        var settings = _host.GetLastToDieGameplaySettings(killer);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(killer);
 
         if (settings.EnableHealOnKill)
         {
@@ -219,7 +217,7 @@ internal sealed partial class ExperimentalRulesSystem
             || attacker is null
             || !IsExperimentalPracticePowerOwner(attacker)
             || attacker.ClassId != PlayerClass.Soldier
-            || !_host.GetLastToDieGameplaySettings(attacker).EnableSoldierInstantReload
+            || !_host.LastToDieRules.GetLastToDieGameplaySettings(attacker).EnableSoldierInstantReload
             || !rocket.CanGrantExperimentalInstantReloadOnHit)
         {
             return;
@@ -230,14 +228,14 @@ internal sealed partial class ExperimentalRulesSystem
 
     private void ApplyExperimentalHealingReward(PlayerEntity player, float healing)
     {
-        _host.ApplyHealingWithFeedback(player, healing);
+        _host.DamageRules.ApplyHealingWithFeedback(player, healing);
     }
 
     internal bool TryConvertExperimentalSelfDamageToHealing(PlayerEntity target, PlayerEntity? attacker, float healingAmount)
     {
         if (attacker is null
             || attacker.Id != target.Id
-            || !_host.GetLastToDieGameplaySettings(target).EnableSelfDamageHealing
+            || !_host.LastToDieRules.GetLastToDieGameplaySettings(target).EnableSelfDamageHealing
             || !target.CanConvertExperimentalSelfDamageToHealing()
             || healingAmount <= 0f)
         {
@@ -251,7 +249,7 @@ internal sealed partial class ExperimentalRulesSystem
     internal float ApplyExperimentalSoldierRocketLaunchSpeed(PlayerEntity attacker, float launchSpeed)
     {
         var adjustedSpeed = ApplyExperimentalProjectileSpeedMultiplier(attacker, launchSpeed);
-        var settings = _host.GetLastToDieGameplaySettings(attacker);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(attacker);
         if (adjustedSpeed <= 0f
             || !settings.EnableSoldierStingerRockets
             || !IsExperimentalPracticePowerOwner(attacker)
@@ -283,7 +281,7 @@ internal sealed partial class ExperimentalRulesSystem
             return damage;
         }
 
-        var settings = _host.GetLastToDieGameplaySettings(target);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(target);
         var multiplier = 1f;
         if (target.IsExperimentalDemoknightCharging)
         {
@@ -306,7 +304,7 @@ internal sealed partial class ExperimentalRulesSystem
             return damage;
         }
 
-        var settings = _host.GetLastToDieGameplaySettings(target);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(target);
         var multiplier = 1f;
         if (target.IsExperimentalDemoknightCharging)
         {
@@ -359,7 +357,7 @@ internal sealed partial class ExperimentalRulesSystem
             return MathF.Max(0.01f, multiplier);
         }
 
-        var settings = _host.GetLastToDieGameplaySettings(attacker);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(attacker);
         var damageKind = ResolveExperimentalDamageKind(attacker);
         multiplier *= settings.PassiveDamageMultiplier;
         multiplier *= GetExperimentalTypedDamageMultiplierForKind(damageKind, settings);
@@ -384,7 +382,7 @@ internal sealed partial class ExperimentalRulesSystem
     private bool ShouldApplyExperimentalSoldierBattleborn(PlayerEntity? attacker, PlayerEntity target)
     {
         return attacker is not null
-            && _host.GetLastToDieGameplaySettings(attacker).EnableSoldierBattleborn
+            && _host.LastToDieRules.GetLastToDieGameplaySettings(attacker).EnableSoldierBattleborn
             && IsExperimentalPracticePowerOwner(attacker)
             && attacker.ClassId == PlayerClass.Soldier
             && !ReferenceEquals(attacker, target)
@@ -399,7 +397,7 @@ internal sealed partial class ExperimentalRulesSystem
             return 0f;
         }
 
-        var settings = _host.GetLastToDieGameplaySettings(target);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(target);
         return Math.Clamp(
             settings.PassiveEvasionChance
                 + target.ExperimentalFogOfWarEvasionChance
@@ -410,7 +408,7 @@ internal sealed partial class ExperimentalRulesSystem
 
     private float GetExperimentalEngineerMisdirectionFieldEvasionChance(PlayerEntity target)
     {
-        return _host.GetLastToDieGameplaySettings(target).EnableEngineerMisdirectionField
+        return _host.LastToDieRules.GetLastToDieGameplaySettings(target).EnableEngineerMisdirectionField
             && IsPlayerNearExperimentalOwnedSentry(target)
             ? global::OpenGarrison.Core.ExperimentalGameplaySettings.DefaultEngineerMisdirectionFieldEvasionChance
             : 0f;
@@ -425,7 +423,7 @@ internal sealed partial class ExperimentalRulesSystem
             || !IsExperimentalPracticePowerOwner(target)
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
-            || _host.GetLastToDieGameplaySettings(target).PassiveThornsFraction <= 0f)
+            || _host.LastToDieRules.GetLastToDieGameplaySettings(target).PassiveThornsFraction <= 0f)
         {
             return;
         }
@@ -433,7 +431,7 @@ internal sealed partial class ExperimentalRulesSystem
         var thornsDamage = Math.Max(
             1,
             (int)MathF.Round(
-                appliedDamage * _host.GetLastToDieGameplaySettings(target).PassiveThornsFraction));
+                appliedDamage * _host.LastToDieRules.GetLastToDieGameplaySettings(target).PassiveThornsFraction));
         _host.ApplyPlayerDamageWithContext(
             attacker,
             thornsDamage,
@@ -445,7 +443,7 @@ internal sealed partial class ExperimentalRulesSystem
     {
         if (damage <= 0
             || damage < target.Health
-            || !_host.GetLastToDieGameplaySettings(target).EnableSoldierLuckyBastard
+            || !_host.LastToDieRules.GetLastToDieGameplaySettings(target).EnableSoldierLuckyBastard
             || !IsExperimentalPracticePowerOwner(target)
             || target.ClassId != PlayerClass.Soldier
             || target.IsExperimentalLuckyBastardActive
@@ -473,7 +471,7 @@ internal sealed partial class ExperimentalRulesSystem
         // The captured-point aura is an objective effect, not a loadout perk.
         // Apply it to every living player standing on a point owned by their
         // team, including remote co-op participants on an authoritative server.
-        if (_host.IsLastToDieGameplaySettingEnabled(settings => settings.EnableCapturedPointHealingAura)
+        if (_host.LastToDieRules.IsLastToDieGameplaySettingEnabled(settings => settings.EnableCapturedPointHealingAura)
             && IsPlayerInsideCapturedPointHealingAura(player))
         {
             player.ApplyContinuousHealingAndGetAmount(GetExperimentalCapturedPointHealingPerTick());
@@ -484,7 +482,7 @@ internal sealed partial class ExperimentalRulesSystem
             return;
         }
 
-        var settings = _host.GetLastToDieGameplaySettings(player);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(player);
         if (settings.EnablePassiveHealthRegeneration)
         {
             player.ApplyContinuousHealingAndGetAmount(GetExperimentalPassiveHealthRegenerationPerTick(player));
@@ -587,7 +585,7 @@ internal sealed partial class ExperimentalRulesSystem
         }
 
         var speedScale = _host.MatchSettings.ProjectileSpeedScale;
-        var settings = _host.GetLastToDieGameplaySettings(attacker);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(attacker);
         if (settings.EnableProjectileSpeedMultiplier
             && IsExperimentalPracticePowerOwner(attacker))
         {
@@ -603,7 +601,7 @@ internal sealed partial class ExperimentalRulesSystem
         float launchVelocityY)
     {
         var speedScale = _host.MatchSettings.ProjectileSpeedScale;
-        var settings = _host.GetLastToDieGameplaySettings(attacker);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(attacker);
         if (settings.EnableProjectileSpeedMultiplier
             && IsExperimentalPracticePowerOwner(attacker))
         {
@@ -624,7 +622,7 @@ internal sealed partial class ExperimentalRulesSystem
         damageFlags = DamageEventFlags.None;
         if (baseDamage <= 0
             || attacker is null
-            || !_host.GetLastToDieGameplaySettings(attacker).EnableAirshotDamageMultiplier
+            || !_host.LastToDieRules.GetLastToDieGameplaySettings(attacker).EnableAirshotDamageMultiplier
             || !IsExperimentalPracticePowerOwner(attacker)
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team
@@ -637,6 +635,6 @@ internal sealed partial class ExperimentalRulesSystem
         return Math.Max(
             1,
             (int)MathF.Round(
-                baseDamage * _host.GetLastToDieGameplaySettings(attacker).AirshotDamageMultiplierValue));
+                baseDamage * _host.LastToDieRules.GetLastToDieGameplaySettings(attacker).AirshotDamageMultiplierValue));
     }
 }

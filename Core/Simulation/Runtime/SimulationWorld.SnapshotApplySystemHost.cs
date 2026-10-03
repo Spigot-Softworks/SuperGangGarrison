@@ -1,5 +1,3 @@
-using OpenGarrison.Protocol;
-
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld : ISnapshotApplyHost

@@ -1,5 +1,3 @@
-using System;
-
 namespace OpenGarrison.Core;
 
 public static class CivvieMoneyTrailRules

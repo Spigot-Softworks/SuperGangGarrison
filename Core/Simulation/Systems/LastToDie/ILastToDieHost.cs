@@ -1,5 +1,3 @@
-using OpenGarrison.Core.LastToDie;
-
 namespace OpenGarrison.Core;
 
 /// <summary>
@@ -9,27 +7,30 @@ namespace OpenGarrison.Core;
 /// </summary>
 internal interface ILastToDieHost : ISimulationWorldState, ISimulationPlayerDirectory, ISimulationPresentationEvents
 {
-    LastToDieState LastToDieState { get; }
-    IReadOnlyList<byte> NetworkPlayerSlots { get; }
     bool ClientPredictionMode { get; }
+    CombatSystem Combat { get; }
+    IReadOnlyList<ControlPointState> ControlPoints { get; }
+    DamageRulesSystem DamageRules { get; }
     ExperimentalGameplaySettings ExperimentalGameplaySettings { get; }
+    ExperimentalRulesSystem ExperimentalRules { get; }
+    CombatResolver GeometryResolver { get; }
+    LastToDieState LastToDieState { get; }
     MatchRules MatchRules { get; }
     MatchSettingsState MatchSettings { get; }
-    ObjectiveStateStore Objectives { get; }
-    IReadOnlyList<ControlPointState> ControlPoints { get; }
     IReadOnlyList<NeedleProjectileEntity> Needles { get; }
+    NetworkPlayerSystem NetworkPlayerRules { get; }
+    IReadOnlyList<byte> NetworkPlayerSlots { get; }
+    ObjectiveRulesSystem ObjectiveRules { get; }
+    ObjectiveStateStore Objectives { get; }
+    PlayerDeathSystem PlayerDeaths { get; }
+    PlayerPresentationBoundsSystem PresentationBounds { get; }
+    ScorekeepingSystem Scorekeeping { get; }
+    ServerTuningSystem ServerTuning { get; }
+    SupportRulesSystem SupportRules { get; }
 
     // Network players.
-    bool TryGetPlayerNetworkSlot(PlayerEntity player, out byte slot);
-    bool TryGetNetworkPlayerSlot(PlayerEntity player, out byte slot);
-    bool TryGetNetworkPlayer(byte slot, out PlayerEntity player);
-    void SyncExperimentalGameplayLoadout(byte slot, PlayerEntity player);
-    bool TrySetNetworkPlayerAutomaticRespawnSuppressed(byte slot, bool suppressed);
-    bool TrySetNetworkPlayerMaxHealthOverride(byte slot, int? maxHealth, bool refillHealth = true);
-    bool TrySetNetworkPlayerScale(byte slot, float scale);
 
     // Damage, death and healing.
-    PlayerDamageResolution ResolvePlayerDamage(PlayerEntity target, in PlayerDamageRequest request);
     PlayerDamageResolution ResolvePlayerDamageWithContext(
         PlayerEntity target,
         int damage,
@@ -49,30 +50,7 @@ internal interface ILastToDieHost : ISimulationWorldState, ISimulationPlayerDire
         int sourceEntityId = 0,
         ulong attackId = 0,
         int attackerPlayerIdOverride = -1);
-    void MarkPendingFatalPlayerDamageEventPrevented(int playerId);
-    void KillPlayer(
-        PlayerEntity player,
-        bool gibbed = false,
-        PlayerEntity? killer = null,
-        string? weaponSpriteName = null,
-        DeadBodyAnimationKind deadBodyAnimationKind = DeadBodyAnimationKind.Default,
-        string? deathCamMessage = null,
-        SentryEntity? deathCamSentry = null,
-        string? killFeedMessage = null,
-        bool createDeathCam = true,
-        bool spawnRemains = true,
-        bool forceCorpseRemains = false,
-        bool recordKillFeed = true,
-        int assistingPlayerIdOverride = -1,
-        bool completingLastToDieSpyAfterlifeDeath = false);
-    bool CanMedicHealTarget(PlayerEntity medic, PlayerEntity target);
-    int ApplyHealingWithFeedback(PlayerEntity target, float healing, string? soundName = null, float soundX = 0f, float soundY = 0f);
-    void AwardHealingPoints(PlayerEntity healer, int healedAmount);
 
     // Geometry, projectiles and objectives.
-    void GetCachedPlayerPresentationHitBounds(PlayerEntity player, out float left, out float top, out float right, out float bottom);
-    bool HasObstacleLineOfSight(float originX, float originY, float targetX, float targetY);
     void RemoveNeedleAt(int index);
-    void TryDropCarriedIntel(PlayerEntity player);
-    bool IsPlayerInControlPointCaptureZone(PlayerEntity player, int controlPointIndex);
 }

@@ -1,5 +1,3 @@
-using System;
-
 namespace OpenGarrison.Core;
 
 public enum LegacyMovementState : byte

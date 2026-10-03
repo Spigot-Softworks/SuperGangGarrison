@@ -7,18 +7,9 @@ internal interface IClassRulesHost : ISimulationWorldState, ISimulationPlayerDir
 {
     bool IsVipModeActive { get; }
     MatchSettingsState MatchSettings { get; }
+    NetworkPlayerSystem NetworkPlayerRules { get; }
     NetworkPlayerRegistry PlayerRegistry { get; }
+    SpawnSystem Spawns { get; }
     VipState VipState { get; }
 
-    CharacterClassDefinition GetNetworkPlayerClassDefinition(byte slot);
-    PlayerTeam GetNetworkPlayerConfiguredTeam(byte slot);
-    bool IsNetworkPlayerAwaitingJoin(byte slot);
-    bool IsNetworkPlayerEnabled(byte slot);
-    bool TryFindSafeObjectiveSpawnPosition(
-        PlayerEntity player,
-        PlayerTeam team,
-        float objectiveX,
-        float objectiveY,
-        out float spawnX,
-        out float spawnY);
 }

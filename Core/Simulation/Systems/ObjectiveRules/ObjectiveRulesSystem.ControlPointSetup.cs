@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace OpenGarrison.Core;
@@ -104,7 +102,7 @@ internal sealed partial class ObjectiveRulesSystem
         BuildControlPointZones();
         if (evaluateLogicGraph)
         {
-            _host.EvaluateMapLogicGraph();
+            _host.MapLogic.EvaluateMapLogicGraph();
         }
     }
 

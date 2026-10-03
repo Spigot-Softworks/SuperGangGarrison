@@ -189,7 +189,7 @@ internal sealed partial class CombatResolver
             if (roomObject.Type != RoomObjectType.DamageableZone
                 || !DamageableMetadata.IsStabbableTarget(
                     roomObject.DamageableZone,
-                    _host.GetDamageableZoneHealth(roomObjectIndex)))
+                    _host.MapLogic.GetDamageableZoneHealth(roomObjectIndex)))
             {
                 continue;
             }
@@ -266,7 +266,7 @@ internal sealed partial class CombatResolver
         foreach (var player in EnumerateSimulatedPlayers())
         {
             if (player.Team == mask.Team
-                || !_host.CanTeamDamagePlayer(mask.Team, mask.OwnerId, player)
+                || !_host.DamageRules.CanTeamDamagePlayer(mask.Team, mask.OwnerId, player)
                 || player.Id == mask.OwnerId)
             {
                 continue;
@@ -284,7 +284,7 @@ internal sealed partial class CombatResolver
         out float right,
         out float bottom)
     {
-        _host.GetCachedPlayerPresentationHitBounds(
+        _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(
             player,
             out var presentationLeft,
             out var presentationTop,

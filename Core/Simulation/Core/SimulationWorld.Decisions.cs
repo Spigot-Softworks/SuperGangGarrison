@@ -16,16 +16,10 @@ public sealed partial class SimulationWorld
 
     public Func<WorldRoundEndDecisionRequest, WorldDecisionResult>? RoundEndDecisionInterceptor { get => Decisions.RoundEndDecisionInterceptor; set => Decisions.RoundEndDecisionInterceptor = value; }
 
-    private bool ShouldCancelSpawn(PlayerEntity player, PlayerTeam team, float x, float y)
-        => Decisions.ShouldCancelSpawn(player, team, x, y);
     private bool ShouldCancelDamage(DamageTargetKind targetKind, int targetEntityId, int targetPlayerId, PlayerTeam? targetTeam, PlayerEntity? attacker, int amount, bool wouldBeFatal, float x, float y)
         => Decisions.ShouldCancelDamage(targetKind, targetEntityId, targetPlayerId, targetTeam, attacker, amount, wouldBeFatal, x, y);
     private bool ShouldCancelDeath(PlayerEntity player, bool gibbed, PlayerEntity? killer, string? weaponSpriteName)
         => Decisions.ShouldCancelDeath(player, gibbed, killer, weaponSpriteName);
-    private bool ShouldCancelPickup(WorldPickupKind kind, PlayerEntity player, int pickupEntityId, string pickupValue, float x, float y)
-        => Decisions.ShouldCancelPickup(kind, player, pickupEntityId, pickupValue, x, y);
-    private bool TryAwardTeamScore(PlayerTeam team, int delta, string reason, int actorPlayerId = -1)
-        => Decisions.TryAwardTeamScore(team, delta, reason, actorPlayerId);
     private bool TryEndRound(PlayerTeam? winnerTeam, string reason)
         => Decisions.TryEndRound(winnerTeam, reason);
 }

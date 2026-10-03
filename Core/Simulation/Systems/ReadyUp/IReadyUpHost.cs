@@ -5,10 +5,10 @@ namespace OpenGarrison.Core;
 /// </summary>
 internal interface IReadyUpHost : ISimulationWorldState, ISimulationPlayerDirectory
 {
+    ObjectiveRulesSystem ObjectiveRules { get; }
     ObjectiveStateStore Objectives { get; }
     CompetitiveReadyUpState ReadyUpState { get; }
 
     void ResetModeStateForNewRound();
     void RestartCurrentRound(bool preservePlayerStats, bool enterCompetitiveSkirmish = true);
-    void UpdateControlPointSetupGates();
 }

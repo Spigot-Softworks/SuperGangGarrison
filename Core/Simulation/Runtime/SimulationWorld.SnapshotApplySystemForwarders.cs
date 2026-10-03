@@ -20,8 +20,6 @@ public sealed partial class SimulationWorld
         => SnapshotApply.RemoveProtocol64Player(identity, clientLocalPlayerSlot);
     public bool RemoveProtocol64Projectile(ulong entityId)
         => SnapshotApply.RemoveProtocol64Projectile(entityId);
-    private bool RemoveProtocol64Projectile(int entityId)
-        => SnapshotApply.RemoveProtocol64Projectile(entityId);
     public void ResetProtocol64ClientLocalPlayer()
         => SnapshotApply.ResetProtocol64ClientLocalPlayer();
 }

@@ -87,7 +87,7 @@ internal sealed partial class LastToDieRulesSystem
 
             var distance = GetExplosionDistanceToPlayer(target, x, y);
             if (distance > blastRadius
-                || !_host.HasObstacleLineOfSight(x, y, target.X, target.Y))
+                || !_host.GeometryResolver.HasObstacleLineOfSight(x, y, target.X, target.Y))
             {
                 continue;
             }
@@ -120,7 +120,7 @@ internal sealed partial class LastToDieRulesSystem
 
             damage = MathF.Max(CombatSystem.ExplosiveSplashMinimumDamage, damage);
 
-            var resolution = _host.ResolvePlayerDamage(
+            var resolution = _host.Combat.ResolvePlayerDamage(
                 target,
                 new PlayerDamageRequest(
                     PlayerDamageApplicationKind.Instant,
@@ -144,7 +144,7 @@ internal sealed partial class LastToDieRulesSystem
                     FatalWeaponSpriteName: fatalWeaponSpriteName));
             if (resolution.WasFatal)
             {
-                _host.KillPlayer(target, gibbed: true, killer: owner, weaponSpriteName: fatalWeaponSpriteName);
+                _host.PlayerDeaths.KillPlayer(target, gibbed: true, killer: owner, weaponSpriteName: fatalWeaponSpriteName);
             }
         }
 

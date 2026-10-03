@@ -5,10 +5,10 @@ namespace OpenGarrison.Core;
 /// </summary>
 internal interface IDamageRulesHost : ISimulationWorldState, ISimulationPlayerDirectory
 {
+    LastToDieRulesSystem LastToDieRules { get; }
     MatchSettingsState MatchSettings { get; }
     MatchState MatchState { get; }
     PresentationEventLog PresentationEvents { get; }
+    WorldEffectsSystem WorldEffects { get; }
 
-    ExperimentalGameplaySettings GetLastToDieGameplaySettings(PlayerEntity? player);
-    void RegisterWorldSoundEvent(string soundName, float x, float y, int sourcePlayerId = -1);
 }

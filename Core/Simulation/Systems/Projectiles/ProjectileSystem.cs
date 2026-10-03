@@ -323,7 +323,6 @@ public sealed partial class ProjectileSystem
     private IReadOnlyList<SentryEntity> _sentries => _host.Sentries;
     private IReadOnlyList<JumpPadEntity> _jumpPads => _host.JumpPads;
     private IReadOnlyList<GeneratorState> _generators => _host.Generators;
-    private IReadOnlyList<CivilDefenseTurretEntity> _civilDefenseTurrets => [];
 
     private PlayerEntity? FindPlayerById(int id) => _host.FindPlayerById(id);
     private IEnumerable<PlayerEntity> EnumerateSimulatedPlayers() => _host.EnumerateSimulatedPlayers();
@@ -358,14 +357,12 @@ public sealed partial class ProjectileSystem
     private ShotHitResult? GetNearestStabHit(StabMaskEntity mask, float dx, float dy) => _host.GetNearestStabHit(mask, dx, dy);
     private ShotHitResult? GetNearestHealstabHit(StabMaskEntity mask, float dx, float dy) => _host.GetNearestHealstabHit(mask, dx, dy);
     private bool HasStabChainLineOfSight(float x1, float y1, float x2, float y2) => _host.HasStabChainLineOfSight(x1, y1, x2, y2);
-    private RocketHitResult? GetNearestRocketHit(RocketProjectileEntity rocket, float dx, float dy, float distance) => _host.GetNearestRocketHit(rocket, dx, dy, distance);
     private MineHitResult? GetNearestMineHit(MineProjectileEntity mine, float dx, float dy, float distance) => _host.GetNearestMineHit(mine, dx, dy, distance);
     private GrenadeEnvironmentHit? GetNearestGrenadeEnvironmentHit(GrenadeProjectileEntity grenade, float dx, float dy, float distance) => _host.GetNearestGrenadeEnvironmentHit(grenade, dx, dy, distance);
     private PlayerEntity? GetNearestGrenadePlayerHit(GrenadeProjectileEntity grenade, float dx, float dy, float distance) => _host.GetNearestGrenadePlayerHit(grenade, dx, dy, distance);
     private bool TryGetGrenadeDamageableZoneContact(GrenadeProjectileEntity grenade, float dx, float dy, float distance, out float hitX, out float hitY, out int roomObjectIndex)
         => _host.TryGetGrenadeDamageableZoneContact(grenade, dx, dy, distance, out hitX, out hitY, out roomObjectIndex);
     private FlameHitResult? GetNearestFlameHit(FlameProjectileEntity flame, float dx, float dy, float distance) => _host.GetNearestFlameHit(flame, dx, dy, distance);
-    private ShotHitResult? GetNearestFlareHit(FlareProjectileEntity flare, float dx, float dy, float distance) => _host.GetNearestFlareHit(flare, dx, dy, distance);
     private ShotHitResult? GetNearestFlareHit(FlareProjectileEntity flare, float dx, float dy, float distance, bool includePlayers)
         => _host.GetNearestFlareHit(flare, dx, dy, distance, includePlayers);
     private ShotHitResult? GetNearestFlarePlayerHit(FlareProjectileEntity flare, float dx, float dy, float distance, ShotHitResult? blockingHit)
@@ -481,16 +478,12 @@ public sealed partial class ProjectileSystem
         => _host.ApplyExperimentalSentryPlayerHit(sentry, owner, target, damage, additionalTraits, criticalBoost, useLiveAttackerCriticalBoost, threatSourceX, threatSourceY, knockbackPayload, impactDirectionX, impactDirectionY);
     private void ApplyExperimentalSentryDamageRewards(SentryEntity sentry, PlayerEntity owner, int damage) => _host.ApplyExperimentalSentryDamageRewards(sentry, owner, damage);
     private bool ApplySentryDamage(SentryEntity sentry, int damage, PlayerEntity? owner) => _host.ApplySentryDamage(sentry, damage, owner);
-    private bool ApplyGeneratorDamage(GeneratorState generator, float damage, PlayerEntity? owner) => _host.ApplyGeneratorDamage(generator, damage, owner);
-    private void ApplyJumpPadDamage(JumpPadEntity jumpPad, int damage) => _host.ApplyJumpPadDamage(jumpPad, damage);
     private bool TryDamageGenerator(PlayerTeam team, float damage, PlayerEntity? owner = null) => _host.TryDamageGenerator(team, damage, owner);
     private void DestroySentry(SentryEntity sentry, PlayerEntity? owner = null) => _host.DestroySentry(sentry, owner);
     private void KillPlayer(PlayerEntity player, bool gibbed = false, PlayerEntity? killer = null, string? weaponSpriteName = null, DeadBodyAnimationKind deadBodyAnimationKind = DeadBodyAnimationKind.Default)
         => _host.KillPlayer(player, gibbed, killer, weaponSpriteName, deadBodyAnimationKind);
     private int ApplyHealingWithFeedback(PlayerEntity player, float healing, string? sound = null, float x = 0f, float y = 0f) => _host.ApplyHealingWithFeedback(player, healing, sound, x, y);
     private void ExplodeRocket(RocketProjectileEntity rocket, PlayerEntity? player, SentryEntity? sentry, GeneratorState? generator, int damageableZoneIndex = -1) => _host.ExplodeRocket(rocket, player, sentry, generator, damageableZoneIndex);
-    private void ApplyExplosiveDamageToJumpPads(float x, float y, float radius, float damage, PlayerTeam team, float minimumDamage)
-        => _host.ApplyExplosiveDamageToJumpPads(x, y, radius, damage, team, minimumDamage);
     private void ApplyExplosiveDamageToDamageableZones(float x, float y, float radius, float damage, float splashThresholdFactor = 0f, int excludeRoomObjectIndex = -1, PlayerTeam? damagingTeam = null, float minimumSplashDamage = 0f)
         => _host.ApplyExplosiveDamageToDamageableZones(x, y, radius, damage, splashThresholdFactor, excludeRoomObjectIndex, damagingTeam, minimumSplashDamage);
     private void DestroyJumpPad(JumpPadEntity pad) => _host.DestroyJumpPad(pad);

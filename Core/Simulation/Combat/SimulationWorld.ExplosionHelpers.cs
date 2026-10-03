@@ -4,9 +4,6 @@ namespace OpenGarrison.Core;
 // The geometry lives in ExplosionGeometry; the rules in ExplosionRulesSystem.
 public sealed partial class SimulationWorld
 {
-    private static void ApplyExplosionImpulse(PlayerEntity player, float originX, float originY, float impulse)
-        => ExplosionGeometry.ApplyExplosionImpulse(player, originX, originY, impulse);
-
     private static void ApplyMineExplosionImpulse(PlayerEntity player, float originX, float originY, float distanceFactor)
         => ExplosionGeometry.ApplyMineExplosionImpulse(player, originX, originY, distanceFactor);
 

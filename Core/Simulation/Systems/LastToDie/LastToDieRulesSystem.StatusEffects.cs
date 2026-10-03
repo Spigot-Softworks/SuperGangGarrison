@@ -13,7 +13,7 @@ internal sealed partial class LastToDieRulesSystem
         var target = _host.FindPlayerById(targetPlayerId);
         if (target is null
             || !target.IsAlive
-            || !_host.TryGetPlayerNetworkSlot(target, out _)
+            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(target, out _)
             || !TryNormalizeLastToDieStatusEffect(requestedSpec, out var spec))
         {
             return false;
@@ -297,7 +297,7 @@ internal sealed partial class LastToDieRulesSystem
         {
             traits |= PlayerDamageTraits.BenefitFromLastToDieSpotted;
         }
-        var resolution = _host.ResolvePlayerDamage(
+        var resolution = _host.Combat.ResolvePlayerDamage(
             target,
             new PlayerDamageRequest(
                 PlayerDamageApplicationKind.Instant,
@@ -311,7 +311,7 @@ internal sealed partial class LastToDieRulesSystem
                 AssistPlayerIdOverride: runtime.AssistingMedicPlayerId ?? -1));
         if (resolution.WasFatal)
         {
-            _host.KillPlayer(
+            _host.PlayerDeaths.KillPlayer(
                 target,
                 killer: source,
                 weaponSpriteName: runtime.Spec.Kind == LastToDieStatusEffectKind.Bleed
@@ -376,12 +376,12 @@ internal sealed partial class LastToDieRulesSystem
             }
 
             remainder -= wholeHealing;
-            var appliedHealing = _host.ApplyHealingWithFeedback(target, wholeHealing);
+            var appliedHealing = _host.DamageRules.ApplyHealingWithFeedback(target, wholeHealing);
             if (appliedHealing > 0
                 && selectedRuntime.SourcePlayerId.HasValue
                 && _host.FindPlayerById(selectedRuntime.SourcePlayerId.Value) is { } source)
             {
-                _host.AwardHealingPoints(source, appliedHealing);
+                _host.Scorekeeping.AwardHealingPoints(source, appliedHealing);
             }
 
             if (target.Health >= target.MaxHealth)

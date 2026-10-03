@@ -9,8 +9,8 @@ internal sealed partial class SpawnSystem
 
     internal bool TryMoveNetworkPlayerToControlPointSpawn(byte slot)
     {
-        if (_host.IsNetworkPlayerAwaitingJoin(slot)
-            || !_host.TryGetNetworkPlayer(slot, out var player)
+        if (_host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot)
+            || !_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             || !player.IsAlive)
         {
             return false;
@@ -32,8 +32,8 @@ internal sealed partial class SpawnSystem
 
     internal bool TryMoveNetworkPlayerToIntelSpawn(byte slot)
     {
-        if (_host.IsNetworkPlayerAwaitingJoin(slot)
-            || !_host.TryGetNetworkPlayer(slot, out var player)
+        if (_host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot)
+            || !_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             || !player.IsAlive)
         {
             return false;
@@ -69,8 +69,8 @@ internal sealed partial class SpawnSystem
         bool repositionAlivePlayer)
     {
         if (spawnSide is not (PlayerTeam.Red or PlayerTeam.Blue)
-            || _host.IsNetworkPlayerAwaitingJoin(slot)
-            || !_host.TryGetNetworkPlayer(slot, out var player)
+            || _host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot)
+            || !_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             || repositionAlivePlayer && !player.IsAlive)
         {
             return false;
@@ -84,7 +84,7 @@ internal sealed partial class SpawnSystem
 
         if (spawnSide == player.Team)
         {
-            if (!_host.TryClearNetworkPlayerSpawnOverride(slot) || !repositionAlivePlayer)
+            if (!_host.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot) || !repositionAlivePlayer)
             {
                 return !repositionAlivePlayer;
             }
@@ -106,11 +106,11 @@ internal sealed partial class SpawnSystem
         {
             // A failed reassignment must not retain an earlier opposing-side
             // override when the enemy next respawns.
-            _host.TryClearNetworkPlayerSpawnOverride(slot);
+            _host.NetworkPlayerRules.TryClearNetworkPlayerSpawnOverride(slot);
             return false;
         }
 
-        if (!_host.TrySetNetworkPlayerSpawnOverride(slot, spawnX, spawnY))
+        if (!_host.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(slot, spawnX, spawnY))
         {
             return false;
         }
@@ -241,14 +241,14 @@ internal sealed partial class SpawnSystem
         bool clearMedicHealingTarget = true,
         bool playRespawnSound = false)
     {
-        if (_host.ShouldCancelSpawn(player, team, x, y))
+        if (_host.Decisions.ShouldCancelSpawn(player, team, x, y))
         {
             return false;
         }
 
         if (clearMedicHealingTarget)
         {
-            _host.ClearLastToDieStatusEffectsForTarget(player.Id);
+            _host.LastToDieRules.ClearLastToDieStatusEffectsForTarget(player.Id);
         }
 
         foreach (var otherPlayer in _host.EnumerateSimulatedPlayers())
@@ -264,7 +264,7 @@ internal sealed partial class SpawnSystem
 
         player.Spawn(team, x, y);
         player.ResolveBlockingOverlap(_host.Level, team);
-        _host.UpdateSpawnRoomState(player);
+        _host.RoomEffects.UpdateSpawnRoomState(player);
         if (clearMedicHealingTarget)
         {
             player.ClearMedicHealingTarget();
@@ -272,7 +272,7 @@ internal sealed partial class SpawnSystem
 
         if (playRespawnSound)
         {
-            _host.RegisterWorldSoundEvent("RespawnSnd", player.X, player.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("RespawnSnd", player.X, player.Y);
         }
 
         return true;
@@ -290,14 +290,14 @@ internal sealed partial class SpawnSystem
 
     internal bool RespawnConfiguredNetworkPlayer(byte slot, PlayerEntity player)
     {
-        var team = _host.GetNetworkPlayerConfiguredTeam(slot);
-        player.SetClassDefinition(_host.GetNetworkPlayerClassDefinition(slot));
+        var team = _host.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(slot);
+        player.SetClassDefinition(_host.NetworkPlayerRules.GetNetworkPlayerClassDefinition(slot));
         if (!SpawnPlayerResolved(player, team, ReserveSpawn(player, team, slot), playRespawnSound: true))
         {
             return false;
         }
 
-        _host.SyncExperimentalGameplayLoadout(slot, player);
+        _host.ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
         return true;
     }
 
@@ -306,13 +306,13 @@ internal sealed partial class SpawnSystem
         for (var index = 0; index < SimulationConstants.NetworkPlayerSlots.Count; index += 1)
         {
             var slot = SimulationConstants.NetworkPlayerSlots[index];
-            if (!_host.TryGetNetworkPlayer(slot, out var player))
+            if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
             {
                 continue;
             }
 
-            player.SetClassDefinition(_host.GetNetworkPlayerClassDefinition(slot));
-            if (_host.IsNetworkPlayerAwaitingJoin(slot))
+            player.SetClassDefinition(_host.NetworkPlayerRules.GetNetworkPlayerClassDefinition(slot));
+            if (_host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(slot))
             {
                 player.ClearMedicHealingTarget();
                 player.Kill();
@@ -326,7 +326,7 @@ internal sealed partial class SpawnSystem
         {
             if (_host.DummyState.CombatMode != PracticeCombatDummyMode.None)
             {
-                _host.SpawnPracticeCombatDummyResolved(playRespawnSound: true);
+                _host.PracticeDummies.SpawnPracticeCombatDummyResolved(playRespawnSound: true);
             }
             else
             {
@@ -344,14 +344,14 @@ internal sealed partial class SpawnSystem
         if (_host.FriendlyDummyEnabled)
         {
             _host.FriendlyDummy.SetClassDefinition(_host.LocalState.FriendlyDummyClassDefinition);
-            if (_host.IsNetworkPlayerAwaitingJoin(SimulationConstants.LocalPlayerSlot))
+            if (_host.NetworkPlayerRules.IsNetworkPlayerAwaitingJoin(SimulationConstants.LocalPlayerSlot))
             {
                 _host.FriendlyDummy.Kill();
             }
             else
             {
-                var friendlySpawn = _host.FindFriendlyDummySpawnNearLocalPlayer();
-                SpawnPlayerResolved(_host.FriendlyDummy, _host.GetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y, playRespawnSound: true);
+                var friendlySpawn = _host.PracticeDummies.FindFriendlyDummySpawnNearLocalPlayer();
+                SpawnPlayerResolved(_host.FriendlyDummy, _host.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y, playRespawnSound: true);
             }
         }
         else
@@ -521,7 +521,7 @@ internal sealed partial class SpawnSystem
             }
         }
 
-        if (_host.TryResolveMapManualSpawn(player, team, slot, out var mapManualSpawn))
+        if (_host.ClassRules.TryResolveMapManualSpawn(player, team, slot, out var mapManualSpawn))
         {
             return mapManualSpawn;
         }
@@ -560,13 +560,13 @@ internal sealed partial class SpawnSystem
     {
         if (_host.MatchRules.Mode == GameModeKind.KingOfTheHill)
         {
-            return _host.GetSingleKothPoint()?.Marker
+            return _host.ObjectiveRules.GetSingleKothPoint()?.Marker
                 ?? _host.Level.GetFirstRoomObject(RoomObjectType.ControlPoint);
         }
 
         if (_host.MatchRules.Mode == GameModeKind.DoubleKingOfTheHill)
         {
-            return _host.GetDualKothPoint(team)?.Marker
+            return _host.ObjectiveRules.GetDualKothPoint(team)?.Marker
                 ?? _host.Level.GetFirstRoomObject(RoomObjectType.ControlPoint);
         }
 

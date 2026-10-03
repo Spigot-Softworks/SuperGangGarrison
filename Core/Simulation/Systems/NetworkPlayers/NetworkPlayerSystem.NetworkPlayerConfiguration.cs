@@ -113,8 +113,8 @@ internal sealed partial class NetworkPlayerSystem
             && configuredPlayer.Team != team;
         if (changesTeam)
         {
-            _host.TryDropCarriedIntel(configuredPlayer);
-            _host.ClearDominationsForPlayer(configuredPlayer);
+            _host.ObjectiveRules.TryDropCarriedIntel(configuredPlayer);
+            _host.CombatFeedback.ClearDominationsForPlayer(configuredPlayer);
         }
 
         if (!TrySetNetworkPlayerConfiguredTeam(slot, team))
@@ -124,7 +124,7 @@ internal sealed partial class NetworkPlayerSystem
 
         if (changesTeam)
         {
-            _host.ClearLastToDieSniperMarksTargeting(slot);
+            _host.LastToDieRules.ClearLastToDieSniperMarksTargeting(slot);
             configuredPlayer.ResetLastToDieSniperDynamicState();
         }
 
@@ -132,9 +132,9 @@ internal sealed partial class NetworkPlayerSystem
         {
             if (_host.FriendlyDummyEnabled && !IsNetworkPlayerAwaitingJoin(SimulationConstants.LocalPlayerSlot))
             {
-                var friendlySpawn = _host.FindFriendlyDummySpawnNearLocalPlayer();
+                var friendlySpawn = _host.PracticeDummies.FindFriendlyDummySpawnNearLocalPlayer();
                 _host.FriendlyDummy.SetClassDefinition(_host.LocalState.FriendlyDummyClassDefinition);
-                _host.SpawnPlayerResolved(_host.FriendlyDummy, GetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y);
+                _host.Spawns.SpawnPlayerResolved(_host.FriendlyDummy, GetNetworkPlayerConfiguredTeam(SimulationConstants.LocalPlayerSlot), friendlySpawn.X, friendlySpawn.Y);
             }
         }
 
@@ -151,21 +151,21 @@ internal sealed partial class NetworkPlayerSystem
         }
 
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        _host.SyncExperimentalGameplayLoadout(slot, player);
+        _host.ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
         if (player.IsAlive && player.Team != team && !respawnLivePlayerImmediately)
         {
             PrepareNetworkPlayerTeamChangeRespawn(slot, player, team);
             return true;
         }
 
-        _host.SpawnPlayerResolved(player, team, _host.ReserveSpawn(player, team, slot), playRespawnSound: true);
+        _host.Spawns.SpawnPlayerResolved(player, team, _host.Spawns.ReserveSpawn(player, team, slot), playRespawnSound: true);
         return true;
     }
 
     internal void PrepareNetworkPlayerTeamChangeRespawn(byte slot, PlayerEntity player, PlayerTeam team)
     {
         var wasInSpawnRoom = player.IsInSpawnRoom;
-        _host.RemoveOwnedSpyArtifacts(player.Id);
+        _host.Projectiles.RemoveOwnedSpyArtifacts(player.Id);
         player.ClearMedicHealingTarget();
         foreach (var otherPlayer in _host.EnumerateSimulatedPlayers())
         {
@@ -177,7 +177,7 @@ internal sealed partial class NetworkPlayerSystem
 
         player.Kill();
         player.SetPendingRespawnTeam(team);
-        _host.SetNetworkPlayerDeathCam(slot, null);
+        _host.PlayerDeaths.SetNetworkPlayerDeathCam(slot, null);
         var respawnTicks = _host.MatchRules.Mode == GameModeKind.Arena
             ? 0
             : wasInSpawnRoom
@@ -221,8 +221,8 @@ internal sealed partial class NetworkPlayerSystem
             return false;
         }
 
-        var definition = _host.ResolveMapForcedClassDefinition(slot, CharacterClassCatalog.GetDefinition(gameplayClassId));
-        if (!_host.CanApplyNetworkPlayerClassLimit(slot, definition)
+        var definition = _host.ClassRules.ResolveMapForcedClassDefinition(slot, CharacterClassCatalog.GetDefinition(gameplayClassId));
+        if (!_host.ClassRules.CanApplyNetworkPlayerClassLimit(slot, definition)
             || !TrySetNetworkPlayerClassDefinition(slot, definition)
             || !TryGetOrEnsurePlayableNetworkPlayer(slot, out var player))
         {
@@ -230,14 +230,14 @@ internal sealed partial class NetworkPlayerSystem
         }
 
         player.SetClassDefinition(definition);
-        _host.SyncExperimentalGameplayLoadout(slot, player);
+        _host.ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
         ConsumePendingNetworkPlayerTeamSelection(slot);
         return TryForceRespawnNetworkPlayer(slot, playRespawnSound: false);
     }
 
     public bool TryApplyNetworkPlayerClassSelection(byte slot, string gameplayClassId)
     {
-        var resolvedDefinition = _host.ResolveMapForcedClassDefinition(slot, CharacterClassCatalog.GetDefinition(gameplayClassId));
+        var resolvedDefinition = _host.ClassRules.ResolveMapForcedClassDefinition(slot, CharacterClassCatalog.GetDefinition(gameplayClassId));
         gameplayClassId = resolvedDefinition.GameplayClassId;
         if (IsNetworkPlayerAwaitingJoin(slot))
         {
@@ -279,7 +279,7 @@ internal sealed partial class NetworkPlayerSystem
         var definition = CharacterClassCatalog.GetDefinition(gameplayClassId);
         TrySetNetworkPlayerClassDefinition(SimulationConstants.LocalPlayerSlot, definition);
         _host.LocalPlayer.SetClassDefinition(definition);
-        _host.SyncExperimentalGameplayLoadout(SimulationConstants.LocalPlayerSlot, _host.LocalPlayer);
+        _host.ExperimentalRules.SyncExperimentalGameplayLoadout(SimulationConstants.LocalPlayerSlot, _host.LocalPlayer);
     }
 
     public bool TrySetNetworkPlayerInput(byte slot, PlayerInputSnapshot input)
@@ -522,8 +522,8 @@ internal sealed partial class NetworkPlayerSystem
 
     internal bool TryApplyNetworkPlayerClassChange(byte slot, CharacterClassDefinition definition, bool enforceClassLimit = true)
     {
-        definition = _host.ResolveMapForcedClassDefinition(slot, definition);
-        if ((enforceClassLimit && !_host.CanApplyNetworkPlayerClassLimit(slot, definition))
+        definition = _host.ClassRules.ResolveMapForcedClassDefinition(slot, definition);
+        if ((enforceClassLimit && !_host.ClassRules.CanApplyNetworkPlayerClassLimit(slot, definition))
             || !TrySetNetworkPlayerClassDefinition(slot, definition)
             || !TryGetNetworkPlayer(slot, out var player))
         {
@@ -537,8 +537,8 @@ internal sealed partial class NetworkPlayerSystem
         {
             var wasInSpawnRoom = player.IsInSpawnRoom;
             var classChangeCreatesRemains = !player.IsInSpawnRoom;
-            _host.RemoveOwnedSpyArtifacts(player.Id);
-            _host.KillPlayer(
+            _host.Projectiles.RemoveOwnedSpyArtifacts(player.Id);
+            _host.PlayerDeaths.KillPlayer(
                 player,
                 weaponSpriteName: "DeadKL",
                 killFeedMessage: player.IsInSpawnRoom ? null : player.DisplayName + SimulationConstants.ClassChangeKillFeedSuffix,
@@ -553,7 +553,7 @@ internal sealed partial class NetworkPlayerSystem
         }
 
         player.SetClassDefinition(definition);
-        _host.SyncExperimentalGameplayLoadout(slot, player);
+        _host.ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
         return true;
     }
 

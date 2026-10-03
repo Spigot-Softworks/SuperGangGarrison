@@ -7,15 +7,11 @@ public sealed partial class SimulationWorld : IPlayerRemainsHost
     bool IPlayerRemainsHost.ClientPredictionMode => ClientPredictionMode;
     EntityStore IPlayerRemainsHost.EntityStore => EntityStore;
     bool IPlayerRemainsHost.LocalGoreEffectsEnabled => LocalGoreEffectsEnabled;
+    PlayerDeathSystem IPlayerRemainsHost.PlayerDeaths => PlayerDeaths;
     PresentationEventLog IPlayerRemainsHost.PresentationEvents => PresentationEvents;
     SimulationRandomStreams IPlayerRemainsHost.Randoms => Randoms;
-    void IPlayerRemainsHost.RegisterVisualEffect(string effectName, float x, float y, float directionDegrees, int count, bool normalizeDirection)
-        => WorldEffects.RegisterVisualEffect(effectName, x, y, directionDegrees, count, normalizeDirection);
-    void IPlayerRemainsHost.RegisterWorldSoundEvent(string soundName, float x, float y, int sourcePlayerId)
-        => WorldEffects.RegisterWorldSoundEvent(soundName, x, y, sourcePlayerId);
     int IPlayerRemainsHost.ScaleBloodDropLifetimeTicks()
         => ScaleBloodDropLifetimeTicks();
-    void IPlayerRemainsHost.SpawnDeadBody(PlayerEntity player, DeadBodyAnimationKind animationKind, PlayerEntity? killer, string? weaponSpriteName, SentryEntity? knockbackOriginSentry)
-        => PlayerDeaths.SpawnDeadBody(player, animationKind, killer, weaponSpriteName, knockbackOriginSentry);
+    WorldEffectsSystem IPlayerRemainsHost.WorldEffects => WorldEffects;
     WorldObjectStore IPlayerRemainsHost.WorldObjects => WorldObjects;
 }

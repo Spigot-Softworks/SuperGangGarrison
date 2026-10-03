@@ -34,7 +34,7 @@ internal sealed class DecisionGate
             return false;
         }
 
-        _ = _host.TryGetPlayerNetworkSlot(player, out var slot);
+        _ = _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot);
         return interceptor(new WorldSpawnDecisionRequest(
             _host.Frame,
             slot,
@@ -90,7 +90,7 @@ internal sealed class DecisionGate
             return false;
         }
 
-        _ = _host.TryGetPlayerNetworkSlot(player, out var slot);
+        _ = _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot);
         return interceptor(new WorldDeathDecisionRequest(
             _host.Frame,
             slot,
@@ -119,7 +119,7 @@ internal sealed class DecisionGate
             return false;
         }
 
-        _ = _host.TryGetPlayerNetworkSlot(player, out var slot);
+        _ = _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot);
         return interceptor(new WorldPickupDecisionRequest(
             _host.Frame,
             kind,

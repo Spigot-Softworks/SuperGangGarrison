@@ -5,47 +5,39 @@ namespace OpenGarrison.Core;
 /// </summary>
 internal interface IEntityPhaseHost
 {
-    byte LocalPlayerSlot { get; }
+    CombatFeedbackSystem CombatFeedback { get; }
     SimulationConfig Config { get; }
-    long Frame { get; }
-    SimpleLevel Level { get; }
-    ProjectileSystem Projectiles { get; }
-    PresentationEventLog PresentationEvents { get; }
-    WorldObjectStore WorldObjects { get; }
-    NetworkPlayerRegistry PlayerRegistry { get; }
-    LastToDieState LastToDieState { get; }
-    PlayerEntity LocalPlayer { get; }
     PlayerEntity EnemyPlayer { get; }
     bool EnemyPlayerEnabled { get; }
+    long Frame { get; }
     PlayerEntity FriendlyDummy { get; }
     bool FriendlyDummyEnabled { get; }
+    LastToDieState LastToDieState { get; }
+    SimpleLevel Level { get; }
+    PlayerEntity LocalPlayer { get; }
+    byte LocalPlayerSlot { get; }
+    MovementSystem Movement { get; }
+    NetworkPlayerSystem NetworkPlayerRules { get; }
+    PickupSystem Pickups { get; }
+    PlayerInputSystem PlayerInput { get; }
+    NetworkPlayerRegistry PlayerRegistry { get; }
+    PracticeDummySystem PracticeDummies { get; }
+    PresentationEventLog PresentationEvents { get; }
+    ProjectileSystem Projectiles { get; }
+    RoomEffectsSystem RoomEffects { get; }
+    SnapshotApplySystem SnapshotApply { get; }
     bool SniperAimIndicatorEnabled { get; }
+    StructureSystem Structures { get; }
+    SupportRulesSystem SupportRules { get; }
+    WorldObjectStore WorldObjects { get; }
 
-    void AdvanceAfterburnAlertBubbles();
     void AdvanceBloodDrops();
     void AdvanceCivvieMoneyPickups();
     void AdvanceCombatTraces();
     void AdvanceDeadBodies();
-    void AdvanceDroppedWeapons();
-    void AdvanceEnemyDummy();
-    void AdvanceHealthPacks();
     void AdvanceJumpPadGibs();
-    void AdvanceJumpPads();
-    void AdvanceMovingPlatforms();
-    void AdvancePlayableNetworkPlayer(byte slot);
     void AdvancePlayerGibs();
-    void AdvanceRemoteSnapshotPlayerTauntStates();
-    void AdvanceSentries();
     void AdvanceSentryGibs();
-    void ApplyBuffBannerRegeneration();
-    void ApplyHealingCabinets(PlayerEntity player);
-    bool ApplyRoomForces(PlayerEntity player, bool jumpPressed = false);
-    void ApplyRoomHazards(PlayerEntity player);
     void ComputeSniperAimIndicators();
     bool IsNetworkPlayerActive(byte slot);
-    void TryActivatePendingSpyBackstab(PlayerEntity player);
-    bool TryGetNetworkPlayer(byte slot, out PlayerEntity player);
-    void UpdateBuffBannerAuras();
-    void UpdateDispenserAuras();
-    void UpdateSpawnRoomState(PlayerEntity player);
 }

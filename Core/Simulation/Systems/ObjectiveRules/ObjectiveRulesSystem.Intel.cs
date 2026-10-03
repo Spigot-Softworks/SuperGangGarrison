@@ -35,7 +35,7 @@ internal sealed partial class ObjectiveRulesSystem
         enemyIntel.PickUp();
         _host.LocalPlayer.PickUpIntel(carriedRechargeTicks);
         HaltSpySuperjumpHorizontalMomentumOnIntelPickup(_host.LocalPlayer);
-        _host.RegisterWorldSoundEvent("IntelGetSnd", _host.LocalPlayer.X, _host.LocalPlayer.Y);
+        _host.WorldEffects.RegisterWorldSoundEvent("IntelGetSnd", _host.LocalPlayer.X, _host.LocalPlayer.Y);
         return true;
     }
 
@@ -56,8 +56,8 @@ internal sealed partial class ObjectiveRulesSystem
             player.Y,
             GetPlayerIntelReturnTicks(player));
         player.DropIntel(IntelPickupCooldownTicksAfterDrop);
-        _host.RegisterWorldSoundEvent("IntelDropSnd", player.X, player.Y);
-        _host.RecordIntelDroppedObjectiveLog(player);
+        _host.WorldEffects.RegisterWorldSoundEvent("IntelDropSnd", player.X, player.Y);
+        _host.KillFeedRules.RecordIntelDroppedObjectiveLog(player);
     }
 
     internal void TryPickUpEnemyIntel(PlayerEntity player)
@@ -88,7 +88,7 @@ internal sealed partial class ObjectiveRulesSystem
             return;
         }
 
-        if (_host.ShouldCancelPickup(
+        if (_host.Decisions.ShouldCancelPickup(
                 WorldPickupKind.Intelligence,
                 player,
                 (int)enemyIntel.Team,
@@ -103,8 +103,8 @@ internal sealed partial class ObjectiveRulesSystem
         enemyIntel.PickUp();
         player.PickUpIntel(carriedRechargeTicks);
         HaltSpySuperjumpHorizontalMomentumOnIntelPickup(player);
-        _host.RegisterWorldSoundEvent("IntelGetSnd", player.X, player.Y);
-        _host.RecordIntelPickedUpObjectiveLog(player);
+        _host.WorldEffects.RegisterWorldSoundEvent("IntelGetSnd", player.X, player.Y);
+        _host.KillFeedRules.RecordIntelPickedUpObjectiveLog(player);
     }
 
     internal static void HaltSpySuperjumpHorizontalMomentumOnIntelPickup(PlayerEntity player)
@@ -131,22 +131,22 @@ internal sealed partial class ObjectiveRulesSystem
         }
 
         if (_host.MatchRules.Mode != GameModeKind.Scr
-            && !_host.TryAwardTeamScore(player.Team, 1, "intel_capture", player.Id))
+            && !_host.Decisions.TryAwardTeamScore(player.Team, 1, "intel_capture", player.Id))
         {
             return;
         }
 
         player.ScoreIntel();
-        _host.AwardObjectiveCapturePoints(player);
+        _host.Scorekeeping.AwardObjectiveCapturePoints(player);
         GetEnemyIntelState(player.Team).ResetToBase();
-        _host.RegisterWorldSoundEvent("IntelPutSnd", player.X, player.Y);
-        _host.RecordIntelCapturedObjectiveLog(player);
+        _host.WorldEffects.RegisterWorldSoundEvent("IntelPutSnd", player.X, player.Y);
+        _host.KillFeedRules.RecordIntelCapturedObjectiveLog(player);
 
         if (_host.MatchRules.Mode != GameModeKind.Scr
             && player.Team == PlayerTeam.Red
             && ShouldEndMatchOnRedTeamIntelCapture())
         {
-            _host.TryEndRound(PlayerTeam.Red, "special_red_intel_capture");
+            _host.Decisions.TryEndRound(PlayerTeam.Red, "special_red_intel_capture");
         }
     }
 

@@ -1,5 +1,3 @@
-using System;
-using OpenGarrison.Core.LastToDie;
 using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 
@@ -78,31 +76,6 @@ internal sealed partial class SnapshotApplySystem
             factory,
             applyState,
             suppressProjectileRespawnOnRemoval,
-            applyStateForNewEntity);
-    }
-
-    private void SyncSnapshotEntities<TState, TEntity>(
-        IReadOnlyList<TState> snapshotStates,
-        IReadOnlyList<int> removedEntityIds,
-        bool collectionIsComplete,
-        List<TEntity> target,
-        Func<TState, int> idSelector,
-        Func<TEntity, TState, bool> canReuse,
-        Func<TState, TEntity> factory,
-        Action<TEntity, TState> applyState,
-        Action<TEntity, TState, bool> applyStateForNewEntity)
-        where TEntity : SimulationEntity
-    {
-        SyncSnapshotEntities(
-            snapshotStates,
-            removedEntityIds,
-            collectionIsComplete,
-            target,
-            idSelector,
-            canReuse,
-            factory,
-            applyState,
-            suppressProjectileRespawnOnRemoval: false,
             applyStateForNewEntity);
     }
 

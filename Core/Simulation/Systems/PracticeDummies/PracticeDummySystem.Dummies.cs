@@ -68,7 +68,7 @@ internal sealed partial class PracticeDummySystem
         _host.EnemyPlayerEnabled = true;
         _host.DummyState.EnemyRespawnTicks = 0;
         _host.EnemyPlayer.SetClassDefinition(_host.DummyState.EnemyClassDefinition);
-        _host.SpawnPlayerResolved(_host.EnemyPlayer, _host.DummyState.EnemyTeam, _host.ReserveSpawn(_host.EnemyPlayer, _host.DummyState.EnemyTeam));
+        _host.Spawns.SpawnPlayerResolved(_host.EnemyPlayer, _host.DummyState.EnemyTeam, _host.Spawns.ReserveSpawn(_host.EnemyPlayer, _host.DummyState.EnemyTeam));
     }
 
     internal void DespawnEnemyDummy()
@@ -82,7 +82,7 @@ internal sealed partial class PracticeDummySystem
 
         _host.EnemyPlayerEnabled = false;
         _host.DummyState.EnemyRespawnTicks = 0;
-        _host.ClearEnemyInputOverride();
+        _host.NetworkPlayerRules.ClearEnemyInputOverride();
         _host.EnemyPlayer.ClearMedicHealingTarget();
         _host.EnemyPlayer.Kill();
     }
@@ -116,7 +116,7 @@ internal sealed partial class PracticeDummySystem
         _host.DummyState.CombatClassDefinition = classDefinition;
         ResetPracticeCombatDummyStats();
         _host.DummyState.EnemyRespawnTicks = 0;
-        _host.ClearEnemyInputOverride();
+        _host.NetworkPlayerRules.ClearEnemyInputOverride();
         _host.EnemyPlayer.ClearMedicHealingTarget();
         SpawnPracticeCombatDummyResolved(playRespawnSound: false);
     }
@@ -141,7 +141,7 @@ internal sealed partial class PracticeDummySystem
         _host.FriendlyDummyEnabled = true;
         _host.FriendlyDummy.SetClassDefinition(_host.LocalState.FriendlyDummyClassDefinition);
         var spawn = FindFriendlyDummySpawnNearLocalPlayer();
-        _host.SpawnPlayerResolved(_host.FriendlyDummy, _host.LocalPlayerTeam, spawn.X, spawn.Y, clearMedicHealingTarget: false);
+        _host.Spawns.SpawnPlayerResolved(_host.FriendlyDummy, _host.LocalPlayerTeam, spawn.X, spawn.Y, clearMedicHealingTarget: false);
     }
 
     internal void DespawnFriendlyDummy()
@@ -193,7 +193,7 @@ internal sealed partial class PracticeDummySystem
             else
             {
                 _host.EnemyPlayer.SetClassDefinition(_host.DummyState.EnemyClassDefinition);
-                _host.SpawnPlayerResolved(_host.EnemyPlayer, team, _host.ReserveSpawn(_host.EnemyPlayer, team));
+                _host.Spawns.SpawnPlayerResolved(_host.EnemyPlayer, team, _host.Spawns.ReserveSpawn(_host.EnemyPlayer, team));
             }
         }
     }
@@ -211,11 +211,11 @@ internal sealed partial class PracticeDummySystem
         var previousInput = _host.DummyState.PreviousEnemyInput;
         if (_host.EnemyPlayer.IsAlive)
         {
-            _host.AdvanceAlivePlayerWithInput(_host.EnemyPlayer, input, previousInput, _host.DummyState.EnemyTeam, allowDebugKill: false);
+            _host.PlayerInput.AdvanceAlivePlayerWithInput(_host.EnemyPlayer, input, previousInput, _host.DummyState.EnemyTeam, allowDebugKill: false);
         }
         else
         {
-            _host.AdvanceEnemyDummyRespawnTimer();
+            _host.PlayerDeaths.AdvanceEnemyDummyRespawnTimer();
             _host.DummyState.EnemyInput = default;
             input = default;
         }
@@ -254,14 +254,14 @@ internal sealed partial class PracticeDummySystem
     {
         _host.EnemyPlayer.SetClassDefinition(_host.DummyState.CombatClassDefinition ?? CharacterClassCatalog.Heavy);
         var spawn = FindEnemyDummySpawnNearLocalPlayer();
-        if (_host.SpawnPlayerResolved(_host.EnemyPlayer, _host.DummyState.EnemyTeam, spawn.X, spawn.Y, playRespawnSound: playRespawnSound))
+        if (_host.Spawns.SpawnPlayerResolved(_host.EnemyPlayer, _host.DummyState.EnemyTeam, spawn.X, spawn.Y, playRespawnSound: playRespawnSound))
         {
             _host.EnemyPlayer.SetAimWorldPosition(_host.LocalPlayer.X, _host.LocalPlayer.Y - (_host.LocalPlayer.Height / 4f));
             return true;
         }
 
-        var fallbackSpawn = _host.ReserveSpawn(_host.EnemyPlayer, _host.DummyState.EnemyTeam);
-        var spawned = _host.SpawnPlayerResolved(_host.EnemyPlayer, _host.DummyState.EnemyTeam, fallbackSpawn, playRespawnSound: playRespawnSound);
+        var fallbackSpawn = _host.Spawns.ReserveSpawn(_host.EnemyPlayer, _host.DummyState.EnemyTeam);
+        var spawned = _host.Spawns.SpawnPlayerResolved(_host.EnemyPlayer, _host.DummyState.EnemyTeam, fallbackSpawn, playRespawnSound: playRespawnSound);
         _host.EnemyPlayer.SetAimWorldPosition(_host.LocalPlayer.X, _host.LocalPlayer.Y - (_host.LocalPlayer.Height / 4f));
         return spawned;
     }
@@ -434,11 +434,11 @@ internal sealed partial class PracticeDummySystem
 
         var jump = _host.EnemyPlayer.IsGrounded
             && ((verticalDelta < -24f && absoluteHorizontal < 280f)
-                || _host.WouldRunIntoWall(_host.EnemyPlayer, moveDirection));
+                || _host.Movement.WouldRunIntoWall(_host.EnemyPlayer, moveDirection));
         var fire = _host.LocalPlayer.IsAlive
             && absoluteHorizontal < 360f
             && MathF.Abs(verticalDelta) < 140f
-            && _host.HasLineOfSight(_host.EnemyPlayer, _host.LocalPlayer);
+            && _host.GeometryResolver.HasLineOfSight(_host.EnemyPlayer, _host.LocalPlayer);
 
         return new PlayerInputSnapshot(
             Left: moveDirection < 0f,

@@ -38,18 +38,23 @@ public partial class Game1
     public sealed class PendingBrowserSoundEvent
     {
         public PendingBrowserSoundEvent(string soundName, float x, float y, int ticksRemaining)
+            : this(new WorldSoundEvent(soundName, x, y), ticksRemaining)
         {
-            SoundName = soundName;
-            X = x;
-            Y = y;
+        }
+
+        public PendingBrowserSoundEvent(WorldSoundEvent soundEvent, int ticksRemaining)
+        {
+            SoundEvent = soundEvent;
             TicksRemaining = ticksRemaining;
         }
 
-        public string SoundName { get; }
+        public WorldSoundEvent SoundEvent { get; }
 
-        public float X { get; }
+        public string SoundName => SoundEvent.SoundName;
 
-        public float Y { get; }
+        public float X => SoundEvent.X;
+
+        public float Y => SoundEvent.Y;
 
         public int TicksRemaining { get; set; }
     }
@@ -301,7 +306,7 @@ public partial class Game1
         {
             if (OperatingSystem.IsBrowser())
             {
-                EnqueuePendingBrowserSoundEvent(soundEvent.SoundName, worldX, worldY);
+                EnqueuePendingBrowserSoundEvent(soundEvent);
             }
 
             return;
@@ -449,7 +454,12 @@ public partial class Game1
 
     public void EnqueuePendingBrowserSoundEvent(string soundName, float x, float y)
     {
-        if (!OperatingSystem.IsBrowser() || string.IsNullOrWhiteSpace(soundName))
+        EnqueuePendingBrowserSoundEvent(new WorldSoundEvent(soundName, x, y));
+    }
+
+    public void EnqueuePendingBrowserSoundEvent(WorldSoundEvent soundEvent)
+    {
+        if (!OperatingSystem.IsBrowser() || string.IsNullOrWhiteSpace(soundEvent.SoundName))
         {
             return;
         }
@@ -459,7 +469,7 @@ public partial class Game1
             _pendingBrowserSoundEvents.RemoveAt(0);
         }
 
-        _pendingBrowserSoundEvents.Add(new PendingBrowserSoundEvent(soundName, x, y, BrowserPendingSoundEventLifetimeTicks));
+        _pendingBrowserSoundEvents.Add(new PendingBrowserSoundEvent(soundEvent, BrowserPendingSoundEventLifetimeTicks));
     }
 
     private void ResetPendingBrowserSoundEvents()

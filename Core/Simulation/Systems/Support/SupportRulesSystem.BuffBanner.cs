@@ -29,7 +29,7 @@ internal sealed partial class SupportRulesSystem
         var chargeChanged = attacker.TryAddBuffBannerDamageCharge(appliedDamage, maxChargeDamage);
         if (chargeChanged && !wasReady && attacker.IsBuffBannerReady)
         {
-            _host.RegisterWorldSoundEvent(PlayerEntity.BuffBannerReadySoundName, attacker.X, attacker.Y, attacker.Id);
+            _host.WorldEffects.RegisterWorldSoundEvent(PlayerEntity.BuffBannerReadySoundName, attacker.X, attacker.Y, attacker.Id);
         }
     }
 
@@ -47,7 +47,7 @@ internal sealed partial class SupportRulesSystem
                 continue;
             }
 
-            var providerSlot = _host.TryGetPlayerNetworkSlot(source, out var resolvedSlot)
+            var providerSlot = _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(source, out var resolvedSlot)
                 ? resolvedSlot
                 : int.MaxValue;
             var radiusSquared = source.BuffBannerRadius * source.BuffBannerRadius;
@@ -111,7 +111,7 @@ internal sealed partial class SupportRulesSystem
 
             if (healthRegenPerSecond > 0f)
             {
-                _host.ApplyHealingWithFeedback(
+                _host.DamageRules.ApplyHealingWithFeedback(
                     target,
                     healthRegenPerSecond / Math.Max(1, _host.Config.TicksPerSecond));
             }

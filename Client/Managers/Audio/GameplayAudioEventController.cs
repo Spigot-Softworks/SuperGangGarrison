@@ -417,8 +417,7 @@ public sealed class GameplayAudioEventController
             }
 
             if (!TryPlayResolvedWorldSound(
-                    resolvedSoundName,
-                    soundEvent,
+                    soundEvent with { SoundName = resolvedSoundName },
                     allowBrowserDefer: OperatingSystem.IsBrowser(),
                     out var playbackSucceeded))
             {
@@ -428,11 +427,6 @@ public sealed class GameplayAudioEventController
             _context.NotifyClientPluginsWorldSound(soundEvent);
             Game1.MarkProcessedNetworkEvent(soundEvent.EventId, _processedNetworkSoundEventIds, _processedNetworkSoundEventOrder);
             _context.ForgetPresentedExplosionVisualForSoundEvent(soundEvent);
-            if (!playbackSucceeded)
-            {
-                return true;
-            }
-
             _context.RememberPlayedLowPriorityWorldSound(resolvedSoundName, soundEvent);
             _context.TriggerLocalConfirmedWeaponFireFeedback(resolvedSoundName, soundEvent);
             _context.RememberPlayedProjectileSound(resolvedSoundName, soundEvent);
@@ -442,7 +436,11 @@ public sealed class GameplayAudioEventController
                 return true;
             }
 
-            _context.RememberPlayedGibSound(soundEvent);
+            if (playbackSucceeded)
+            {
+                _context.RememberPlayedGibSound(soundEvent);
+            }
+
             return true;
         }
 
@@ -464,14 +462,25 @@ public sealed class GameplayAudioEventController
             for (var index = _context._pendingBrowserSoundEvents.Count - 1; index >= 0; index -= 1)
             {
                 var pendingSound = _context._pendingBrowserSoundEvents[index];
-                if (TryPlayResolvedWorldSound(
-                        pendingSound.SoundName,
-                        pendingSound.X,
-                        pendingSound.Y,
-                        allowBrowserDefer: false,
-                        out _))
+                if (string.Equals(pendingSound.SoundName, "Gibbing", StringComparison.OrdinalIgnoreCase)
+                    && _context.ShouldSuppressPredictedGibSoundEcho(pendingSound.SoundEvent))
                 {
                     _context._pendingBrowserSoundEvents.RemoveAt(index);
+                    continue;
+                }
+
+                if (TryPlayResolvedWorldSound(
+                        pendingSound.SoundEvent,
+                        allowBrowserDefer: false,
+                        out var playbackSucceeded))
+                {
+                    _context._pendingBrowserSoundEvents.RemoveAt(index);
+                    if (playbackSucceeded
+                        && string.Equals(pendingSound.SoundName, "Gibbing", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _context.RememberPlayedGibSound(pendingSound.SoundEvent);
+                    }
+
                     continue;
                 }
 
@@ -481,48 +490,6 @@ public sealed class GameplayAudioEventController
                     _context._pendingBrowserSoundEvents.RemoveAt(index);
                 }
             }
-        }
-
-        private bool TryPlayResolvedWorldSound(
-            string resolvedSoundName,
-            float worldX,
-            float worldY,
-            bool allowBrowserDefer,
-            out bool playbackSucceeded)
-        {
-            playbackSucceeded = false;
-            var sound = _context._runtimeAssets?.GetSound(resolvedSoundName);
-            if (sound is null && string.Equals(resolvedSoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase))
-            {
-                // FlareImpactSnd is a semantic mix category; stock content
-                // reuses the Direct Hit sample until it gets a dedicated one.
-                sound = _context._runtimeAssets?.GetSound("DirecthitSnd");
-            }
-            if (sound is null)
-            {
-                if (allowBrowserDefer)
-                {
-                    _context.EnqueuePendingBrowserSoundEvent(resolvedSoundName, worldX, worldY);
-                    return true;
-                }
-
-                return false;
-            }
-
-            var (volume, pan) = Game1.UsesGlobalWorldSoundMix(resolvedSoundName)
-                ? (1f, 0f)
-                : string.Equals(resolvedSoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase)
-                    ? _context.GetWorldSoundMix(new WorldSoundEvent(resolvedSoundName, worldX, worldY))
-                    : string.Equals(resolvedSoundName, "BuffbannerSnd", StringComparison.OrdinalIgnoreCase)
-                        ? GameplayRapidFireAudioController.GetBannerSoundMix(worldX, worldY, _context.GetWorldSoundListenerPosition())
-                        : _context.GetWorldSoundMix(worldX, worldY);
-            if (volume <= 0f)
-            {
-                return true;
-            }
-
-            playbackSucceeded = _context.TryPlaySound(sound, volume, 0f, pan);
-            return playbackSucceeded;
         }
 
         private bool ShouldSuppressLocalBuffBannerReadySoundEcho(WorldSoundEvent soundEvent)
@@ -541,14 +508,13 @@ public sealed class GameplayAudioEventController
         }
 
         private bool TryPlayResolvedWorldSound(
-            string resolvedSoundName,
             WorldSoundEvent soundEvent,
             bool allowBrowserDefer,
             out bool playbackSucceeded)
         {
             playbackSucceeded = false;
-            var sound = _context._runtimeAssets?.GetSound(resolvedSoundName);
-            if (sound is null && string.Equals(resolvedSoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase))
+            var sound = _context._runtimeAssets?.GetSound(soundEvent.SoundName);
+            if (sound is null && string.Equals(soundEvent.SoundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase))
             {
                 sound = _context._runtimeAssets?.GetSound("DirecthitSnd");
             }
@@ -556,14 +522,16 @@ public sealed class GameplayAudioEventController
             {
                 if (allowBrowserDefer)
                 {
-                    _context.EnqueuePendingBrowserSoundEvent(resolvedSoundName, soundEvent.X, soundEvent.Y);
+                    _context.EnqueuePendingBrowserSoundEvent(soundEvent);
                     return true;
                 }
 
                 return false;
             }
 
-            var (volume, pan) = _context.GetWorldSoundMix(soundEvent);
+            var (volume, pan) = Game1.UsesGlobalWorldSoundMix(soundEvent.SoundName)
+                ? (1f, 0f)
+                : _context.GetWorldSoundMix(soundEvent);
             if (volume <= 0f)
             {
                 return true;

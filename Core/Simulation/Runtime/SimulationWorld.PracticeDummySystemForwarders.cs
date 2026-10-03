@@ -35,8 +35,6 @@ public sealed partial class SimulationWorld
         => PracticeDummies.SpawnPracticeCombatDummy();
     public void SpawnPracticeCombatDummy(PlayerClass playerClass)
         => PracticeDummies.SpawnPracticeCombatDummy(playerClass);
-    private void SpawnPracticeCombatDummy(PracticeCombatDummyMode mode, CharacterClassDefinition classDefinition)
-        => PracticeDummies.SpawnPracticeCombatDummy(mode, classDefinition);
     public void SpawnPracticeDpsDummy()
         => PracticeDummies.SpawnPracticeDpsDummy();
 }

@@ -108,16 +108,15 @@ internal sealed partial class ObjectiveRulesSystem
         var objectiveWinner = ResolveKothObjectiveWinner();
         if (objectiveWinner.HasValue)
         {
-            _host.TryEndRound(objectiveWinner, "koth_objective");
+            _host.Decisions.TryEndRound(objectiveWinner, "koth_objective");
             return;
         }
 
-        var overtimeActive = _host.MatchState.TimeRemainingTicks > 0
-            && _host.Objectives.Koth.UnlockTicksRemaining <= 0
-            && IsKothTeamWaitingOnContestedPoint(PlayerTeam.Red)
-            || _host.MatchState.TimeRemainingTicks > 0
-                && _host.Objectives.Koth.UnlockTicksRemaining <= 0
-                && IsKothTeamWaitingOnContestedPoint(PlayerTeam.Blue);
+        var kothOvertimeCanRun = _host.MatchState.TimeRemainingTicks > 0
+            && _host.Objectives.Koth.UnlockTicksRemaining <= 0;
+        var overtimeActive = kothOvertimeCanRun
+            && (IsKothTeamWaitingOnContestedPoint(PlayerTeam.Red)
+                || IsKothTeamWaitingOnContestedPoint(PlayerTeam.Blue));
         if (overtimeActive != _host.MatchState.IsOvertime)
         {
             _host.MatchState = _host.MatchState with
@@ -132,7 +131,7 @@ internal sealed partial class ObjectiveRulesSystem
             return;
         }
 
-        _host.TryEndRound(GetKothTimerLeader(), "koth_time_limit");
+        _host.Decisions.TryEndRound(GetKothTimerLeader(), "koth_time_limit");
     }
 
     internal void ApplySnapshotKoth(SnapshotMessage snapshot)

@@ -42,7 +42,7 @@ internal sealed partial class WeaponFireHandler
         spreadDegrees *= 1f - (attacker.HorizontalSpeed / maxRunSpeed);
         var flameAngle = pivotRay.AngleRadians + DegreesToRadians(spreadDegrees);
         var flameSpeed = 6.5f + (_random.NextSingle() * 3.5f);
-        var (launchedVelocityX, launchedVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (launchedVelocityX, launchedVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             DeterministicMath.Cos(flameAngle) * flameSpeed,
             DeterministicMath.Sin(flameAngle) * flameSpeed);

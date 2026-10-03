@@ -4,7 +4,7 @@ internal sealed partial class ServerTuningSystem
 {
     internal bool TrySetNetworkPlayerMovementSpeedScale(byte slot, float scale)
     {
-        if (!_host.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -16,7 +16,7 @@ internal sealed partial class ServerTuningSystem
 
     internal bool TryClearNetworkPlayerMovementSpeedScale(byte slot)
     {
-        if (!_host.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -28,7 +28,7 @@ internal sealed partial class ServerTuningSystem
 
     internal float GetNetworkPlayerMovementSpeedScale(byte slot)
     {
-        return _host.TryGetNetworkPlayer(slot, out var player)
+        return _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             ? player.ServerMovementSpeedScale
             : GetEffectiveNetworkPlayerMovementSpeedScale(slot);
     }
@@ -43,7 +43,7 @@ internal sealed partial class ServerTuningSystem
         float movementSpeedMultiplier,
         float damageMultiplier)
     {
-        if (!_host.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -56,7 +56,7 @@ internal sealed partial class ServerTuningSystem
 
     internal bool TryClearNetworkPlayerLastToDieEnemyScaling(byte slot)
     {
-        if (!_host.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -69,7 +69,7 @@ internal sealed partial class ServerTuningSystem
 
     internal bool TrySetNetworkPlayerGravityScale(byte slot, float scale)
     {
-        if (!_host.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -81,7 +81,7 @@ internal sealed partial class ServerTuningSystem
 
     internal bool TryClearNetworkPlayerGravityScale(byte slot)
     {
-        if (!_host.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -93,7 +93,7 @@ internal sealed partial class ServerTuningSystem
 
     internal float GetNetworkPlayerGravityScale(byte slot)
     {
-        return _host.TryGetNetworkPlayer(slot, out var player)
+        return _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             ? player.ServerGravityScale
             : GetEffectiveNetworkPlayerGravityScale(slot);
     }
@@ -105,7 +105,7 @@ internal sealed partial class ServerTuningSystem
 
     internal bool TrySetNetworkPlayerMaxHealthOverride(byte slot, int? maxHealth, bool refillHealth = true)
     {
-        if (!_host.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
@@ -131,12 +131,12 @@ internal sealed partial class ServerTuningSystem
 
     internal bool TrySetNetworkPlayerScale(byte slot, float scale)
     {
-        if (!_host.TryGetNetworkPlayer(slot, out var player))
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
         {
             return false;
         }
 
-        var playerTeam = player.IsAlive ? player.Team : _host.GetNetworkPlayerConfiguredTeam(slot);
+        var playerTeam = player.IsAlive ? player.Team : _host.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(slot);
         ApplyLivePlayerScaleToPlayer(player, playerTeam, PlayerEntity.ClampPlayerScale(scale));
         return true;
     }
@@ -249,7 +249,7 @@ internal sealed partial class ServerTuningSystem
         foreach (var entry in _host.PlayerRegistry.PlayersBySlot)
         {
             var player = entry.Value;
-            var team = player.IsAlive ? player.Team : _host.GetNetworkPlayerConfiguredTeam(entry.Key);
+            var team = player.IsAlive ? player.Team : _host.NetworkPlayerRules.GetNetworkPlayerConfiguredTeam(entry.Key);
             ApplyLivePlayerScaleToPlayer(player, team, _host.MatchSettings.PlayerScale);
         }
     }
@@ -268,7 +268,7 @@ internal sealed partial class ServerTuningSystem
         }
 
         player.SetPlayerScale(scale);
-        var fallbackSpawn = _host.ReserveSpawn(player, team);
+        var fallbackSpawn = _host.Spawns.ReserveSpawn(player, team);
         player.TeleportTo(fallbackSpawn.X, fallbackSpawn.Y);
         player.ResolveBlockingOverlap(_host.Level, team);
     }

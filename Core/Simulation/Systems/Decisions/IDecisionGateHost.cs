@@ -5,12 +5,12 @@ namespace OpenGarrison.Core;
 /// </summary>
 internal interface IDecisionGateHost
 {
-    long Frame { get; }
-    int RedCaps { get; set; }
     int BlueCaps { get; set; }
+    long Frame { get; }
     MatchRules MatchRules { get; }
     MatchState MatchState { get; set; }
+    NetworkPlayerSystem NetworkPlayerRules { get; }
+    int RedCaps { get; set; }
 
-    bool TryGetPlayerNetworkSlot(PlayerEntity player, out byte slot);
     void QueuePendingMapChange();
 }

@@ -26,7 +26,7 @@ internal sealed partial class WeaponFireHandler
         var hitDamage = 3 + bonusDamage;
         var inheritedVelocityX = attacker.HorizontalSpeed / LegacyMovementModel.SourceTicksPerSecond;
         var inheritedVelocityY = attacker.VerticalSpeed / LegacyMovementModel.SourceTicksPerSecond;
-        var (launchedVelocityX, launchedVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (launchedVelocityX, launchedVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             directionX * 12f,
             directionY * 12f);
@@ -145,7 +145,7 @@ internal sealed partial class WeaponFireHandler
                     killer: attacker,
                     weaponSpriteName: ExperimentalDemoknightCatalog.EyelanderKillFeedSpriteName,
                     deadBodyAnimationKind: DeadBodyAnimationKind.Decapitated);
-                _host.TrySpawnExperimentalDemoknightDecapitationRemains(result.HitPlayer, directionX, directionY);
+                _host.PlayerRemains.TrySpawnExperimentalDemoknightDecapitationRemains(result.HitPlayer, directionX, directionY);
             }
 
             attacker.ConsumeExperimentalDemoknightChargeOnHit();
@@ -230,12 +230,12 @@ internal sealed partial class WeaponFireHandler
             if (!player.IsAlive
                 || player.Id == attacker.Id
                 || attacker.HasExperimentalDemoknightSwordHitPlayer(player.Id)
-                || !_host.CanTeamDamagePlayer(attacker.Team, attacker.Id, player))
+                || !_host.DamageRules.CanTeamDamagePlayer(attacker.Team, attacker.Id, player))
             {
                 continue;
             }
 
-            _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+            _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             if (!mask.OverlapsRectangle(left, top, right, bottom, anchorX, anchorY, facingLeft, maskScale))
             {
                 continue;
@@ -368,7 +368,7 @@ internal sealed partial class WeaponFireHandler
                 continue;
             }
 
-            _host.ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
+            _host.Projectiles.ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
             flare.Reflect(attacker.Id, attacker.Team, directionRadians);
         }
 

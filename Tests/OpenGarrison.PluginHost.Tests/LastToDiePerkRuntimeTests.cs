@@ -1650,7 +1650,7 @@ public sealed class LastToDiePerkRuntimeTests
             BuiltInGameplayBehaviorIds.SpyUtility,
             out var item));
         var ability = Assert.IsType<GameplayAbilityDefinition>(item.Ability);
-        var heldResult = world.ExecuteSpySuperjumpAbility(new GameplayAbilityContext
+        var heldResult = world.Abilities.ExecuteSpySuperjumpAbility(new GameplayAbilityContext
         {
             World = world,
             Player = spy,
@@ -1667,7 +1667,7 @@ public sealed class LastToDiePerkRuntimeTests
         Assert.Equal(spy.MaxHealth - 80, spy.Health);
         Assert.True(spy.IsBurning);
 
-        var releasedResult = world.ExecuteSpySuperjumpAbility(new GameplayAbilityContext
+        var releasedResult = world.Abilities.ExecuteSpySuperjumpAbility(new GameplayAbilityContext
         {
             World = world,
             Player = spy,

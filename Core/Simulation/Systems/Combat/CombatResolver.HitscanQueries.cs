@@ -139,7 +139,7 @@ internal sealed partial class CombatResolver
 
             if (roomObject.Type == RoomObjectType.DamageableZone)
             {
-                if (!_host.BlocksProjectileDamageableZone(roomObjectIndex))
+                if (!_host.MapLogic.BlocksProjectileDamageableZone(roomObjectIndex))
                 {
                     continue;
                 }
@@ -215,7 +215,7 @@ internal sealed partial class CombatResolver
             {
                 continue;
             }
-            _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+            _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             var decapitatorArrow = projectile as ArrowProjectileEntity;
             var detectsHeadshots = decapitatorArrow?.AppliesLastToDieDecapitator == true;
             var broadPhaseTop = detectsHeadshots
@@ -257,7 +257,7 @@ internal sealed partial class CombatResolver
                 && guardianArrow.AppliesLastToDieGuardian
                 && player.Team == projectileTeam;
             if (!isGuardianAlly
-                && !_host.CanTeamDamagePlayer(projectileTeam, ownerId, player))
+                && !_host.DamageRules.CanTeamDamagePlayer(projectileTeam, ownerId, player))
             {
                 continue;
             }
@@ -300,7 +300,7 @@ internal sealed partial class CombatResolver
                 continue;
             }
 
-            _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+            _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             if (!RayBoundsMayIntersectRectangle(rayBounds, left, top, right, bottom))
             {
                 continue;
@@ -312,7 +312,7 @@ internal sealed partial class CombatResolver
                 continue;
             }
 
-            if (player.Team != projectileTeam && !_host.CanTeamDamagePlayer(projectileTeam, ownerId, player))
+            if (player.Team != projectileTeam && !_host.DamageRules.CanTeamDamagePlayer(projectileTeam, ownerId, player))
             {
                 continue;
             }

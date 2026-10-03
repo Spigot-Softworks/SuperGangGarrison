@@ -174,7 +174,7 @@ Follow these files together when changing it:
 - [Stock runtime registration](../Core/Gameplay/GameplayRuntimeRegistry.Stock.cs)
 
 The item identifies `builtin.weapon.scout_nailgun`; the stock registry connects
-that behavior to `SimulationWorld.ExecuteScoutNailgunPrimaryWeapon`. Ammo,
+that behavior to `GameplayAbilitySystem.ExecuteScoutNailgunPrimaryWeapon`. Ammo,
 timing, projectile properties, and presentation come from the item definition.
 
 When adding a weapon, register its executor, attach it to an appropriate loadout,

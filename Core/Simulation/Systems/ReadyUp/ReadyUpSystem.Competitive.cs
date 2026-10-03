@@ -221,7 +221,7 @@ internal sealed partial class ReadyUpSystem
         if (_host.Objectives.ControlPoints.SetupMode)
         {
             _host.Objectives.ControlPoints.SetupTicksRemaining = 0;
-            _host.UpdateControlPointSetupGates();
+            _host.ObjectiveRules.UpdateControlPointSetupGates();
         }
 
         _host.Objectives.Arena.UnlockTicksRemaining = 0;

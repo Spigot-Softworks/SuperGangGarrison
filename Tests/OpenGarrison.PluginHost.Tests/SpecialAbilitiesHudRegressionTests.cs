@@ -40,10 +40,10 @@ public sealed class SpecialAbilitiesHudRegressionTests
         world.ConfigureExperimentalGameplaySettings(new(EnableSecondaryAbilities: false));
         var disabled = Items();
         Assert.Equal(enabled.Where(item => item.Ability is null
-            || !world.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(item.Ability)).Select(item => item.Id),
+            || !world.Abilities.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(item.Ability)).Select(item => item.Id),
             disabled.Select(item => item.Id));
         Assert.DoesNotContain(disabled, item => item.Ability is { } ability
-            && world.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(ability));
+            && world.Abilities.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(ability));
         world.ConfigureExperimentalGameplaySettings(new(EnableSecondaryAbilities: true));
         Assert.Equal(enabled.Select(item => item.Id), Items().Select(item => item.Id));
     }

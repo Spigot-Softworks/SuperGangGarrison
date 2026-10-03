@@ -13,11 +13,11 @@ internal sealed partial class ExperimentalRulesSystem
 
         if (!_host.ExperimentalGameplaySettings.EnableEnemyHealthPackDrops)
         {
-            _host.ClearTemporaryHealthPacks();
+            _host.Pickups.ClearTemporaryHealthPacks();
         }
         if (!_host.ExperimentalGameplaySettings.EnableEnemyDroppedWeapons)
         {
-            _host.ClearDroppedWeapons();
+            _host.Pickups.ClearDroppedWeapons();
         }
 
         SyncExperimentalGameplayLoadouts();
@@ -28,7 +28,7 @@ internal sealed partial class ExperimentalRulesSystem
         for (var index = 0; index < SimulationConstants.NetworkPlayerSlots.Count; index += 1)
         {
             var slot = SimulationConstants.NetworkPlayerSlots[index];
-            if (_host.IsNetworkPlayerEnabled(slot) && _host.TryGetNetworkPlayer(slot, out var player))
+            if (_host.NetworkPlayerRules.IsNetworkPlayerEnabled(slot) && _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player))
             {
                 SyncExperimentalGameplayLoadout(slot, player);
             }
@@ -37,7 +37,7 @@ internal sealed partial class ExperimentalRulesSystem
 
     internal void SyncExperimentalGameplayLoadout(byte slot, PlayerEntity player)
     {
-        var hasLastToDieProfile = _host.TryGetLastToDieLegacyGameplaySettings(
+        var hasLastToDieProfile = _host.LastToDieRules.TryGetLastToDieLegacyGameplaySettings(
             slot,
             out var lastToDieSettings);
         var settings = hasLastToDieProfile
@@ -66,7 +66,7 @@ internal sealed partial class ExperimentalRulesSystem
             {
                 player.SetAcquiredWeapon(null);
             }
-            _host.ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
+            _host.ServerTuning.ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
             return;
         }
 
@@ -124,6 +124,6 @@ internal sealed partial class ExperimentalRulesSystem
             ApplyExperimentalEngineerPassivePlayerEffects(player);
         }
 
-        _host.ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
+        _host.ServerTuning.ApplyNetworkPlayerMaxHealthOverride(slot, player, refillHealth: false);
     }
 }

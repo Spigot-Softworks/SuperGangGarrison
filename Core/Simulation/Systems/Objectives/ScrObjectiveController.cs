@@ -3,12 +3,10 @@ namespace OpenGarrison.Core;
 internal sealed class ScrObjectiveController
 {
     private readonly IMatchObjectiveHost _host;
-    private readonly CaptureTheFlagUpdateController _captureTheFlagUpdateController;
 
     public ScrObjectiveController(IMatchObjectiveHost host)
     {
         _host = host;
-        _captureTheFlagUpdateController = new CaptureTheFlagUpdateController(host);
     }
 
     public void AdvanceObjectives()

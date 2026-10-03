@@ -47,7 +47,7 @@ internal sealed partial class LastToDieRulesSystem
                 out var targetCenterDeltaX,
                 out var targetCenterDeltaY,
                 out _);
-            if (!_host.HasObstacleLineOfSight(
+            if (!_host.GeometryResolver.HasObstacleLineOfSight(
                     explosionX,
                     explosionY,
                     explosionX + targetCenterDeltaX,
@@ -106,7 +106,7 @@ internal sealed partial class LastToDieRulesSystem
             + ((LastToDieDerivedModifiers.MedicJavelinAllyEdgeHealing
                 - LastToDieDerivedModifiers.MedicJavelinAllyCenterHealing)
                 * distanceFraction);
-        var appliedHealing = _host.ApplyHealingWithFeedback(
+        var appliedHealing = _host.DamageRules.ApplyHealingWithFeedback(
             target,
             Math.Max(0f, healing),
             "HealSnd",
@@ -123,7 +123,7 @@ internal sealed partial class LastToDieRulesSystem
             return;
         }
 
-        _host.AwardHealingPoints(owner, appliedHealing);
+        _host.Scorekeeping.AwardHealingPoints(owner, appliedHealing);
         ApplyLastToDieMedicHomeostasis(owner, appliedHealing);
     }
 
@@ -179,7 +179,7 @@ internal sealed partial class LastToDieRulesSystem
 
         if (resolution.WasFatal)
         {
-            _host.KillPlayer(target, killer: owner, weaponSpriteName: "NeedleKL");
+            _host.PlayerDeaths.KillPlayer(target, killer: owner, weaponSpriteName: "NeedleKL");
         }
     }
 }

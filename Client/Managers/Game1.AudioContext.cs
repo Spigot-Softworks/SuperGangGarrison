@@ -83,6 +83,8 @@ public partial class Game1 : IAudioContext
 
     void IAudioContext.EnqueuePendingBrowserSoundEvent(string soundName, float x, float y) { EnqueuePendingBrowserSoundEvent(soundName, x, y); }
 
+    void IAudioContext.EnqueuePendingBrowserSoundEvent(OpenGarrison.Core.WorldSoundEvent soundEvent) { EnqueuePendingBrowserSoundEvent(soundEvent); }
+
     void IAudioContext.ForgetPresentedExplosionVisualForSoundEvent(OpenGarrison.Core.WorldSoundEvent soundEvent) { ForgetPresentedExplosionVisualForSoundEvent(soundEvent); }
 
     OpenGarrison.Core.PlayerEntity IAudioContext.GetImmediatePrimaryPresentationPlayer() => GetImmediatePrimaryPresentationPlayer();

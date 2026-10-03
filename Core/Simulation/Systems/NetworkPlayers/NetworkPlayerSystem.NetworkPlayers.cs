@@ -184,8 +184,8 @@ internal sealed partial class NetworkPlayerSystem
         var defaultTeam = GetDefaultNetworkPlayerTeam(slot);
         player = new PlayerEntity(_host.AllocateEntityId(), definition, GetNetworkPlayerDefaultName(slot));
         player.SetPlayerScale(_host.MatchSettings.PlayerScale);
-        _host.ApplyServerGameplayTuning(slot, player);
-        _host.SpawnPlayerResolved(player, defaultTeam, _host.ReserveSpawn(player, defaultTeam), clearMedicHealingTarget: false);
+        _host.ServerTuning.ApplyServerGameplayTuning(slot, player);
+        _host.Spawns.SpawnPlayerResolved(player, defaultTeam, _host.Spawns.ReserveSpawn(player, defaultTeam), clearMedicHealingTarget: false);
         player.Kill();
         _host.PlayerRegistry.PlayersBySlot[slot] = player;
         _host.PlayerRegistry.SlotsByPlayerId[player.Id] = slot;

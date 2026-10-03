@@ -31,8 +31,8 @@ internal sealed partial class AirblastRulesSystem
         var poofX = sourceX + DeterministicMath.Cos(aimRadians) * 25f;
         var poofY = sourceY + DeterministicMath.Sin(aimRadians) * 25f;
 
-        _host.RegisterSoundEvent(player, "CompressionBlastSnd");
-        _host.RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
+        _host.WorldEffects.RegisterSoundEvent(player, "CompressionBlastSnd");
+        _host.WorldEffects.RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
         ApplyAirblastToSelf(player, sourceX, sourceY, aimRadians);
         var applyTeammateKnockback = _host.ExperimentalGameplaySettings.EnableFriendlyAirburstKnockback;
         ApplyAirblastToPlayers(
@@ -57,8 +57,8 @@ internal sealed partial class AirblastRulesSystem
         var poofX = sourceX + DeterministicMath.Cos(aimRadians) * 25f;
         var poofY = sourceY + DeterministicMath.Sin(aimRadians) * 25f;
 
-        _host.RegisterSoundEvent(player, "CompressionBlastSnd");
-        _host.RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
+        _host.WorldEffects.RegisterSoundEvent(player, "CompressionBlastSnd");
+        _host.WorldEffects.RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
 
         ReflectEnemyRockets(player, aimRadians, poofX, poofY);
         ReflectEnemyFlares(player, aimRadians, poofX, poofY);
@@ -82,8 +82,8 @@ internal sealed partial class AirblastRulesSystem
         var poofX = sourceX;
         var poofY = sourceY;
 
-        _host.RegisterSoundEvent(player, "CompressionBlastSnd");
-        _host.RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
+        _host.WorldEffects.RegisterSoundEvent(player, "CompressionBlastSnd");
+        _host.WorldEffects.RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
         ApplyAirblastToPlayers(
             player,
             sourceX,
@@ -107,8 +107,8 @@ internal sealed partial class AirblastRulesSystem
         var poofX = sourceX + DeterministicMath.Cos(aimRadians) * 25f;
         var poofY = sourceY + DeterministicMath.Sin(aimRadians) * 25f;
 
-        _host.RegisterSoundEvent(player, "CompressionBlastSnd");
-        _host.RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
+        _host.WorldEffects.RegisterSoundEvent(player, "CompressionBlastSnd");
+        _host.WorldEffects.RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
         ReflectEnemyExplosiveProjectiles(player, aimRadians, poofX, poofY, emptyClip, SoldierThundergunnerDistance);
         ReflectEnemyBulletLikeProjectiles(player, aimRadians, poofX, poofY, emptyClip, SoldierThundergunnerDistance);
         ApplyThundergunnerToPlayers(player, sourceX, sourceY, aimRadians, poofX, poofY, emptyClip, forceScale);
@@ -155,7 +155,7 @@ internal sealed partial class AirblastRulesSystem
                 continue;
             }
 
-            _host.ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
+            _host.Projectiles.ResolveDragonRageProjectileOutcome(flare, hitTarget: false);
             flare.Reflect(player.Id, player.Team, aimRadians);
         }
     }
@@ -252,7 +252,7 @@ internal sealed partial class AirblastRulesSystem
 
             if (targetIsTeammate)
             {
-                _host.SpawnAirblastExtinguishFlames(player, target, aimRadians);
+                _host.CombatFeedback.SpawnAirblastExtinguishFlames(player, target, aimRadians);
                 target.ExtinguishAfterburn();
                 if (!applyTeammateKnockback)
                 {
@@ -377,7 +377,7 @@ internal sealed partial class AirblastRulesSystem
 
             if (target.Team == player.Team)
             {
-                _host.SpawnAirblastExtinguishFlames(player, target, targetDirectionRadians);
+                _host.CombatFeedback.SpawnAirblastExtinguishFlames(player, target, targetDirectionRadians);
                 target.ExtinguishAfterburn();
                 continue;
             }

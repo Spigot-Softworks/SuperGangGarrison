@@ -61,59 +61,59 @@ public sealed partial class GameplayRuntimeRegistry
             BuiltInGameplayBehaviorIds.Flaregun,
             PrimaryWeaponKind.Custom,
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
-                context.World.ExecuteFlaregunPrimaryWeapon(context))));
+                context.World.Abilities.ExecuteFlaregunPrimaryWeapon(context))));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
             BuiltInGameplayBehaviorIds.DragonRage,
             PrimaryWeaponKind.Custom,
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
-                context.World.ExecuteDragonRagePrimaryWeapon(context))));
+                context.World.Abilities.ExecuteDragonRagePrimaryWeapon(context))));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
             BuiltInGameplayBehaviorIds.Boomstick,
             PrimaryWeaponKind.Custom,
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
-                context.World.ExecuteBoomstickPrimaryWeapon(context))));
+                context.World.Abilities.ExecuteBoomstickPrimaryWeapon(context))));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
             BuiltInGameplayBehaviorIds.Needlegun,
             PrimaryWeaponKind.Custom,
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
-                context.World.ExecuteNeedlegunPrimaryWeapon(context))));
+                context.World.Abilities.ExecuteNeedlegunPrimaryWeapon(context))));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
             BuiltInGameplayBehaviorIds.ScoutNailgun,
             PrimaryWeaponKind.Custom,
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
-                context.World.ExecuteScoutNailgunPrimaryWeapon(context))));
+                context.World.Abilities.ExecuteScoutNailgunPrimaryWeapon(context))));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
             BuiltInGameplayBehaviorIds.SniperBow,
             PrimaryWeaponKind.Custom,
             Executor: new DelegateGameplayPrimaryWeaponExecutor(static context =>
-                context.World.ExecuteSniperBowPrimaryWeapon(context))));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.EngineerPda, static context => context.World.ExecuteEngineerPdaAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.PyroAirblast, static context => context.World.ExecutePyroAirblastAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.DemomanDetonate, static context => context.World.ExecuteDemomanDetonateAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.HeavySandvich, static context => context.World.ExecuteHeavySandvichAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperScope, static context => SimulationWorld.ExecuteSniperScopeAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperBinoculars, static context => SimulationWorld.ExecuteSniperBinocularsAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperStrongDrink, static context => context.World.ExecuteSniperStrongDrinkAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicNeedlegun, static context => context.World.ExecuteMedicNeedlegunAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicKritzBeam, static context => context.World.ExecuteMedicKritzBeamAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles, static context => context.World.ExecuteMedicKritzHealNeedlesAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicUber, static context => context.World.ExecuteMedicUberAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SpyCloak, static context => SimulationWorld.ExecuteSpyCloakAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SpySuperjump, static context => context.World.ExecuteSpySuperjumpAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.QuoteBladeThrow, static context => context.World.ExecuteQuoteBladeThrowAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivvieUmbrella, static context => context.World.ExecuteCivvieUmbrellaAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivvieTaunt, static context => SimulationWorld.ExecuteCivvieTauntAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivviePogo, static context => SimulationWorld.ExecuteCivviePogoAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ScoutTaunt, static context => SimulationWorld.ExecuteScoutTauntAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ScoutNailgunToggle, static context => SimulationWorld.ExecuteScoutNailgunToggleAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperBowToggle, static context => SimulationWorld.ExecuteSniperBowToggleAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SoldierSecondaryToggle, static context => SimulationWorld.ExecuteSoldierSecondaryToggleAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SoldierBuffBanner, static context => context.World.ExecuteSoldierBuffBannerAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.EngineerJumpPad, static context => context.World.ExecuteEngineerJumpPadAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.HeavyGhostDash, static context => context.World.ExecuteHeavyGhostDashAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ExperimentalSoldierSecondary, static context => context.World.ExecuteExperimentalSoldierSecondaryAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ExperimentalLtdPassive, static context => context.World.ExecuteExperimentalLtdPassiveAbility(context));
-        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ExperimentalLtdRage, static context => context.World.ExecuteExperimentalLtdRageAbility(context));
+                context.World.Abilities.ExecuteSniperBowPrimaryWeapon(context))));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.EngineerPda, static context => context.World.Abilities.ExecuteEngineerPdaAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.PyroAirblast, static context => context.World.Abilities.ExecutePyroAirblastAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.DemomanDetonate, static context => context.World.Abilities.ExecuteDemomanDetonateAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.HeavySandvich, static context => context.World.Abilities.ExecuteHeavySandvichAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperScope, static context => GameplayAbilitySystem.ExecuteSniperScopeAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperBinoculars, static context => GameplayAbilitySystem.ExecuteSniperBinocularsAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperStrongDrink, static context => context.World.Abilities.ExecuteSniperStrongDrinkAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicNeedlegun, static context => context.World.Abilities.ExecuteMedicNeedlegunAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicKritzBeam, static context => context.World.Abilities.ExecuteMedicKritzBeamAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicKritzHealNeedles, static context => context.World.Abilities.ExecuteMedicKritzHealNeedlesAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.MedicUber, static context => context.World.Abilities.ExecuteMedicUberAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SpyCloak, static context => GameplayAbilitySystem.ExecuteSpyCloakAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SpySuperjump, static context => context.World.Abilities.ExecuteSpySuperjumpAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.QuoteBladeThrow, static context => context.World.Abilities.ExecuteQuoteBladeThrowAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivvieUmbrella, static context => context.World.Abilities.ExecuteCivvieUmbrellaAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivvieTaunt, static context => GameplayAbilitySystem.ExecuteCivvieTauntAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.CivviePogo, static context => GameplayAbilitySystem.ExecuteCivviePogoAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ScoutTaunt, static context => GameplayAbilitySystem.ExecuteScoutTauntAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ScoutNailgunToggle, static context => GameplayAbilitySystem.ExecuteScoutNailgunToggleAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SniperBowToggle, static context => GameplayAbilitySystem.ExecuteSniperBowToggleAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SoldierSecondaryToggle, static context => GameplayAbilitySystem.ExecuteSoldierSecondaryToggleAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.SoldierBuffBanner, static context => context.World.Abilities.ExecuteSoldierBuffBannerAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.EngineerJumpPad, static context => context.World.Abilities.ExecuteEngineerJumpPadAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.HeavyGhostDash, static context => context.World.Abilities.ExecuteHeavyGhostDashAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ExperimentalSoldierSecondary, static context => context.World.Abilities.ExecuteExperimentalSoldierSecondaryAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ExperimentalLtdPassive, static context => context.World.Abilities.ExecuteExperimentalLtdPassiveAbility(context));
+        RegisterGameplayAbilityExecutor(BuiltInGameplayBehaviorIds.ExperimentalLtdRage, static context => context.World.Abilities.ExecuteExperimentalLtdRageAbility(context));
     }
 
     private static GameplayClassRuntimeBinding[] CreateClassBindingsFromRuntimeMetadata(GameplayModPackDefinition modPack)

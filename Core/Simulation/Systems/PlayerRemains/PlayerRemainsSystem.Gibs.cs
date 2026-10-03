@@ -25,7 +25,7 @@ internal sealed partial class PlayerRemainsSystem
         var experimentalCryoTinted = player.IsExperimentalCryoFrozen;
         if (!player.IsAlive || SimulationConstants.DefaultGibLevel <= 1)
         {
-            _host.SpawnDeadBody(player);
+            _host.PlayerDeaths.SpawnDeadBody(player);
             return;
         }
 
@@ -43,7 +43,7 @@ internal sealed partial class PlayerRemainsSystem
             SpawnPlayerGibSet(player, player.Team == PlayerTeam.Blue ? "BlueClumpS" : "RedClumpS", SimulationConstants.DefaultGibLevel - 1, randomFrameCount: 4, velocityRangeX: 8f, velocityRangeY: 9f, rotationRange: 72f, lifetimeTicks: 250, horizontalFriction: 0.3f, rotationFriction: 0.4f, bloodChance: 2f, inheritedVelocityX: inheritedVelocityX, inheritedVelocityY: inheritedVelocityY, experimentalCryoTinted: experimentalCryoTinted, emitNetworkEvents: false);
         }
 
-        _host.RegisterVisualEffect("GibBlood", player.X, player.Y, count: SimulationConstants.DefaultGibLevel);
+        _host.WorldEffects.RegisterVisualEffect("GibBlood", player.X, player.Y, count: SimulationConstants.DefaultGibLevel);
         SpawnBloodDrops(player.X, player.Y, SimulationConstants.DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: experimentalCryoTinted);
 
         if (hasAuthoredParts)
@@ -137,7 +137,7 @@ internal sealed partial class PlayerRemainsSystem
         var resolvedSpawnX = spawnX ?? player.X;
         var resolvedSpawnY = spawnY ?? player.Y;
         SpawnPlayerGibsForNetworkDeath(player, clientOnly: true, spawnX: resolvedSpawnX, spawnY: resolvedSpawnY);
-        _host.RegisterVisualEffect("GibBlood", resolvedSpawnX, resolvedSpawnY, count: SimulationConstants.DefaultGibLevel);
+        _host.WorldEffects.RegisterVisualEffect("GibBlood", resolvedSpawnX, resolvedSpawnY, count: SimulationConstants.DefaultGibLevel);
         SpawnBloodDrops(resolvedSpawnX, resolvedSpawnY, SimulationConstants.DefaultGibLevel * 14, 10f, 13f, spreadRadius: 11f, experimentalCryoTinted: player.IsExperimentalCryoFrozen, clientOnly: true);
     }
 
@@ -317,7 +317,7 @@ internal sealed partial class PlayerRemainsSystem
             250,
             1.3f));
 
-        _host.RegisterVisualEffect("GibBlood", spawnX, spawnY, count: 1);
+        _host.WorldEffects.RegisterVisualEffect("GibBlood", spawnX, spawnY, count: 1);
         SpawnBloodDrops(spawnX, spawnY, 18, 8f, 12f, spreadRadius: 6f);
     }
 
@@ -432,7 +432,7 @@ internal sealed partial class PlayerRemainsSystem
         var impactSpeed = MathF.Sqrt((velocityXBeforeAdvance * velocityXBeforeAdvance) + (velocityYBeforeAdvance * velocityYBeforeAdvance));
         if (impactSpeed > PlayerGibLandingSplatMinimumSpeed)
         {
-            _host.RegisterWorldSoundEvent("Splat", gib.X, gib.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("Splat", gib.X, gib.Y);
         }
     }
 
@@ -472,7 +472,7 @@ internal sealed partial class PlayerRemainsSystem
             impulseY = Math.Clamp(impulseY * 0.45f, -3.5f, 2.5f);
             gib.AddImpulse(impulseX, impulseY, impulseX * 8f);
             gib.RestartSplatCooldown();
-            _host.RegisterWorldSoundEvent("Splat", gib.X, gib.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("Splat", gib.X, gib.Y);
             return;
         }
     }
@@ -721,7 +721,7 @@ internal sealed partial class PlayerRemainsSystem
                 && advanceResult.ImpactSpeed >= 3.5f
                 && deadBody.TryRestartImpactSoundCooldown())
             {
-                _host.RegisterWorldSoundEvent("ImpactSnd", deadBody.X, deadBody.Y);
+                _host.WorldEffects.RegisterWorldSoundEvent("ImpactSnd", deadBody.X, deadBody.Y);
             }
 
             if (!deadBody.IsExpired)

@@ -36,6 +36,7 @@ public interface IAudioContext
     void BeginExplosionSoundDeduplicationFrame();
     void DisableAudio(string reason, System.Exception ex);
     void EnqueuePendingBrowserSoundEvent(string soundName, float x, float y);
+    void EnqueuePendingBrowserSoundEvent(OpenGarrison.Core.WorldSoundEvent soundEvent);
     void ForgetPresentedExplosionVisualForSoundEvent(OpenGarrison.Core.WorldSoundEvent soundEvent);
     OpenGarrison.Core.PlayerEntity GetImmediatePrimaryPresentationPlayer();
     (float Volume, float Pan) GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource);

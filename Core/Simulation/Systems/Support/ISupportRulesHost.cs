@@ -6,10 +6,17 @@ namespace OpenGarrison.Core;
 internal interface ISupportRulesHost : ISimulationWorldState, ISimulationPlayerDirectory
 {
     bool ControlPointSetupActive { get; }
+    DamageRulesSystem DamageRules { get; }
+    ExperimentalRulesSystem ExperimentalRules { get; }
+    CombatResolver GeometryResolver { get; }
+    LastToDieRulesSystem LastToDieRules { get; }
     PlayerEntity LocalPlayer { get; }
+    NetworkPlayerSystem NetworkPlayerRules { get; }
+    PlayerDeathSystem PlayerDeaths { get; }
+    PlayerPresentationBoundsSystem PresentationBounds { get; }
+    ScorekeepingSystem Scorekeeping { get; }
+    WorldEffectsSystem WorldEffects { get; }
 
-    int ApplyHealingWithFeedback(PlayerEntity target, float healing, string? soundName = null, float soundX = 0f, float soundY = 0f);
-    void ApplyLastToDieMedicHomeostasis(PlayerEntity medic, int appliedTargetHealing);
     bool ApplyPlayerContinuousDamage(
         PlayerEntity target,
         float damage,
@@ -22,16 +29,6 @@ internal interface ISupportRulesHost : ISimulationWorldState, ISimulationPlayerD
         float? civvieUmbrellaThreatSourceY = null,
         int? civvieUmbrellaDrainTicks = null,
         bool civvieUmbrellaCriticalBoost = false);
-    void AwardHealingPoints(PlayerEntity healer, int healedAmount);
-    bool CanPlayerDamagePlayer(PlayerEntity attacker, PlayerEntity target);
-    void GetCachedPlayerPresentationHitBounds(PlayerEntity player, out float left, out float top, out float right, out float bottom);
-    int GetExperimentalEngineerCryoFreezeDurationTicks();
-    int GetExperimentalEngineerEssenceExtractorDebuffTicks();
-    int GetExperimentalEngineerFreezeRayExposureWindowTicks();
-    int GetExperimentalEngineerFreezeRayFreezeThresholdTicks();
-    int GetExperimentalEngineerFreezeRaySlowTicks();
-    float GetLastToDieMedicHealingMultiplier(PlayerEntity medic, PlayerEntity target);
-    float GetLastToDieMedicUberChargeGainMultiplier(PlayerEntity medic);
     float? GetThickLineIntersectionDistanceToPlayer(
         float originX,
         float originY,
@@ -40,32 +37,4 @@ internal interface ISupportRulesHost : ISimulationWorldState, ISimulationPlayerD
         PlayerEntity player,
         float maxDistance,
         float thicknessRadius);
-    bool HasObstacleLineOfSight(float originX, float originY, float targetX, float targetY);
-    void KillPlayer(
-        PlayerEntity player,
-        bool gibbed = false,
-        PlayerEntity? killer = null,
-        string? weaponSpriteName = null,
-        DeadBodyAnimationKind deadBodyAnimationKind = DeadBodyAnimationKind.Default,
-        string? deathCamMessage = null,
-        SentryEntity? deathCamSentry = null,
-        string? killFeedMessage = null,
-        bool createDeathCam = true,
-        bool spawnRemains = true,
-        bool forceCorpseRemains = false,
-        bool recordKillFeed = true,
-        int assistingPlayerIdOverride = -1,
-        bool completingLastToDieSpyAfterlifeDeath = false);
-    void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1);
-    void RegisterHealingFeedbackOnly(PlayerEntity target, int amount);
-    void RegisterVisualEffect(
-        string effectName,
-        float x,
-        float y,
-        float directionDegrees = 0f,
-        int count = 1,
-        bool normalizeDirection = true);
-    void RegisterWorldSoundEvent(string soundName, float x, float y, int sourcePlayerId = -1);
-    bool TryApplyLastToDieMedicSupportRelay(PlayerEntity medic, PlayerEntity target);
-    bool TryGetPlayerNetworkSlot(PlayerEntity player, out byte slot);
 }

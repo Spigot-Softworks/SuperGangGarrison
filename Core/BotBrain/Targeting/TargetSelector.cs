@@ -207,7 +207,7 @@ public static class TargetSelector
         PlayerTeam opposingTeam,
         float maxEngagementDistanceSquared)
     {
-        if (!world.TryGetLastToDieMartyrProtector(candidate, out var protector)
+        if (!world.LastToDieRules.TryGetLastToDieMartyrProtector(candidate, out var protector)
             || !IsValidTarget(protector, self, opposingTeam)
             || DistanceSquared(self.X, self.Y, protector.X, protector.Y)
                 >= MathF.Min(maxEngagementDistanceSquared, MartyrProtectorPriorityRange * MartyrProtectorPriorityRange)

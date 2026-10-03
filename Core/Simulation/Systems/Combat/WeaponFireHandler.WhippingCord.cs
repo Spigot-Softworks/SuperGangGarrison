@@ -1,5 +1,3 @@
-using OpenGarrison.GameplayModding;
-
 namespace OpenGarrison.Core;
 
 internal sealed partial class WeaponFireHandler
@@ -164,7 +162,7 @@ internal sealed partial class WeaponFireHandler
         float terrainY;
         if (fireHeld)
         {
-            if (!_host.TryLatchWhippingCordToTerrain(attacker, aimWorldX, aimWorldY))
+            if (!_host.Movement.TryLatchWhippingCordToTerrain(attacker, aimWorldX, aimWorldY))
             {
                 return;
             }
@@ -172,7 +170,7 @@ internal sealed partial class WeaponFireHandler
             terrainX = attacker.WhippingCordAnchorX;
             terrainY = attacker.WhippingCordAnchorY;
         }
-        else if (!_host.TryFindWhippingCordTerrainContact(
+        else if (!_host.GeometryResolver.TryFindWhippingCordTerrainContact(
                      attacker, aimWorldX, aimWorldY, out terrainX, out terrainY))
         {
             return;
@@ -217,7 +215,7 @@ internal sealed partial class WeaponFireHandler
         }
 
         if (target is null || !target.IsAlive
-            || !_host.CanTeamDamagePlayer(attacker.Team, attacker.Id, target))
+            || !_host.DamageRules.CanTeamDamagePlayer(attacker.Team, attacker.Id, target))
         {
             attacker.ClearPendingWhippingCordBackswingTarget();
             return;
@@ -263,12 +261,12 @@ internal sealed partial class WeaponFireHandler
         foreach (var target in _host.EnumerateSimulatedPlayers())
         {
             if (!target.IsAlive || target.Id == attacker.Id
-                || !_host.CanTeamDamagePlayer(attacker.Team, attacker.Id, target))
+                || !_host.DamageRules.CanTeamDamagePlayer(attacker.Team, attacker.Id, target))
             {
                 continue;
             }
 
-            _host.GetCachedPlayerPresentationHitBounds(target, out var left, out var top, out var right, out var bottom);
+            _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(target, out var left, out var top, out var right, out var bottom);
             if (!hitboxMask.OverlapsRectangle(
                     left, top, right, bottom, originX, originY, facingLeft, scale,
                     rotateWithAim ? aimRadians : null))
@@ -489,12 +487,12 @@ internal sealed partial class WeaponFireHandler
             if (!player.IsAlive
                 || player.Id == attacker.Id
                 || attacker.HasWhippingCordHitPlayer(player.Id)
-                || !_host.CanTeamDamagePlayer(attacker.Team, attacker.Id, player))
+                || !_host.DamageRules.CanTeamDamagePlayer(attacker.Team, attacker.Id, player))
             {
                 continue;
             }
 
-            _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+            _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             if (!mask.OverlapsRectangle(left, top, right, bottom, anchorX, anchorY, facingLeft, maskScale, rotation))
             {
                 continue;

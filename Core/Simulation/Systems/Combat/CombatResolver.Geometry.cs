@@ -7,16 +7,6 @@ internal sealed partial class CombatResolver
         return SimulationMath.DistanceBetween(x1, y1, x2, y2);
     }
 
-    private static float GetStabOriginX(StabMaskEntity mask, float directionX)
-    {
-        return SimulationMath.GetStabOriginX(mask, directionX);
-    }
-
-    private static float GetStabOriginY(StabMaskEntity mask, float directionY)
-    {
-        return SimulationMath.GetStabOriginY(mask, directionY);
-    }
-
     private static float? GetRayIntersectionDistanceWithRectangle(
         float originX,
         float originY,
@@ -274,7 +264,7 @@ internal sealed partial class CombatResolver
             return null;
         }
 
-        world.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+        world.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
         return GetRayIntersectionDistanceWithRectangle(
             originX,
             originY,
@@ -301,7 +291,7 @@ internal sealed partial class CombatResolver
             return null;
         }
 
-        world.GetCachedPlayerPresentationHitBounds(
+        world.PresentationBounds.GetCachedPlayerPresentationHitBounds(
             player,
             out var left,
             out var top,
@@ -429,7 +419,7 @@ internal sealed partial class CombatResolver
 
         var directionX = (endX - originX) / distance;
         var directionY = (endY - originY) / distance;
-        _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+        _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
         return GetThickRayIntersectionDistanceWithRectangle(
             originX,
             originY,

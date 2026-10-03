@@ -1,5 +1,3 @@
-using OpenGarrison.Protocol;
-
 namespace OpenGarrison.Core;
 
 /// <summary>

@@ -17,7 +17,7 @@ internal sealed partial class LastToDieRulesSystem
 
     private float GetExplosionDistanceToPlayer(PlayerEntity player, float originX, float originY)
     {
-        _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+        _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
         return ExplosionGeometry.GetDistanceToBounds(left, top, right, bottom, originX, originY);
     }
 

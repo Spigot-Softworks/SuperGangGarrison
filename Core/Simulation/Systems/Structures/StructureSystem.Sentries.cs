@@ -142,8 +142,8 @@ internal sealed partial class StructureSystem
             sentry.Advance(_host.Level, _host.Bounds);
             if (!wasLanded && sentry.HasLanded)
             {
-                _host.RegisterWorldSoundEvent("SentryFloorSnd", sentry.X, sentry.Y);
-                _host.RegisterWorldSoundEvent("SentryBuildSnd", sentry.X, sentry.Y);
+                _host.WorldEffects.RegisterWorldSoundEvent("SentryFloorSnd", sentry.X, sentry.Y);
+                _host.WorldEffects.RegisterWorldSoundEvent("SentryBuildSnd", sentry.X, sentry.Y);
             }
             if (!sentry.IsBuilt)
             {
@@ -166,7 +166,7 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
-            _host.ApplyExperimentalEngineerSentryPassiveEffects(sentry, owner);
+            _host.ExperimentalRules.ApplyExperimentalEngineerSentryPassiveEffects(sentry, owner);
 
             var target = AcquireSentryTarget(sentry);
             var previousTargetId = sentry.CurrentTargetPlayerId;
@@ -182,7 +182,7 @@ internal sealed partial class StructureSystem
 
             if (previousTargetId != target.Value.PlayerId && sentry.BeginTargetAlert())
             {
-                _host.RegisterWorldSoundEvent("SentryAlert", sentry.X, sentry.Y);
+                _host.WorldEffects.RegisterWorldSoundEvent("SentryAlert", sentry.X, sentry.Y);
                 continue;
             }
 
@@ -191,10 +191,10 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
-            var reloadTicks = _host.GetExperimentalSentryReloadTicks(owner, sentry);
-            var idleResetTicks = _host.GetExperimentalSentryIdleResetTicks();
-            _host.RegisterWorldSoundEvent("ShotgunSnd", sentry.X, sentry.Y);
-            _host.FireExperimentalSentry(sentry, owner, target.Value, reloadTicks, idleResetTicks);
+            var reloadTicks = _host.ExperimentalRules.GetExperimentalSentryReloadTicks(owner, sentry);
+            var idleResetTicks = _host.ExperimentalRules.GetExperimentalSentryIdleResetTicks();
+            _host.WorldEffects.RegisterWorldSoundEvent("ShotgunSnd", sentry.X, sentry.Y);
+            _host.ExperimentalRules.FireExperimentalSentry(sentry, owner, target.Value, reloadTicks, idleResetTicks);
         }
     }
 
@@ -224,13 +224,13 @@ internal sealed partial class StructureSystem
                 var player = _host.FindPlayerById(feedback.Key);
                 if (player is not null && player.IsAlive && feedback.Value > 0)
                 {
-                    _host.RegisterHealingEvent(player, feedback.Value);
+                    _host.DamageRules.RegisterHealingEvent(player, feedback.Value);
                 }
             }
 
             if (dispenser.PendingDispenserHealingFeedback.Count > 0)
             {
-                _host.RegisterWorldSoundEvent("MedigunSnd", dispenser.X, dispenser.Y);
+                _host.WorldEffects.RegisterWorldSoundEvent("MedigunSnd", dispenser.X, dispenser.Y);
             }
 
             dispenser.ClearDispenserHealingFeedback();
@@ -303,7 +303,7 @@ internal sealed partial class StructureSystem
                 sentry.Y + (deltaY / distance) * moveDistance);
         }
 
-        if (distance > SentryEntity.TargetRange || !_host.HasSentryLineOfSight(sentry, _host.LocalPlayer))
+        if (distance > SentryEntity.TargetRange || !_host.GeometryResolver.HasSentryLineOfSight(sentry, _host.LocalPlayer))
         {
             sentry.SetTarget(null, _host.LocalPlayer.X, _host.LocalPlayer.Y, hasTarget: false);
             return;
@@ -313,7 +313,7 @@ internal sealed partial class StructureSystem
         sentry.SetTarget(_host.LocalPlayer.Id, _host.LocalPlayer.X, _host.LocalPlayer.Y);
         if (previousTargetId != _host.LocalPlayer.Id && sentry.BeginTargetAlert())
         {
-            _host.RegisterWorldSoundEvent("SentryAlert", sentry.X, sentry.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("SentryAlert", sentry.X, sentry.Y);
             return;
         }
 
@@ -323,10 +323,10 @@ internal sealed partial class StructureSystem
         }
 
         sentry.FireAt(_host.LocalPlayer.X, _host.LocalPlayer.Y);
-        _host.RegisterWorldSoundEvent("ShotgunSnd", sentry.X, sentry.Y);
+        _host.WorldEffects.RegisterWorldSoundEvent("ShotgunSnd", sentry.X, sentry.Y);
         if (distance > 0f)
         {
-            _host.RegisterCombatTrace(
+            _host.WorldEffects.RegisterCombatTrace(
                 sentry.X,
                 sentry.Y,
                 (_host.LocalPlayer.X - sentry.X) / distance,
@@ -338,7 +338,7 @@ internal sealed partial class StructureSystem
 
         if (_host.ApplyPlayerDamage(_host.LocalPlayer, SentryEntity.HitDamage, null, PlayerEntity.SpyDamageRevealAlpha))
         {
-            _host.KillPlayer(
+            _host.PlayerDeaths.KillPlayer(
                 _host.LocalPlayer,
                 killer: _host.FindPlayerById(sentry.OwnerPlayerId),
                 weaponSpriteName: "TurretKL",
@@ -409,7 +409,7 @@ internal sealed partial class StructureSystem
             }
 
             var distance = SimulationMath.DistanceBetween(sentry.X, sentry.Y, player.X, player.Y);
-            if (distance > (owner is not null ? _host.GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange))
+            if (distance > (owner is not null ? _host.ExperimentalRules.GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange))
             {
                 continue;
             }
@@ -423,14 +423,14 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
-            if (!_host.HasSentryLineOfSight(sentry, player))
+            if (!_host.GeometryResolver.HasSentryLineOfSight(sentry, player))
             {
                 continue;
             }
 
             var candidate = new SentryTarget(player, null, null, null, null, player.X, player.Y, player.Id);
             if (owner is not null
-                && _host.IsExperimentalEngineerPriorityTarget(owner, player)
+                && _host.ExperimentalRules.IsExperimentalEngineerPriorityTarget(owner, player)
                 && distance < preferredDistance)
             {
                 preferredTarget = candidate;
@@ -453,7 +453,7 @@ internal sealed partial class StructureSystem
             }
 
             var distance = SimulationMath.DistanceBetween(sentry.X, sentry.Y, generator.Marker.CenterX, generator.Marker.CenterY);
-            var range = owner is not null ? _host.GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange;
+            var range = owner is not null ? _host.ExperimentalRules.GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange;
             if (distance > range || distance >= nearestDistance)
             {
                 continue;
@@ -468,7 +468,7 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
-            if (!_host.HasObstacleLineOfSight(sentry.X, sentry.Y, generator.Marker.CenterX, generator.Marker.CenterY))
+            if (!_host.GeometryResolver.HasObstacleLineOfSight(sentry.X, sentry.Y, generator.Marker.CenterX, generator.Marker.CenterY))
             {
                 continue;
             }
@@ -500,7 +500,7 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
-            if (!_host.HasObstacleLineOfSight(sentry.X, sentry.Y, targetSentry.X, targetSentry.Y))
+            if (!_host.GeometryResolver.HasObstacleLineOfSight(sentry.X, sentry.Y, targetSentry.X, targetSentry.Y))
             {
                 continue;
             }
@@ -532,7 +532,7 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
-            if (!_host.HasObstacleLineOfSight(sentry.X, sentry.Y, targetPad.X, targetPad.Y))
+            if (!_host.GeometryResolver.HasObstacleLineOfSight(sentry.X, sentry.Y, targetPad.X, targetPad.Y))
             {
                 continue;
             }
@@ -550,7 +550,7 @@ internal sealed partial class StructureSystem
 
             var marker = _host.Level.RoomObjects[index];
             if (marker.Type != RoomObjectType.DamageableZone
-                || !DamageableMetadata.IsSentryTarget(marker.DamageableZone, _host.GetDamageableZoneHealth(index)))
+                || !DamageableMetadata.IsSentryTarget(marker.DamageableZone, _host.MapLogic.GetDamageableZoneHealth(index)))
             {
                 continue;
             }
@@ -558,7 +558,7 @@ internal sealed partial class StructureSystem
             var targetX = marker.CenterX;
             var targetY = marker.CenterY;
             var distance = SimulationMath.DistanceBetween(sentry.X, sentry.Y, targetX, targetY);
-            var range = owner is not null ? _host.GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange;
+            var range = owner is not null ? _host.ExperimentalRules.GetExperimentalSentryTargetRange(owner) : SentryEntity.TargetRange;
             if (distance > range || distance >= nearestDistance)
             {
                 continue;
@@ -573,7 +573,7 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
-            if (!_host.HasObstacleLineOfSight(sentry.X, sentry.Y, targetX, targetY))
+            if (!_host.GeometryResolver.HasObstacleLineOfSight(sentry.X, sentry.Y, targetX, targetY))
             {
                 continue;
             }
@@ -594,14 +594,14 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
-            _host.AwardSentryDestructionPoints(sentry, attacker);
+            _host.Scorekeeping.AwardSentryDestructionPoints(sentry, attacker);
             ReleaseMinesFromSentry(sentry);
             ApplySentryDestroyBlastToOwner(sentry);
             _host.EntityStore.Remove(sentry.Id);
             _host.WorldObjects.Sentries.RemoveAt(sentryIndex);
             _host.LastToDieState.DroneSentryIds.Remove(sentry.Id);
-            _host.RegisterWorldSoundEvent("ExplosionSnd", sentry.X, sentry.Y);
-            _host.RegisterVisualEffect("Explosion", sentry.X, sentry.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", sentry.X, sentry.Y);
+            _host.WorldEffects.RegisterVisualEffect("Explosion", sentry.X, sentry.Y);
             SpawnSentryGibs(sentry.Team, sentry.X, sentry.Y, sentry.IsDispenser);
             break;
         }
@@ -679,7 +679,7 @@ internal sealed partial class StructureSystem
             return false;
         }
 
-        if (_host.GetExperimentalOwnedSentryCount(player.Id) >= _host.GetExperimentalMaxOwnedSentries(player))
+        if (_host.ExperimentalRules.GetExperimentalOwnedSentryCount(player.Id) >= _host.ExperimentalRules.GetExperimentalMaxOwnedSentries(player))
         {
             return false;
         }
@@ -714,7 +714,7 @@ internal sealed partial class StructureSystem
             placementX,
             placementY,
             startDirectionX,
-            _host.GetExperimentalSentryMaxHealth(player));
+            _host.ExperimentalRules.GetExperimentalSentryMaxHealth(player));
         _host.WorldObjects.Sentries.Add(sentryEntity);
         _host.EntityStore.Add(sentryEntity);
         return true;

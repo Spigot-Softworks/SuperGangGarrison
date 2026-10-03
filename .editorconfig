@@ -27,3 +27,10 @@ indent_size = 2
 
 [*.{cmd,bat}]
 end_of_line = crlf
+
+# Dead-code checks for the simulation. Reported in the build because
+# OpenGarrison.Core sets EnforceCodeStyleInBuild (Directory.Build.props).
+[Core/Simulation/**.cs]
+dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0052.severity = warning

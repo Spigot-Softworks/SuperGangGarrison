@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld

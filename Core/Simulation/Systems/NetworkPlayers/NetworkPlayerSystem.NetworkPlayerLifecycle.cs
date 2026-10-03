@@ -11,7 +11,7 @@ internal sealed partial class NetworkPlayerSystem
     {
         if (_host.LocalPlayer.IsAlive)
         {
-            _host.KillPlayer(_host.LocalPlayer);
+            _host.PlayerDeaths.KillPlayer(_host.LocalPlayer);
         }
     }
 
@@ -22,7 +22,7 @@ internal sealed partial class NetworkPlayerSystem
             return false;
         }
 
-        _host.KillPlayer(player);
+        _host.PlayerDeaths.KillPlayer(player);
         return true;
     }
 
@@ -92,24 +92,24 @@ internal sealed partial class NetworkPlayerSystem
             return false;
         }
 
-        _host.TryFailLastToDieSpyAfterlifeOnDisconnect(slot, player);
+        _host.LastToDieRules.TryFailLastToDieSpyAfterlifeOnDisconnect(slot, player);
         TryClearNetworkPlayerInputOverride(slot);
-        _host.TryDropCarriedIntel(player);
-        _host.TrySetNetworkPlayerReady(slot, ready: false);
-        _host.RemoveOwnedSpyArtifacts(player.Id);
-        _host.RemoveOwnedSentries(player.Id);
-        _host.RemoveOwnedMines(player.Id);
-        _host.RemoveOwnedProjectiles(player.Id);
-        _host.ClearLastToDieStatusEffectsForReleasedPlayer(player.Id);
-        _host.ClearLastToDieSniperMarksTargeting(slot);
+        _host.ObjectiveRules.TryDropCarriedIntel(player);
+        _host.ReadyUp.TrySetNetworkPlayerReady(slot, ready: false);
+        _host.Projectiles.RemoveOwnedSpyArtifacts(player.Id);
+        _host.Projectiles.RemoveOwnedSentries(player.Id);
+        _host.Projectiles.RemoveOwnedMines(player.Id);
+        _host.Projectiles.RemoveOwnedProjectiles(player.Id);
+        _host.LastToDieRules.ClearLastToDieStatusEffectsForReleasedPlayer(player.Id);
+        _host.LastToDieRules.ClearLastToDieSniperMarksTargeting(slot);
         _host.LastToDieState.PerkRuntimesBySlot.Remove(slot);
         _host.LastToDieState.LegacyGameplaySettingsBySlot.Remove(slot);
         player.ClearLastToDieWeaponProfile();
         player.ClearLastToDiePerkModifiers();
-        _host.ClearDominationsForPlayer(player);
+        _host.CombatFeedback.ClearDominationsForPlayer(player);
         TrySetNetworkPlayerAwaitingJoin(slot, true);
         TrySetNetworkPlayerRespawnTicks(slot, 0);
-        _host.SetNetworkPlayerDeathCam(slot, null);
+        _host.PlayerDeaths.SetNetworkPlayerDeathCam(slot, null);
         TrySetNetworkPlayerClassDefinition(slot, CharacterClassCatalog.Scout);
         TrySetNetworkPlayerConfiguredTeam(slot, GetDefaultNetworkPlayerTeam(slot));
         ConsumePendingNetworkPlayerTeamSelection(slot);
@@ -121,8 +121,8 @@ internal sealed partial class NetworkPlayerSystem
         _host.PlayerRegistry.MaxHealthOverrides.Remove(slot);
         _host.PlayerRegistry.BotSlots.Remove(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        _host.SyncExperimentalGameplayLoadout(slot, player);
-        _host.ApplyServerGameplayTuning(slot, player);
+        _host.ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
+        _host.ServerTuning.ApplyServerGameplayTuning(slot, player);
         player.SetDisplayName(GetNetworkPlayerDefaultName(slot));
         player.SetBadgeMask(0);
         player.ResetRoundStats();
@@ -191,17 +191,17 @@ internal sealed partial class NetworkPlayerSystem
         SetNetworkPlayerEnabled(slot, true);
         TrySetNetworkPlayerAwaitingJoin(slot, false);
         TrySetNetworkPlayerRespawnTicks(slot, 0);
-        _host.SetNetworkPlayerDeathCam(slot, null);
+        _host.PlayerDeaths.SetNetworkPlayerDeathCam(slot, null);
         ConsumePendingNetworkPlayerTeamSelection(slot);
 
         var team = GetNetworkPlayerConfiguredTeam(slot);
         player.SetClassDefinition(GetNetworkPlayerClassDefinition(slot));
-        if (!_host.SpawnPlayerResolved(player, team, _host.ReserveSpawn(player, team, slot), playRespawnSound: playRespawnSound))
+        if (!_host.Spawns.SpawnPlayerResolved(player, team, _host.Spawns.ReserveSpawn(player, team, slot), playRespawnSound: playRespawnSound))
         {
             return false;
         }
 
-        _host.SyncExperimentalGameplayLoadout(slot, player);
+        _host.ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
         return true;
     }
 
@@ -225,11 +225,11 @@ internal sealed partial class NetworkPlayerSystem
         SetNetworkPlayerEnabled(slot, true);
         TrySetNetworkPlayerAwaitingJoin(slot, true);
         TrySetNetworkPlayerRespawnTicks(slot, 0);
-        _host.SetNetworkPlayerDeathCam(slot, null);
+        _host.PlayerDeaths.SetNetworkPlayerDeathCam(slot, null);
         ConsumePendingNetworkPlayerTeamSelection(slot);
 
-        _host.ClearDominationsForPlayer(player);
-        _host.ClearLastToDieStatusEffectsForTarget(player.Id);
+        _host.CombatFeedback.ClearDominationsForPlayer(player);
+        _host.LastToDieRules.ClearLastToDieStatusEffectsForTarget(player.Id);
         player.ClearMedicHealingTarget();
         player.Kill();
 
@@ -249,13 +249,13 @@ internal sealed partial class NetworkPlayerSystem
 
     internal bool TryCompleteNetworkPlayerJoinState(byte slot, string gameplayClassId)
     {
-        var definition = _host.ResolveMapForcedClassDefinition(slot, CharacterClassCatalog.GetDefinition(gameplayClassId));
+        var definition = _host.ClassRules.ResolveMapForcedClassDefinition(slot, CharacterClassCatalog.GetDefinition(gameplayClassId));
         if (slot != SimulationConstants.LocalPlayerSlot)
         {
             EnsureAdditionalNetworkPlayer(slot);
         }
 
-        if (!_host.CanApplyNetworkPlayerClassLimit(slot, definition)
+        if (!_host.ClassRules.CanApplyNetworkPlayerClassLimit(slot, definition)
             || !TrySetNetworkPlayerClassDefinition(slot, definition)
             || !TryGetNetworkPlayer(slot, out var player))
         {
@@ -263,7 +263,7 @@ internal sealed partial class NetworkPlayerSystem
         }
 
         player.SetClassDefinition(definition);
-        _host.SyncExperimentalGameplayLoadout(slot, player);
+        _host.ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
         ConsumePendingNetworkPlayerTeamSelection(slot);
         return TryForceRespawnNetworkPlayer(slot, playRespawnSound: false);
     }

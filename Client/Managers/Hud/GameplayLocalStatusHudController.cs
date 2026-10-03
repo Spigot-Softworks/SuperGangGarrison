@@ -1280,7 +1280,7 @@ public sealed class GameplayLocalStatusHudController
             foreach (var item in player.GetGameplayAbilityItems())
             {
                 if (item.Ability is { } ability
-                    && _context._world.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(ability))
+                    && _context._world.Abilities.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(ability))
                 {
                     continue;
                 }
@@ -1311,7 +1311,7 @@ public sealed class GameplayLocalStatusHudController
                 {
                     if (!CharacterClassCatalog.RuntimeRegistry.TryGetItem(abilityItemId, out var abilityItem)
                         || abilityItem.Ability is null
-                        || _context._world.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(abilityItem.Ability)
+                        || _context._world.Abilities.IsGameplayAbilityBlockedBySpecialAbilitiesSetting(abilityItem.Ability)
                         || !ShouldShowStowedGrantedAbilityHud(abilityItem.Presentation.Hud)
                         || !seenItemIds.Add(abilityItem.Id))
                     {

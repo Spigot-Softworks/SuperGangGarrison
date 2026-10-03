@@ -93,8 +93,6 @@ public sealed partial class ProjectileSystem
 
     private static class RocketProjectileSystem
     {
-        private static readonly Lazy<GameMakerAssetManifest> _gameMakerAssets = new(GameMakerRuntimeAssetManifestLoader.LoadPackagedOrProjectAssets);
-
         public static void Advance(ProjectileSystem projectiles)
         {
             var deltaSeconds = (float)projectiles.Config.FixedDeltaSeconds;
@@ -601,89 +599,6 @@ public sealed partial class ProjectileSystem
             projectiles.GetCachedPlayerPresentationHitBounds(player, out left, out top, out right, out bottom);
         }
 
-        private static string? GetStandingSpriteName(ProjectileSystem projectiles, PlayerEntity player)
-        {
-            var leanDirection = GetPlayerLeanDirection(projectiles, player);
-            if (leanDirection == 0)
-            {
-                return GetPresentationSpriteName(player.ClassId, player.Team, static presentation => presentation.StandSuffix ?? presentation.BaseSuffix, "StandS");
-            }
-
-            var facingLeft = player.IsSourceFacingLeft;
-            return leanDirection < 0
-                ? GetPresentationFacingSpriteName(
-                    player.ClassId,
-                    player.Team,
-                    static presentation => presentation.LeanRightSuffix ?? presentation.BaseSuffix,
-                    static presentation => presentation.LeanLeftSuffix ?? presentation.BaseSuffix,
-                    facingLeft,
-                    "LeanRS",
-                    "LeanLS")
-                : GetPresentationFacingSpriteName(
-                    player.ClassId,
-                    player.Team,
-                    static presentation => presentation.LeanLeftSuffix ?? presentation.BaseSuffix,
-                    static presentation => presentation.LeanRightSuffix ?? presentation.BaseSuffix,
-                    facingLeft,
-                    "LeanLS",
-                    "LeanRS");
-        }
-
-        private static int GetPlayerLeanDirection(ProjectileSystem projectiles, PlayerEntity player)
-        {
-            var playerScale = player.PlayerScale;
-            var bottom = player.Bottom + (2f * playerScale);
-            var openRight = !IsPointBlockedForRocketPresentation(projectiles, player, player.X + (6f * playerScale), bottom)
-                && !IsPointBlockedForRocketPresentation(projectiles, player, player.X + (2f * playerScale), bottom);
-            var openLeft = !IsPointBlockedForRocketPresentation(projectiles, player, player.X - (7f * playerScale), bottom)
-                && !IsPointBlockedForRocketPresentation(projectiles, player, player.X - (3f * playerScale), bottom);
-            var leanDirection = 0;
-            if (openRight)
-            {
-                leanDirection = 1;
-            }
-
-            if (openLeft)
-            {
-                leanDirection = -1;
-            }
-
-            if (openRight && openLeft)
-            {
-                openRight = !IsPointBlockedForRocketPresentation(projectiles, player, player.Right - playerScale, bottom);
-                openLeft = !IsPointBlockedForRocketPresentation(projectiles, player, player.Left, bottom);
-                leanDirection = 0;
-                if (openRight)
-                {
-                    leanDirection = 1;
-                }
-
-                if (openLeft)
-                {
-                    leanDirection = -1;
-                }
-            }
-
-            return leanDirection;
-        }
-
-        private static bool HasGroundSupportForRocketPresentation(ProjectileSystem projectiles, PlayerEntity player)
-        {
-            if (player.VerticalSpeed < 0f)
-            {
-                return false;
-            }
-
-            var playerScale = player.PlayerScale;
-            var probeY = player.Bottom + playerScale;
-            var leftProbeX = player.Left + MathF.Max(1f, 2f * playerScale);
-            var centerProbeX = player.X;
-            var rightProbeX = player.Right - MathF.Max(1f, 2f * playerScale);
-            return IsPointBlockedForRocketPresentation(projectiles, player, leftProbeX, probeY)
-                || IsPointBlockedForRocketPresentation(projectiles, player, centerProbeX, probeY)
-                || IsPointBlockedForRocketPresentation(projectiles, player, rightProbeX, probeY);
-        }
-
         private static bool IsPointBlockedForRocketPresentation(ProjectileSystem projectiles, PlayerEntity player, float x, float y)
         {
             foreach (var solid in projectiles.Level.Solids)
@@ -716,39 +631,6 @@ public sealed partial class ProjectileSystem
             }
 
             return SimpleLevelBarrierCollision.BlocksPointForProjectile(projectiles.Level, player.Team, x, y);
-        }
-
-        private static string? GetPlayerSpriteName(PlayerClass classId, PlayerTeam team)
-        {
-            return GetPresentationSpriteName(classId, team, static presentation => presentation.BaseSuffix, "S");
-        }
-
-        private static string? GetPresentationSpriteName(
-            PlayerClass classId,
-            PlayerTeam team,
-            Func<GameplayClassPresentationDefinition, string> suffixSelector,
-            string legacySuffix)
-        {
-            var presentation = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(classId).Presentation;
-            return GetTeamSpriteName(classId, team, presentation is null ? legacySuffix : suffixSelector(presentation));
-        }
-
-        private static string? GetPresentationFacingSpriteName(
-            PlayerClass classId,
-            PlayerTeam team,
-            Func<GameplayClassPresentationDefinition, string> facingLeftSuffixSelector,
-            Func<GameplayClassPresentationDefinition, string> facingRightSuffixSelector,
-            bool facingLeft,
-            string legacyFacingLeftSuffix,
-            string legacyFacingRightSuffix)
-        {
-            var presentation = CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(classId).Presentation;
-            return GetTeamSpriteName(
-                classId,
-                team,
-                presentation is null
-                    ? (facingLeft ? legacyFacingLeftSuffix : legacyFacingRightSuffix)
-                    : (facingLeft ? facingLeftSuffixSelector(presentation) : facingRightSuffixSelector(presentation)));
         }
 
         private static string? GetTeamSpriteName(PlayerClass classId, PlayerTeam team, string suffix)

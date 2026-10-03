@@ -13,7 +13,7 @@ internal sealed partial class DamageRulesSystem
         RegisterHealingEvent(target, appliedHealing);
         if (!string.IsNullOrWhiteSpace(soundName))
         {
-            _host.RegisterWorldSoundEvent(soundName, soundX, soundY);
+            _host.WorldEffects.RegisterWorldSoundEvent(soundName, soundX, soundY);
         }
 
         return appliedHealing;

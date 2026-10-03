@@ -2,11 +2,6 @@ namespace OpenGarrison.Core;
 
 internal sealed partial class WeaponFireHandler
 {
-    private void FireMinigun(PlayerEntity attacker, float aimWorldX, float aimWorldY)
-    {
-        FireMinigun(attacker, attacker.PrimaryWeapon, attacker.ClassId, aimWorldX, aimWorldY, killFeedWeaponSpriteNameOverride: null);
-    }
-
     private void FireMinigun(
         PlayerEntity attacker,
         PrimaryWeaponDefinition weaponDefinition,
@@ -35,7 +30,7 @@ internal sealed partial class WeaponFireHandler
         var directionX = DeterministicMath.Cos(pelletAngle);
         var directionY = DeterministicMath.Sin(pelletAngle);
         var shotSpeed = GetWeaponShotSpeed(weaponDefinition);
-        var (launchedVelocityX, launchedVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (launchedVelocityX, launchedVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             directionX * shotSpeed,
             directionY * shotSpeed);
@@ -57,7 +52,7 @@ internal sealed partial class WeaponFireHandler
             playerKnockbackScale: weaponDefinition.PlayerKnockbackScale,
             playerSlowMovementMultiplier: weaponDefinition.PlayerSlowMovementMultiplier,
             playerSlowRefreshTicks: weaponDefinition.PlayerSlowRefreshSourceTicks > 0
-                ? _host.GetSimulationTicksFromSourceTicks(weaponDefinition.PlayerSlowRefreshSourceTicks)
+                ? _host.Projectiles.GetSimulationTicksFromSourceTicks(weaponDefinition.PlayerSlowRefreshSourceTicks)
                 : 0,
             playerKnockbackImpulse: knockbackPayload.Impulse,
             playerKnockbackAirborneVerticalScale: knockbackPayload.AirborneVerticalScale,
@@ -172,7 +167,7 @@ internal sealed partial class WeaponFireHandler
             var directionX = DeterministicMath.Cos(pelletAngle);
             var directionY = DeterministicMath.Sin(pelletAngle);
             var pelletSpeed = GetWeaponShotSpeed(weaponDefinition);
-            var (launchedVelocityX, launchedVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+            var (launchedVelocityX, launchedVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
                 directionX * pelletSpeed,
                 directionY * pelletSpeed);
@@ -188,7 +183,7 @@ internal sealed partial class WeaponFireHandler
                 playerKnockbackScale: weaponDefinition.PlayerKnockbackScale,
                 playerSlowMovementMultiplier: weaponDefinition.PlayerSlowMovementMultiplier,
                 playerSlowRefreshTicks: weaponDefinition.PlayerSlowRefreshSourceTicks > 0
-                    ? _host.GetSimulationTicksFromSourceTicks(weaponDefinition.PlayerSlowRefreshSourceTicks)
+                    ? _host.Projectiles.GetSimulationTicksFromSourceTicks(weaponDefinition.PlayerSlowRefreshSourceTicks)
                     : 0,
                 playerKnockbackImpulse: knockbackPayload.Impulse,
                 playerKnockbackAirborneVerticalScale: knockbackPayload.AirborneVerticalScale,
@@ -211,9 +206,9 @@ internal sealed partial class WeaponFireHandler
         float baseAngle,
         string? killFeedWeaponSpriteNameOverride)
     {
-        var settings = _host.GetLastToDieGameplaySettings(attacker);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(attacker);
         if (weaponClassId != PlayerClass.Engineer
-            || !_host.IsExperimentalPracticePowerOwner(attacker)
+            || !_host.ExperimentalRules.IsExperimentalPracticePowerOwner(attacker)
             || !settings.EnableEngineerExperimentalOverkillAugment)
         {
             return;
@@ -230,7 +225,7 @@ internal sealed partial class WeaponFireHandler
             (int)MathF.Round(Config.TicksPerSecond * ExperimentalGameplaySettings.DefaultEngineerCaveatInjectorRocketLockDelaySeconds));
         var spawnX = weaponOrigin.BaseX + DeterministicMath.Cos(baseAngle) * 20f;
         var spawnY = weaponOrigin.BaseY + DeterministicMath.Sin(baseAngle) * 20f;
-        var explodeImmediately = _host.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team);
+        var explodeImmediately = _host.GeometryResolver.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team);
         for (var rocketIndex = 0; rocketIndex < ExperimentalGameplaySettings.DefaultEngineerExperimentalOverkillAugmentRocketCount; rocketIndex += 1)
         {
             var spreadOffset = ExperimentalGameplaySettings.DefaultEngineerExperimentalOverkillAugmentRocketCount == 1
@@ -277,17 +272,6 @@ internal sealed partial class WeaponFireHandler
             forceGibOnKill: true);
     }
 
-    private void FireRocketLauncher(PlayerEntity attacker, float aimWorldX, float aimWorldY)
-    {
-        FireRocketLauncher(
-            attacker,
-            attacker.PrimaryWeapon,
-            attacker.ClassId,
-            aimWorldX,
-            aimWorldY,
-            CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(attacker.GameplayClassId));
-    }
-
     private void FireRocketLauncher(
         PlayerEntity attacker,
         PrimaryWeaponDefinition weaponDefinition,
@@ -307,11 +291,11 @@ internal sealed partial class WeaponFireHandler
         var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
         var spawnX = weaponOrigin.BaseX + DeterministicMath.Cos(directionRadians) * 20f;
         var spawnY = weaponOrigin.BaseY + DeterministicMath.Sin(directionRadians) * 20f;
-        var explodeImmediately = _host.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team);
-        var experimentalSoldierPerkOwner = _host.IsExperimentalPracticePowerOwner(attacker)
+        var explodeImmediately = _host.GeometryResolver.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, spawnX, spawnY, attacker.Team);
+        var experimentalSoldierPerkOwner = _host.ExperimentalRules.IsExperimentalPracticePowerOwner(attacker)
             && attacker.ClassId == PlayerClass.Soldier;
-        var soldierSettings = _host.GetLastToDieGameplaySettings(attacker);
-        var rocketCombat = _host.ApplyExperimentalSoldierRocketCombat(attacker, weaponDefinition.RocketCombat);
+        var soldierSettings = _host.LastToDieRules.GetLastToDieGameplaySettings(attacker);
+        var rocketCombat = _host.ExperimentalRules.ApplyExperimentalSoldierRocketCombat(attacker, weaponDefinition.RocketCombat);
         var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
         for (var projectileIndex = 0; projectileIndex < projectileCount; projectileIndex += 1)
         {
@@ -322,7 +306,7 @@ internal sealed partial class WeaponFireHandler
                 attacker,
                 spawnX,
                 spawnY,
-                _host.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
+                _host.ExperimentalRules.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
                 directionRadians + spreadOffset,
                 rocketCombat,
                 weaponDefinition.DirectHitHealAmount ?? 0f,
@@ -342,11 +326,11 @@ internal sealed partial class WeaponFireHandler
             && !attacker.LastPrimaryShotIgnoredAmmoCost
             && attacker.CurrentShells == 0)
         {
-            _host.QueueExperimentalSoldierFinalRocketBurst(
+            _host.ExperimentalRules.QueueExperimentalSoldierFinalRocketBurst(
                 attacker,
                 spawnX,
                 spawnY,
-                _host.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
+                _host.ExperimentalRules.ApplyExperimentalSoldierRocketLaunchSpeed(attacker, weaponDefinition.MinShotSpeed),
                 directionRadians,
                 rocketCombat,
                 weaponDefinition.DirectHitHealAmount ?? 0f,
@@ -358,17 +342,6 @@ internal sealed partial class WeaponFireHandler
                 enableStingerTracking: experimentalSoldierPerkOwner && soldierSettings.EnableSoldierStingerRockets,
                 killFeedWeaponSpriteNameOverride: killFeedWeaponSpriteNameOverride);
         }
-    }
-
-    private void FireRevolver(PlayerEntity attacker, float aimWorldX, float aimWorldY)
-    {
-        FireRevolver(
-            attacker,
-            attacker.PrimaryWeapon,
-            attacker.ClassId,
-            aimWorldX,
-            aimWorldY,
-            CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(attacker.GameplayClassId));
     }
 
     private void FireRevolver(
@@ -413,7 +386,7 @@ internal sealed partial class WeaponFireHandler
             ? lastToDieProfile.PelletCount
             : GetExperimentalProjectilesPerShot(attacker, weaponDefinition.ProjectilesPerShot);
         var deadlyCritical = lastToDieProfile.DeadlyEnabled
-            && _host.TryRollLastToDieSpyDeadlyCritical(attacker);
+            && _host.LastToDieRules.TryRollLastToDieSpyDeadlyCritical(attacker);
         var appliesLuckyStrikeStun = lastToDieProfile.LuckyStrikeEnabled
             && attacker.LastPrimaryShotAppliesLastToDieLuckyStrikeStun;
         var knockbackPayload = BulletKnockbackRules.ResolvePayload(weaponDefinition, projectileCount);
@@ -432,13 +405,13 @@ internal sealed partial class WeaponFireHandler
                     projectileIndex,
                     projectileCount);
             var finalAngle = directionRadians + spreadRadians;
-            var (finalVelocityX, finalVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+            var (finalVelocityX, finalVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
                 DeterministicMath.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
                 DeterministicMath.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
             var nominalSpawnX = shotOriginX + DeterministicMath.Cos(finalAngle) * barrelForwardOffset;
             var nominalSpawnY = shotOriginY + DeterministicMath.Sin(finalAngle) * barrelForwardOffset;
-            var spawnBlocked = _host.IsProjectileSpawnBlocked(shotOriginX, shotOriginY, nominalSpawnX, nominalSpawnY, attacker.Team);
+            var spawnBlocked = _host.GeometryResolver.IsProjectileSpawnBlocked(shotOriginX, shotOriginY, nominalSpawnX, nominalSpawnY, attacker.Team);
             SpawnRevolverShot(
                 attacker,
                 spawnBlocked ? shotOriginX : nominalSpawnX,
@@ -456,17 +429,6 @@ internal sealed partial class WeaponFireHandler
         }
     }
 
-    private void FireMineLauncher(PlayerEntity attacker, float aimWorldX, float aimWorldY)
-    {
-        FireMineLauncher(
-            attacker,
-            attacker.PrimaryWeapon,
-            attacker.ClassId,
-            aimWorldX,
-            aimWorldY,
-            CharacterClassCatalog.GetPrimaryWeaponKillFeedSprite(attacker.GameplayClassId));
-    }
-
     private void FireMineLauncher(
         PlayerEntity attacker,
         PrimaryWeaponDefinition weaponDefinition,
@@ -477,7 +439,7 @@ internal sealed partial class WeaponFireHandler
     {
         if (CountOwnedMines(attacker.Id) >= weaponDefinition.MaxAmmo)
         {
-            _host.ExplodeOldestMine(attacker.Id, triggerNearbyMines: false);
+            _host.ExplosionRules.ExplodeOldestMine(attacker.Id, triggerNearbyMines: false);
         }
 
         var weaponOrigin = GetSourceWeaponOrigin(attacker, weaponClassId);
@@ -491,7 +453,7 @@ internal sealed partial class WeaponFireHandler
         var directionRadians = DeterministicMath.Atan2(aimDeltaY, aimDeltaX);
         var nominalSpawnX = weaponOrigin.BaseX + DeterministicMath.Cos(directionRadians) * 10f;
         var nominalSpawnY = weaponOrigin.BaseY + DeterministicMath.Sin(directionRadians) * 10f;
-        var spawnBlocked = _host.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, nominalSpawnX, nominalSpawnY, attacker.Team);
+        var spawnBlocked = _host.GeometryResolver.IsProjectileSpawnBlocked(weaponOrigin.BaseX, weaponOrigin.BaseY, nominalSpawnX, nominalSpawnY, attacker.Team);
         var spawnX = spawnBlocked ? weaponOrigin.BaseX : nominalSpawnX;
         var spawnY = spawnBlocked ? weaponOrigin.BaseY : nominalSpawnY;
         var projectileCount = GetExperimentalProjectilesPerShot(attacker, 1);
@@ -501,7 +463,7 @@ internal sealed partial class WeaponFireHandler
                 ? 0f
                 : DegreesToRadians((projectileIndex - ((projectileCount - 1) * 0.5f)) * 7.5f);
             var finalAngle = directionRadians + spreadOffset;
-            var (finalVelocityX, finalVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+            var (finalVelocityX, finalVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
                 DeterministicMath.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
                 DeterministicMath.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
@@ -556,7 +518,7 @@ internal sealed partial class WeaponFireHandler
                 ? 0f
                 : DegreesToRadians((projectileIndex - ((projectileCount - 1) * 0.5f)) * 7.5f);
             var finalAngle = directionRadians + spreadOffset;
-            var (finalVelocityX, finalVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+            var (finalVelocityX, finalVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
                 attacker,
                 DeterministicMath.Cos(finalAngle) * weaponDefinition.MinShotSpeed,
                 DeterministicMath.Sin(finalAngle) * weaponDefinition.MinShotSpeed);
@@ -597,7 +559,7 @@ internal sealed partial class WeaponFireHandler
             gravityPerTick,
             chargeFraction,
             unreachableLobBiasDegrees);
-        var (finalVelocityX, finalVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (finalVelocityX, finalVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             DeterministicMath.Cos(throwRadians) * speed,
             DeterministicMath.Sin(throwRadians) * speed);

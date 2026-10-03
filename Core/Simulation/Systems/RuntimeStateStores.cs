@@ -1,5 +1,3 @@
-using OpenGarrison.Protocol;
-
 namespace OpenGarrison.Core;
 
 /// <summary>Owns the configurable match rules and tuning scales that the host applies to a simulation.</summary>

@@ -16,7 +16,7 @@ internal sealed partial class WeaponFireHandler
         var directionX = DeterministicMath.Cos(directionRadians);
         var directionY = DeterministicMath.Sin(directionRadians);
         var bubbleSpeed = 10f;
-        var (launchedVelocityX, launchedVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (launchedVelocityX, launchedVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             directionX * bubbleSpeed,
             directionY * bubbleSpeed);
@@ -105,7 +105,7 @@ internal sealed partial class WeaponFireHandler
         var directionY = DeterministicMath.Sin(directionRadians);
         var spawnX = weaponOrigin.BaseX + (directionX * 13f);
         var spawnY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset + (directionY * 13f);
-        if (_host.IsProjectileSpawnBlocked(
+        if (_host.GeometryResolver.IsProjectileSpawnBlocked(
                 weaponOrigin.BaseX,
                 weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset,
                 spawnX,
@@ -116,7 +116,7 @@ internal sealed partial class WeaponFireHandler
             spawnY = weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset;
         }
 
-        var (velocityX, velocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (velocityX, velocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             directionX * speed,
             directionY * speed);
@@ -203,7 +203,7 @@ internal sealed partial class WeaponFireHandler
             ? minSpeed + (_random.NextSingle() * additionalRandomSpeed)
             : minSpeed;
 
-        var (launchedVelocityX, launchedVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (launchedVelocityX, launchedVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             DeterministicMath.Cos(directionRadians) * speed,
             DeterministicMath.Sin(directionRadians) * speed);
@@ -236,7 +236,7 @@ internal sealed partial class WeaponFireHandler
             attacker.FacingDirectionX,
             PlayerEntity.SniperBowPivotOffsetX,
             PlayerEntity.SniperBowPivotOffsetY + weaponOrigin.EquipmentOffset);
-        var (launchedVelocityX, launchedVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (launchedVelocityX, launchedVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             velocityX,
             velocityY);
@@ -269,7 +269,7 @@ internal sealed partial class WeaponFireHandler
             + (directionY * 20f);
         var speed = MathF.Max(0f, weapon.MinShotSpeed)
             + (MathF.Max(0f, weapon.AdditionalRandomShotSpeed) * chargeFraction);
-        var (velocityX, velocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (velocityX, velocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             directionX * speed,
             directionY * speed);
@@ -278,7 +278,7 @@ internal sealed partial class WeaponFireHandler
         var finalDirection = finalSpeed > 0.0001f
             ? DeterministicMath.Atan2(velocityY, velocityX)
             : directionRadians;
-        var explodeImmediately = _host.IsProjectileSpawnBlocked(
+        var explodeImmediately = _host.GeometryResolver.IsProjectileSpawnBlocked(
             weaponOrigin.BaseX,
             weaponOrigin.BaseY + weaponOrigin.WeaponYOffset + weaponOrigin.EquipmentOffset,
             spawnX,
@@ -322,7 +322,7 @@ internal sealed partial class WeaponFireHandler
             attacker.FacingDirectionX,
             PlayerEntity.SniperBowPivotOffsetX,
             PlayerEntity.SniperBowPivotOffsetY + weaponOrigin.EquipmentOffset);
-        _host.SpawnQueuedLastToDieSniperArrow(
+        _host.Projectiles.SpawnQueuedLastToDieSniperArrow(
             attacker,
             pivotRay.PivotX,
             pivotRay.PivotY,
@@ -395,7 +395,7 @@ internal sealed partial class WeaponFireHandler
             ? minSpeed + (_random.NextSingle() * additionalSpeed)
             : minSpeed;
 
-        var (launchedVelocityX, launchedVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var (launchedVelocityX, launchedVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             DeterministicMath.Cos(directionRadians) * speed,
             DeterministicMath.Sin(directionRadians) * speed);
@@ -442,8 +442,8 @@ internal sealed partial class WeaponFireHandler
         var directionRadians = DeterministicMath.Atan2(aimWorldY - shotOriginY, aimWorldX - shotOriginX) + spreadRadians;
         var nominalSpawnX = shotOriginX + DeterministicMath.Cos(directionRadians) * barrelForwardOffset;
         var nominalSpawnY = shotOriginY + DeterministicMath.Sin(directionRadians) * barrelForwardOffset;
-        var spawnBlocked = _host.IsProjectileSpawnBlocked(shotOriginX, shotOriginY, nominalSpawnX, nominalSpawnY, attacker.Team);
-        var (finalVelocityX, finalVelocityY) = _host.ApplyExperimentalProjectileSpeedMultiplier(
+        var spawnBlocked = _host.GeometryResolver.IsProjectileSpawnBlocked(shotOriginX, shotOriginY, nominalSpawnX, nominalSpawnY, attacker.Team);
+        var (finalVelocityX, finalVelocityY) = _host.ExperimentalRules.ApplyExperimentalProjectileSpeedMultiplier(
             attacker,
             DeterministicMath.Cos(directionRadians) * MathF.Max(0f, projectileSpeed),
             DeterministicMath.Sin(directionRadians) * MathF.Max(0f, projectileSpeed));

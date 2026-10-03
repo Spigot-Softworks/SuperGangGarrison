@@ -20,7 +20,7 @@ internal sealed partial class LastToDieRulesSystem
         _pendingLastToDieSpyAfterlifeDeathsByPlayerId = [];
 
     internal bool IsLastToDieSpyAfterlifeWindowActive(byte slot) =>
-        _host.TryGetNetworkPlayer(slot, out var player)
+        _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
         && player.IsLastToDieSpyAfterlifeActive
         && _pendingLastToDieSpyAfterlifeDeathsByPlayerId.ContainsKey(player.Id);
 
@@ -42,7 +42,7 @@ internal sealed partial class LastToDieRulesSystem
         bool recordKillFeed,
         int assistingPlayerId)
     {
-        if (!_host.TryGetNetworkPlayerSlot(player, out _)
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayerSlot(player, out _)
             || _pendingLastToDieSpyAfterlifeDeathsByPlayerId.ContainsKey(player.Id)
             || !player.TryStartLastToDieSpyAfterlife(_host.Config.TicksPerSecond))
         {
@@ -63,8 +63,8 @@ internal sealed partial class LastToDieRulesSystem
                 forceCorpseRemains,
                 recordKillFeed,
                 assistingPlayerId);
-        _host.TryDropCarriedIntel(player);
-        _host.MarkPendingFatalPlayerDamageEventPrevented(player.Id);
+        _host.ObjectiveRules.TryDropCarriedIntel(player);
+        _host.Combat.MarkPendingFatalPlayerDamageEventPrevented(player.Id);
         return true;
     }
 
@@ -92,7 +92,7 @@ internal sealed partial class LastToDieRulesSystem
         var killer = pendingDeath.KillerPlayerId > 0
             ? _host.FindPlayerById(pendingDeath.KillerPlayerId)
             : null;
-        _host.KillPlayer(
+        _host.PlayerDeaths.KillPlayer(
             player,
             pendingDeath.Gibbed,
             killer,

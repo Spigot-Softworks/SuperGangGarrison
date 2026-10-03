@@ -1,5 +1,3 @@
-using OpenGarrison.Core.LastToDie;
-using OpenGarrison.GameplayModding;
 using OpenGarrison.Protocol;
 
 namespace OpenGarrison.Core;
@@ -8,13 +6,10 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld
 {
     public void ClearLastToDieDroneSentries() => Structures.ClearLastToDieDroneSentries();
-    private void DestroyJumpPad(JumpPadEntity pad) => Structures.DestroyJumpPad(pad);
-    private void DestroySentry(SentryEntity sentry, PlayerEntity? attacker = null) => Structures.DestroySentry(sentry, attacker);
     public bool IsLastToDieDroneSentry(SentryEntity sentry) => Structures.IsLastToDieDroneSentry(sentry);
     public bool IsNearPrimaryWeaponSwapStation(PlayerEntity player) => Structures.IsNearPrimaryWeaponSwapStation(player);
     public int LastToDieDroneSentryCount => Structures.LastToDieDroneSentryCount;
     public SentryEntity SpawnLastToDieDroneSentry(PlayerTeam team, float x, float y, float startDirectionX, int maxHealth = SentryEntity.DefaultMaxHealth) => Structures.SpawnLastToDieDroneSentry(team, x, y, startDirectionX, maxHealth);
-    private bool TryBuildJumpPad(PlayerEntity player, bool ignoreMetalCost = false) => Structures.TryBuildJumpPad(player, ignoreMetalCost);
     public bool TryBuildLocalDispenser() => Structures.TryBuildLocalDispenser();
     public bool TryBuildLocalJumpPad() => Structures.TryBuildLocalJumpPad();
     public bool TryBuildLocalSentry() => Structures.TryBuildLocalSentry();

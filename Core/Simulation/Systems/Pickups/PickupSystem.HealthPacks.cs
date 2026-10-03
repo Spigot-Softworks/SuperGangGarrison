@@ -25,7 +25,7 @@ internal sealed partial class PickupSystem
                     continue;
                 }
 
-                if (_host.ShouldCancelPickup(
+                if (_host.Decisions.ShouldCancelPickup(
                         WorldPickupKind.HealthPack,
                         player,
                         healthPack.Id,
@@ -37,7 +37,7 @@ internal sealed partial class PickupSystem
                 }
 
                 var healAmount = healthPack.GetHealAmount(player) * player.ExperimentalHealthPackHealingMultiplier;
-                if (_host.ApplyHealingWithFeedback(
+                if (_host.DamageRules.ApplyHealingWithFeedback(
                         player,
                         healAmount,
                         soundName: "CbntHealSnd",
@@ -202,7 +202,7 @@ internal sealed partial class PickupSystem
             return;
         }
 
-        var settings = _host.GetLastToDieGameplaySettings(killer);
+        var settings = _host.LastToDieRules.GetLastToDieGameplaySettings(killer);
         var dropChance = settings.EnemyHealthPackDropChance;
         if (!settings.EnableEnemyHealthPackDrops
             || dropChance <= 0f

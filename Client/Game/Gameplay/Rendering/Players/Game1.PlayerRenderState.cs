@@ -326,6 +326,8 @@ public partial class Game1
         // Detect weapon switches (local or replicated) and reset animation state to avoid
         // stale ammo/cooldown comparisons from the previous weapon driving incorrect transitions.
         var activeWeaponTag = GetActiveWeaponTag(player);
+        var allowGameplayBackswingClock = !_networkClient.IsConnected
+            || IsUsingPredictedLocalState(player);
         if (activeWeaponTag != renderState.ActiveWeaponTag)
         {
             renderState.ActiveWeaponTag = activeWeaponTag;
@@ -463,7 +465,8 @@ public partial class Game1
                 currentCooldownTicks,
                 immediateLocalPrimaryPress,
                 shotStarted,
-                elapsedSeconds);
+                elapsedSeconds,
+                allowGameplayBackswingClock);
             renderState.FiredThisUpdate = immediateLocalPrimaryPress
                 || IsDemoknightSwordAnimationStart(renderState.PreviousCooldownTicks, currentCooldownTicks);
             renderState.PreviousAmmoCount = currentAmmoCount;
@@ -716,14 +719,15 @@ public partial class Game1
             recoilSeconds - renderState.WeaponAnimationElapsedSeconds);
     }
 
-    private static void UpdateWhippingCordWeaponAnimationState(
+    internal static void UpdateWhippingCordWeaponAnimationState(
         PlayerEntity player,
         PlayerRenderState renderState,
         WeaponRenderDefinition weaponDefinition,
         int currentCooldownTicks,
         bool immediatePress,
         bool swingStarted,
-        float elapsedSeconds)
+        float elapsedSeconds,
+        bool allowGameplayBackswingClock)
     {
         if (weaponDefinition.RecoilSpriteName is null)
         {
@@ -790,7 +794,13 @@ public partial class Game1
             return;
         }
 
-        if (player.IsWhippingCordBackswingActive)
+        if (presentationPhase == WhippingCordPresentationPhase.SwingComplete)
+        {
+            StopWeaponAnimation(renderState);
+            return;
+        }
+
+        if (allowGameplayBackswingClock && player.IsWhippingCordBackswingActive)
         {
             renderState.WeaponAnimationMode = WeaponAnimationMode.Recoil;
             renderState.WeaponAnimationDurationSeconds = recoilSeconds;
@@ -800,12 +810,6 @@ public partial class Game1
             renderState.WeaponAnimationTimeRemainingSeconds = recoilSeconds
                 * (1f - WhippingCordCatalog.FollowThroughProgress)
                 * (1f - player.WhippingCordBackswingProgress);
-            return;
-        }
-
-        if (presentationPhase == WhippingCordPresentationPhase.SwingComplete)
-        {
-            StopWeaponAnimation(renderState);
             return;
         }
 

@@ -30,7 +30,7 @@ internal sealed partial class CombatResolver
     {
         if (roomObject.Type == RoomObjectType.DamageableZone)
         {
-            return _host.BlocksProjectileDamageableZone(roomObjectIndex);
+            return _host.MapLogic.BlocksProjectileDamageableZone(roomObjectIndex);
         }
 
         return IsBlockingProjectileRoomObject(roomObject, shotTeam);
@@ -440,7 +440,7 @@ internal sealed partial class CombatResolver
                 solid.Bottom,
                 distance).HasValue)
             {
-                _host.SetProjectileSpawnBlockedDebug(solid.Left, solid.Top, solid.Width, solid.Height, "LevelSolid");
+                _host.Projectiles.SetProjectileSpawnBlockedDebug(solid.Left, solid.Top, solid.Width, solid.Height, "LevelSolid");
                 return true;
             }
         }
@@ -495,7 +495,7 @@ internal sealed partial class CombatResolver
                         nextX,
                         nextY))
                 {
-                    _host.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
+                    _host.Projectiles.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
                     return true;
                 }
 
@@ -521,7 +521,7 @@ internal sealed partial class CombatResolver
                         distance,
                         out _))
                 {
-                    _host.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
+                    _host.Projectiles.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
                     return true;
                 }
 
@@ -539,7 +539,7 @@ internal sealed partial class CombatResolver
                 roomObject.Bottom,
                 distance).HasValue)
             {
-                _host.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
+                _host.Projectiles.SetProjectileSpawnBlockedDebug(roomObject.Left, roomObject.Top, roomObject.Width, roomObject.Height, $"RoomObject:{roomObject.Type}");
                 return true;
             }
         }
@@ -640,7 +640,7 @@ internal sealed partial class CombatResolver
 
             if (roomObject.Type == RoomObjectType.DamageableZone)
             {
-                if (_host.BlocksProjectileDamageableZone(roomObjectIndex))
+                if (_host.MapLogic.BlocksProjectileDamageableZone(roomObjectIndex))
                 {
                     return true;
                 }

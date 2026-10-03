@@ -18,12 +18,6 @@ public sealed partial class SimulationWorld
             attacker, targetKind, targetEntityId, x, y, amount, wasFatal, playerTarget,
             flags, assistPlayerIdOverride, attackerPlayerIdOverride);
 
-    private void MarkPendingFatalPlayerDamageEventGibbed(int playerId)
-        => Combat.MarkPendingFatalPlayerDamageEventGibbed(playerId);
-
-    private void MarkPendingFatalPlayerDamageEventPrevented(int playerId)
-        => Combat.MarkPendingFatalPlayerDamageEventPrevented(playerId);
-
     private bool ApplyPlayerDamage(
         PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha = 0f,
         DamageEventFlags damageFlags = DamageEventFlags.None,
@@ -150,18 +144,6 @@ public sealed partial class SimulationWorld
         => Combat.TryAbsorbCivvieUmbrellaDamage(
             target, attacker, damageFlags, threatSourceX, threatSourceY, drainTicks,
             criticalBoost, useLiveAttackerCriticalBoost);
-
-    private bool TryAbsorbCivvieUmbrellaProjectileContact(
-        PlayerEntity target, int ownerId, float hitX, float hitY,
-        DamageEventFlags damageFlags = DamageEventFlags.None, bool criticalBoost = false)
-        => Combat.TryAbsorbCivvieUmbrellaProjectileContact(
-            target, ownerId, hitX, hitY, damageFlags, criticalBoost);
-
-    private PlayerEntity? ResolveAssistPlayer(PlayerEntity victim, PlayerEntity killer)
-        => Combat.ResolveAssistPlayer(victim, killer);
-
-    private int ResolveAssistPlayerId(PlayerEntity victim, PlayerEntity killer)
-        => Combat.ResolveAssistPlayerId(victim, killer);
 
     private bool TryBeginPlayerDeath(
         PlayerEntity player,

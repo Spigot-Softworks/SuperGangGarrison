@@ -2,12 +2,11 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld : IDecisionGateHost
 {
-    long IDecisionGateHost.Frame => Frame;
-    int IDecisionGateHost.RedCaps { get => RedCaps; set => RedCaps = value; }
     int IDecisionGateHost.BlueCaps { get => BlueCaps; set => BlueCaps = value; }
+    long IDecisionGateHost.Frame => Frame;
     MatchRules IDecisionGateHost.MatchRules => MatchRules;
     MatchState IDecisionGateHost.MatchState { get => MatchState; set => MatchState = value; }
-
-    bool IDecisionGateHost.TryGetPlayerNetworkSlot(PlayerEntity player, out byte slot) => NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out slot);
+    NetworkPlayerSystem IDecisionGateHost.NetworkPlayerRules => NetworkPlayerRules;
     void IDecisionGateHost.QueuePendingMapChange() => QueuePendingMapChange();
+    int IDecisionGateHost.RedCaps { get => RedCaps; set => RedCaps = value; }
 }

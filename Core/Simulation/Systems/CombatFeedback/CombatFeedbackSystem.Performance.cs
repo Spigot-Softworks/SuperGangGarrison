@@ -1,5 +1,3 @@
-using System;
-
 namespace OpenGarrison.Core;
 
 internal sealed partial class CombatFeedbackSystem
@@ -23,7 +21,7 @@ internal sealed partial class CombatFeedbackSystem
     {
         return player is not null
             && (ReferenceEquals(player, _host.LocalPlayer)
-                || _host.TryGetPlayerNetworkSlot(player, out var slot) && _host.IsNetworkPlayerActive(slot));
+                || _host.NetworkPlayerRules.TryGetPlayerNetworkSlot(player, out var slot) && _host.IsNetworkPlayerActive(slot));
     }
 
     private static bool ShouldTrackKillStreakForPlayer(PlayerEntity? player)
@@ -35,7 +33,7 @@ internal sealed partial class CombatFeedbackSystem
     {
         if (appliedDamage <= 0
             || attacker is null
-            || !_host.GetLastToDieGameplaySettings(attacker).EnableComboTracking
+            || !_host.LastToDieRules.GetLastToDieGameplaySettings(attacker).EnableComboTracking
             || !ShouldTrackCombatPerformanceForPlayer(attacker)
             || ReferenceEquals(attacker, target)
             || attacker.Team == target.Team)
@@ -49,7 +47,7 @@ internal sealed partial class CombatFeedbackSystem
     internal void TryRegisterKillStreakKill(PlayerEntity? killer, PlayerEntity victim)
     {
         if (killer is null
-            || !_host.GetLastToDieGameplaySettings(killer).EnableKillStreakTracking
+            || !_host.LastToDieRules.GetLastToDieGameplaySettings(killer).EnableKillStreakTracking
             || !ShouldTrackKillStreakForPlayer(killer)
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team)
@@ -92,7 +90,7 @@ internal sealed partial class CombatFeedbackSystem
             return;
         }
 
-        _host.RecordKillFeedAnnouncement(killer, template.Prefix, template.Highlight, template.Suffix);
+        _host.KillFeedRules.RecordKillFeedAnnouncement(killer, template.Prefix, template.Highlight, template.Suffix);
     }
 
     private void TryRecordKillSpreeAnnouncement(PlayerEntity killer, int killStreak)
@@ -115,6 +113,6 @@ internal sealed partial class CombatFeedbackSystem
             return;
         }
 
-        _host.RecordKillFeedAnnouncement(killer, template.Prefix, template.Highlight, template.Suffix);
+        _host.KillFeedRules.RecordKillFeedAnnouncement(killer, template.Prefix, template.Highlight, template.Suffix);
     }
 }

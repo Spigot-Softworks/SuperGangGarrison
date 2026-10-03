@@ -27,7 +27,7 @@ internal sealed partial class LastToDieRulesSystem
             || !medic.HasPrimaryBehavior(BuiltInGameplayBehaviorIds.Medigun)
             || !medic.IsMedicHealing
             || !medic.MedicHealTargetId.HasValue
-            || !_host.TryGetPlayerNetworkSlot(medic, out var medicSlot)
+            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(medic, out var medicSlot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(medicSlot, out perkRuntime))
         {
             return false;
@@ -35,7 +35,7 @@ internal sealed partial class LastToDieRulesSystem
 
         var resolvedTarget = _host.FindPlayerById(medic.MedicHealTargetId.Value);
         if (resolvedTarget is null
-            || !_host.CanMedicHealTarget(medic, resolvedTarget))
+            || !_host.SupportRules.CanMedicHealTarget(medic, resolvedTarget))
         {
             target = null;
             perkRuntime = null;
@@ -52,7 +52,7 @@ internal sealed partial class LastToDieRulesSystem
         _host.LastToDieState.MartyrProtectorPlayerIdByProtectedTargetId.Clear();
         foreach (var entry in _host.LastToDieState.PerkRuntimesBySlot.OrderBy(static entry => entry.Key))
         {
-            if (!_host.TryGetNetworkPlayer(entry.Key, out var medic)
+            if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var medic)
                 || !TryResolveLastToDieMedicLink(medic, out var target, out var perkRuntime))
             {
                 entry.Value.MedicSupportRelayActiveLinkTargetPlayerId = null;
@@ -103,7 +103,7 @@ internal sealed partial class LastToDieRulesSystem
 
         for (var index = 0; index < _host.NetworkPlayerSlots.Count; index += 1)
         {
-            if (!_host.TryGetNetworkPlayer(_host.NetworkPlayerSlots[index], out var player))
+            if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(_host.NetworkPlayerSlots[index], out var player))
             {
                 continue;
             }
@@ -152,7 +152,7 @@ internal sealed partial class LastToDieRulesSystem
             || !target.IsAlive
             || ReferenceEquals(medic, target)
             || medic.Team != target.Team
-            || !_host.TryGetPlayerNetworkSlot(medic, out var medicSlot)
+            || !_host.NetworkPlayerRules.TryGetPlayerNetworkSlot(medic, out var medicSlot)
             || !_host.LastToDieState.PerkRuntimesBySlot.TryGetValue(medicSlot, out var perkRuntime)
             || !perkRuntime.Modifiers.MedicSupportRelayEnabled)
         {
@@ -196,7 +196,7 @@ internal sealed partial class LastToDieRulesSystem
         foreach (var entry in _host.LastToDieState.PerkRuntimesBySlot.OrderBy(static entry => entry.Key))
         {
             if (!entry.Value.Modifiers.MedicExsanguinationEnabled
-                || !_host.TryGetNetworkPlayer(entry.Key, out var candidateMedic)
+                || !_host.NetworkPlayerRules.TryGetNetworkPlayer(entry.Key, out var candidateMedic)
                 || !TryResolveLastToDieMedicLink(candidateMedic, out var healTarget, out _)
                 || (!ReferenceEquals(candidateMedic, attacker)
                     && !ReferenceEquals(healTarget, attacker)))

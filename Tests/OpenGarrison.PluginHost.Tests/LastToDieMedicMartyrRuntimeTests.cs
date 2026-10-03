@@ -31,7 +31,7 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         Assert.True(target.LastToDieMedicMartyrProtectedLinkActive);
         Assert.True(lowerSlotMedic.LastToDieMedicMartyrProtectorLinkActive);
         Assert.False(higherSlotMedic.LastToDieMedicMartyrProtectorLinkActive);
-        Assert.True(world.TryGetLastToDieMartyrProtector(target, out var protector));
+        Assert.True(world.LastToDieRules.TryGetLastToDieMartyrProtector(target, out var protector));
         Assert.Same(lowerSlotMedic, protector);
         Assert.Equal(0.7f, lowerSlotMedic.LastToDieIncomingDamageMultiplier, precision: 5);
         Assert.Equal(1f, higherSlotMedic.LastToDieIncomingDamageMultiplier, precision: 5);
@@ -42,7 +42,7 @@ public sealed class LastToDieMedicMartyrRuntimeTests
         Assert.True(target.LastToDieMedicMartyrProtectedLinkActive);
         Assert.False(lowerSlotMedic.LastToDieMedicMartyrProtectorLinkActive);
         Assert.True(higherSlotMedic.LastToDieMedicMartyrProtectorLinkActive);
-        Assert.True(world.TryGetLastToDieMartyrProtector(target, out protector));
+        Assert.True(world.LastToDieRules.TryGetLastToDieMartyrProtector(target, out protector));
         Assert.Same(higherSlotMedic, protector);
     }
 

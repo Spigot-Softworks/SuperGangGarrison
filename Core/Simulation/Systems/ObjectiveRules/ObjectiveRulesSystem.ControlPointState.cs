@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace OpenGarrison.Core;
@@ -15,8 +13,8 @@ internal sealed partial class ObjectiveRulesSystem
             return;
         }
 
-        _host.RefreshMapLogicRuntimeIfControlPointInputsChanged();
-        _host.TickMapLogicTimersOncePerFrame();
+        _host.MapLogic.RefreshMapLogicRuntimeIfControlPointInputsChanged();
+        _host.MapLogic.TickMapLogicTimersOncePerFrame();
 
         var redCappersByPoint = new HashSet<int>[_host.Objectives.ControlPoints.Points.Count];
         var blueCappersByPoint = new HashSet<int>[_host.Objectives.ControlPoints.Points.Count];
@@ -41,9 +39,9 @@ internal sealed partial class ObjectiveRulesSystem
         foreach (var player in _host.EnumerateSimulatedPlayers())
         {
             if (!player.IsAlive
-                || !_host.CanPlayerContributeToControlPoint(player)
+                || !_host.LastToDieRules.CanPlayerContributeToControlPoint(player)
                 || IsIgnoringPlayerForControlPointCapture(player)
-                || !_host.CanPlayerAffectControlPointInVipMode())
+                || !_host.VipRules.CanPlayerAffectControlPointInVipMode())
             {
                 continue;
             }
@@ -54,7 +52,7 @@ internal sealed partial class ObjectiveRulesSystem
                     && owner.IsRaging
                     && owner.ClassId == PlayerClass.Soldier
                     && owner.Team != player.Team
-                    && _host.GetLastToDieGameplaySettings(owner).EnableSoldierRageCaptureLockout))
+                    && _host.LastToDieRules.GetLastToDieGameplaySettings(owner).EnableSoldierRageCaptureLockout))
             {
                 continue;
             }
@@ -67,9 +65,9 @@ internal sealed partial class ObjectiveRulesSystem
                     continue;
                 }
 
-                var canProgressCapture = _host.CanPlayerCaptureInVipMode(player);
+                var canProgressCapture = _host.VipRules.CanPlayerCaptureInVipMode(player);
                 var reverseStrength = GetControlPointCapStrength(player);
-                var pausesVipDecay = _host.CanPlayerPauseVipCaptureDecay(player);
+                var pausesVipDecay = _host.VipRules.CanPlayerPauseVipCaptureDecay(player);
                 if (player.Team == PlayerTeam.Red)
                 {
                     if (redPlayersByPoint[zone.ControlPointIndex].Add(player.Id))
@@ -178,18 +176,18 @@ internal sealed partial class ObjectiveRulesSystem
                 var currentTotal = redCappers + blueCappers;
                 if (previousTotal == 0 && currentTotal > 0 && capTeam.HasValue && (!point.Team.HasValue || point.Team.Value != capTeam.Value))
                 {
-                    _host.RegisterWorldSoundEvent("CPBeginCapSnd", point.Marker.CenterX, point.Marker.CenterY);
+                    _host.WorldEffects.RegisterWorldSoundEvent("CPBeginCapSnd", point.Marker.CenterX, point.Marker.CenterY);
                 }
 
                 if (point.Team == PlayerTeam.Red && previousBlueCappers > 0 && previousRedCappers == 0 && redCappers > 0)
                 {
-                    _host.RegisterWorldSoundEvent("CPDefendedSnd", point.Marker.CenterX, point.Marker.CenterY);
-                    _host.RecordControlPointDefendedObjectiveLog(PlayerTeam.Red, redCappersByPoint[index]);
+                    _host.WorldEffects.RegisterWorldSoundEvent("CPDefendedSnd", point.Marker.CenterX, point.Marker.CenterY);
+                    _host.KillFeedRules.RecordControlPointDefendedObjectiveLog(PlayerTeam.Red, redCappersByPoint[index]);
                 }
                 else if (point.Team == PlayerTeam.Blue && previousRedCappers > 0 && previousBlueCappers == 0 && blueCappers > 0)
                 {
-                    _host.RegisterWorldSoundEvent("CPDefendedSnd", point.Marker.CenterX, point.Marker.CenterY);
-                    _host.RecordControlPointDefendedObjectiveLog(PlayerTeam.Blue, blueCappersByPoint[index]);
+                    _host.WorldEffects.RegisterWorldSoundEvent("CPDefendedSnd", point.Marker.CenterX, point.Marker.CenterY);
+                    _host.KillFeedRules.RecordControlPointDefendedObjectiveLog(PlayerTeam.Blue, blueCappersByPoint[index]);
                 }
             }
 
@@ -279,17 +277,17 @@ internal sealed partial class ObjectiveRulesSystem
             return 2;
         }
 
-        if (_host.GetLastToDieGameplaySettings(player).EnableSoldierFastCapture
+        if (_host.LastToDieRules.GetLastToDieGameplaySettings(player).EnableSoldierFastCapture
             && player.ClassId == PlayerClass.Soldier
-            && _host.IsExperimentalPracticePowerOwner(player))
+            && _host.ExperimentalRules.IsExperimentalPracticePowerOwner(player))
         {
             return 2;
         }
 
-        if (_host.GetLastToDieGameplaySettings(player).EnableDemoknightFastCapture
+        if (_host.LastToDieRules.GetLastToDieGameplaySettings(player).EnableDemoknightFastCapture
             && player.ClassId == PlayerClass.Demoman
             && player.IsExperimentalDemoknightEnabled
-            && _host.IsExperimentalPracticePowerOwner(player))
+            && _host.ExperimentalRules.IsExperimentalPracticePowerOwner(player))
         {
             return 2;
         }
@@ -315,7 +313,7 @@ internal sealed partial class ObjectiveRulesSystem
     {
         if (player.IsMedicRegularUberDeliveryActive)
         {
-            return !_host.CanPlayerCaptureControlPointsWhileUbered(player);
+            return !_host.LastToDieRules.CanPlayerCaptureControlPointsWhileUbered(player);
         }
 
         if (!player.IsUbered)
@@ -323,10 +321,10 @@ internal sealed partial class ObjectiveRulesSystem
             return false;
         }
 
-        return !_host.GetLastToDieGameplaySettings(player).EnableSoldierRageCaptureDuringRage
+        return !_host.LastToDieRules.GetLastToDieGameplaySettings(player).EnableSoldierRageCaptureDuringRage
             || !player.IsRaging
             || player.ClassId != PlayerClass.Soldier
-            || !_host.IsExperimentalPracticePowerOwner(player);
+            || !_host.ExperimentalRules.IsExperimentalPracticePowerOwner(player);
     }
 
     private static void TrackCaptureParticipants(
@@ -430,7 +428,7 @@ internal sealed partial class ObjectiveRulesSystem
         point.Cappers = 0;
         point.RedCappers = 0;
         point.BlueCappers = 0;
-        point.HasHealingAura = _host.IsLastToDieGameplaySettingEnabled(settings => settings.EnableCapturedPointHealingAura)
+        point.HasHealingAura = _host.LastToDieRules.IsLastToDieGameplaySettingEnabled(settings => settings.EnableCapturedPointHealingAura)
             && team == PlayerTeam.Red;
 
         var finalCapperIds = team == PlayerTeam.Red ? redCappersByPoint[pointIndex] : blueCappersByPoint[pointIndex];
@@ -451,11 +449,11 @@ internal sealed partial class ObjectiveRulesSystem
                 }
 
                 player.AddCap();
-                _host.AwardObjectiveCapturePoints(player);
+                _host.Scorekeeping.AwardObjectiveCapturePoints(player);
             }
         }
 
-        _host.RecordControlPointCapturedObjectiveLog(team, capperIds);
+        _host.KillFeedRules.RecordControlPointCapturedObjectiveLog(team, capperIds);
         ClearCaptureParticipants(point);
 
         if (_host.Objectives.ControlPoints.SetupMode)
@@ -466,8 +464,8 @@ internal sealed partial class ObjectiveRulesSystem
             _host.MatchState = _host.MatchState with { TimeRemainingTicks = updatedTimeRemainingTicks };
         }
 
-        _host.RegisterWorldSoundEvent("CPCapturedSnd", point.Marker.CenterX, point.Marker.CenterY);
-        _host.RegisterWorldSoundEvent("IntelPutSnd", point.Marker.CenterX, point.Marker.CenterY);
-        _host.EvaluateMapLogicGraph(resetStatefulNodes: false);
+        _host.WorldEffects.RegisterWorldSoundEvent("CPCapturedSnd", point.Marker.CenterX, point.Marker.CenterY);
+        _host.WorldEffects.RegisterWorldSoundEvent("IntelPutSnd", point.Marker.CenterX, point.Marker.CenterY);
+        _host.MapLogic.EvaluateMapLogicGraph(resetStatefulNodes: false);
     }
 }

@@ -10,20 +10,17 @@ internal interface IPracticeDummyHost : ISimulationWorldState, ISimulationPlayer
     bool EnemyPlayerEnabled { get; set; }
     PlayerEntity FriendlyDummy { get; }
     bool FriendlyDummyEnabled { get; set; }
+    CombatResolver GeometryResolver { get; }
     PlayerEntity LocalPlayer { get; }
     PlayerTeam LocalPlayerTeam { get; }
     LocalSimulationState LocalState { get; }
+    MovementSystem Movement { get; }
+    NetworkPlayerSystem NetworkPlayerRules { get; }
+    PlayerDeathSystem PlayerDeaths { get; }
+    PlayerInputSystem PlayerInput { get; }
     SimulationRandomStreams Randoms { get; }
+    SpawnSystem Spawns { get; }
 
-    void AdvanceAlivePlayerWithInput(
-        PlayerEntity player,
-        PlayerInputSnapshot input,
-        PlayerInputSnapshot previousInput,
-        PlayerTeam team,
-        bool allowDebugKill);
-    void AdvanceEnemyDummyRespawnTimer();
-    void ClearEnemyInputOverride();
-    bool HasLineOfSight(PlayerEntity attacker, PlayerEntity target);
     void RegisterDamageEvent(
         PlayerEntity? attacker,
         DamageTargetKind targetKind,
@@ -36,20 +33,4 @@ internal interface IPracticeDummyHost : ISimulationWorldState, ISimulationPlayer
         DamageEventFlags flags = DamageEventFlags.None,
         int assistPlayerIdOverride = -1,
         int attackerPlayerIdOverride = -1);
-    SpawnPoint ReserveSpawn(PlayerEntity player, PlayerTeam team);
-    SpawnPoint ReserveSpawn(PlayerEntity player, PlayerTeam team, byte slot);
-    bool SpawnPlayerResolved(
-        PlayerEntity player,
-        PlayerTeam team,
-        float x,
-        float y,
-        bool clearMedicHealingTarget = true,
-        bool playRespawnSound = false);
-    bool SpawnPlayerResolved(
-        PlayerEntity player,
-        PlayerTeam team,
-        SpawnPoint spawn,
-        bool clearMedicHealingTarget = true,
-        bool playRespawnSound = false);
-    bool WouldRunIntoWall(PlayerEntity player, float moveDirection);
 }

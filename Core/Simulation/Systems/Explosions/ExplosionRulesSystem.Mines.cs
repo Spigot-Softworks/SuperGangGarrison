@@ -8,7 +8,7 @@ internal sealed partial class ExplosionRulesSystem
         for (var index = 0; index < traceCount; index += 1)
         {
             var angle = (MathF.PI * 2f * index) / traceCount;
-            _host.RegisterCombatTrace(
+            _host.WorldEffects.RegisterCombatTrace(
                 centerX,
                 centerY,
                 DeterministicMath.Cos(angle),
@@ -70,8 +70,8 @@ internal sealed partial class ExplosionRulesSystem
             }
         }
 
-        _host.RegisterWorldSoundEvent("ExplosionSnd", mine.X, mine.Y);
-        _host.RegisterVisualEffect("Explosion", mine.X, mine.Y);
+        _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", mine.X, mine.Y);
+        _host.WorldEffects.RegisterVisualEffect("Explosion", mine.X, mine.Y);
         ApplyDeadBodyExplosionImpulse(mine.X, mine.Y, MineProjectileEntity.AffectRadius * 0.75f, 10f, MineProjectileEntity.AffectRadius);
         ApplyPlayerGibExplosionImpulse(mine.X, mine.Y, MineProjectileEntity.AffectRadius * 0.75f, 15f, MineProjectileEntity.AffectRadius);
         RegisterExplosionTraces(mine.X, mine.Y);
@@ -120,7 +120,7 @@ internal sealed partial class ExplosionRulesSystem
 
             if (_host.CanTeamDamagePlayer(mine.Team, mine.OwnerId, player))
             {
-                _host.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(mine.X, mine.Y, player.X, player.Y) - 180f, 3);
+                _host.WorldEffects.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(mine.X, mine.Y, player.X, player.Y) - 180f, 3);
                 var critMultiplier = (player.Id == mine.OwnerId && player.Team == mine.Team) ? 1f : mine.CriticalDamageMultiplier;
                 var maximumDamage = mine.ExplosionDamage * critMultiplier;
                 if (player.Id == mine.OwnerId && player.Team == mine.Team)
@@ -143,7 +143,7 @@ internal sealed partial class ExplosionRulesSystem
                         attackerWasGrounded: attackerWasGrounded,
                         targetWasGrounded: targetWasGrounded))
                 {
-                    _host.KillPlayer(
+                    _host.PlayerDeaths.KillPlayer(
                         player,
                         gibbed: true,
                         killer: owner,
@@ -170,9 +170,9 @@ internal sealed partial class ExplosionRulesSystem
             var damage = CombatSystem.ResolveExplosiveSplashDamage(
                 mine.ExplosionDamage * MineProjectileEntity.SentryDamageMultiplier * mine.CriticalDamageMultiplier,
                 factor);
-            if (_host.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
+            if (_host.Combat.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
-                _host.DestroySentry(sentry, owner);
+                _host.Structures.DestroySentry(sentry, owner);
             }
         }
 
@@ -194,7 +194,7 @@ internal sealed partial class ExplosionRulesSystem
             var damage = CombatSystem.ResolveExplosiveSplashDamage(
                 mine.ExplosionDamage * mine.CriticalDamageMultiplier,
                 damageFactor);
-            _host.TryDamageGenerator(generator.Team, damage, owner);
+            _host.ObjectiveRules.TryDamageGenerator(generator.Team, damage, owner);
         }
 
         ApplyExplosiveDamageToJumpPads(
@@ -420,8 +420,8 @@ internal sealed partial class ExplosionRulesSystem
     internal void TryTriggerExperimentalDangerCloseExplosion(PlayerEntity victim, PlayerEntity? killer)
     {
         if (killer is null
-            || !_host.GetLastToDieGameplaySettings(killer).EnableSoldierDangerClose
-            || !_host.IsExperimentalPracticePowerOwner(killer)
+            || !_host.LastToDieRules.GetLastToDieGameplaySettings(killer).EnableSoldierDangerClose
+            || !_host.ExperimentalRules.IsExperimentalPracticePowerOwner(killer)
             || killer.ClassId != PlayerClass.Soldier
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team)
@@ -470,8 +470,8 @@ internal sealed partial class ExplosionRulesSystem
         var playersSnapshot = _host.EnumerateSimulatedPlayers().ToArray();
         var attackerWasGrounded = owner.IsGrounded;
 
-        _host.RegisterWorldSoundEvent("ExplosionSnd", centerX, centerY);
-        _host.RegisterVisualEffect("Explosion", centerX, centerY);
+        _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", centerX, centerY);
+        _host.WorldEffects.RegisterVisualEffect("Explosion", centerX, centerY);
         ApplyDeadBodyExplosionImpulse(centerX, centerY, blastRadius, 10f);
         ApplyPlayerGibExplosionImpulse(centerX, centerY, blastRadius, 15f);
         RegisterExplosionTraces(centerX, centerY);
@@ -524,7 +524,7 @@ internal sealed partial class ExplosionRulesSystem
             }
 
             var appliedDamage = CombatSystem.ResolveExplosiveSplashDamage(blastDamage, distanceFactor);
-            _host.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(centerX, centerY, player.X, player.Y) - 180f, 3);
+            _host.WorldEffects.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(centerX, centerY, player.X, player.Y) - 180f, 3);
             if (_host.ApplyPlayerContinuousDamageWithContext(
                     player,
                     appliedDamage,
@@ -536,7 +536,7 @@ internal sealed partial class ExplosionRulesSystem
                     attackerWasGrounded: attackerWasGrounded,
                     targetWasGrounded: targetWasGrounded))
             {
-                _host.KillPlayer(
+                _host.PlayerDeaths.KillPlayer(
                     player,
                     gibbed: true,
                     killer: owner,
@@ -554,9 +554,9 @@ internal sealed partial class ExplosionRulesSystem
             }
 
             var damage = CombatSystem.ResolveExplosiveSplashDamage(blastDamage, 1f - (distance / blastRadius));
-            if (_host.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
+            if (_host.Combat.ApplySentryDamage(sentry, (int)MathF.Ceiling(damage), owner))
             {
-                _host.DestroySentry(sentry, owner);
+                _host.Structures.DestroySentry(sentry, owner);
             }
         }
 
@@ -570,7 +570,7 @@ internal sealed partial class ExplosionRulesSystem
             }
 
             var damage = CombatSystem.ResolveExplosiveSplashDamage(blastDamage, 1f - (distance / blastRadius));
-            _host.TryDamageGenerator(generator.Team, damage, owner);
+            _host.ObjectiveRules.TryDamageGenerator(generator.Team, damage, owner);
         }
 
         ApplyExplosiveDamageToJumpPads(
@@ -675,7 +675,7 @@ internal sealed partial class ExplosionRulesSystem
             jumpPad.TakeDamage((int)MathF.Ceiling(damage));
             if (jumpPad.IsDead)
             {
-                _host.DestroyJumpPad(jumpPad);
+                _host.Structures.DestroyJumpPad(jumpPad);
             }
         }
     }

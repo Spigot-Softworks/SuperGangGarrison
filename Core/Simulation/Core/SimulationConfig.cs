@@ -1,5 +1,3 @@
-using System;
-
 namespace OpenGarrison.Core;
 
 public sealed class SimulationConfig

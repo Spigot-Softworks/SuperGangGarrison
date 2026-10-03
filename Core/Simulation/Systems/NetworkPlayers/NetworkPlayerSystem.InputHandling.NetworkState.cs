@@ -33,13 +33,13 @@ internal sealed partial class NetworkPlayerSystem
         }
         if (player.IsAlive)
         {
-            _host.AdvanceAlivePlayerWithInput(player, input, previousInput, _host.GetNetworkPlayerTeam(slot), slot == SimulationConstants.LocalPlayerSlot);
-            _host.AdvanceLastToDiePassivePerks(slot, player);
+            _host.PlayerInput.AdvanceAlivePlayerWithInput(player, input, previousInput, _host.GetNetworkPlayerTeam(slot), slot == SimulationConstants.LocalPlayerSlot);
+            _host.LastToDieRules.AdvanceLastToDiePassivePerks(slot, player);
         }
         else
         {
-            _host.AdvanceNetworkRespawnTimer(slot);
-            _host.ClearJumpInputBuffer(player);
+            _host.PlayerDeaths.AdvanceNetworkRespawnTimer(slot);
+            _host.Movement.ClearJumpInputBuffer(player);
             input = ClearRespawnActionInputState(input);
         }
 

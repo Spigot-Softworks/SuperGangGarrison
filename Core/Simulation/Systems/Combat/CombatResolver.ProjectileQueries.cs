@@ -62,12 +62,12 @@ internal sealed partial class CombatResolver
         var nearestDistance = float.PositiveInfinity;
         foreach (var player in EnumerateSimulatedPlayers())
         {
-            if (!_host.CanTeamDamagePlayer(grenade.Team, grenade.OwnerId, player) || player.Id == grenade.OwnerId)
+            if (!_host.DamageRules.CanTeamDamagePlayer(grenade.Team, grenade.OwnerId, player) || player.Id == grenade.OwnerId)
             {
                 continue;
             }
 
-            _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+            _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             if (grenade.IsStrongDrink)
             {
                 var half = GrenadeProjectileEntity.StrongDrinkHitboxHalfExtent;
@@ -119,7 +119,12 @@ internal sealed partial class CombatResolver
         {
             if (!RayBoundsMayIntersectRectangle(rayBounds, solid.Left, solid.Top, solid.Right, solid.Bottom)) { continue; }
             var result = GetRayIntersectionWithNormalWithRectangle(grenade.PreviousX, grenade.PreviousY, directionX, directionY, solid.Left, solid.Top, solid.Right, solid.Bottom, maxDistance);
-            if (result.HasValue && (!nearestHit.HasValue || result.Value.Distance < nearestHit.Value.Distance))
+            if (result.HasValue
+                && (!nearestHit.HasValue
+                    || result.Value.Distance < nearestHit.Value.Distance
+                    || (result.Value.Distance == nearestHit.Value.Distance
+                        && result.Value.StartsOverlapping
+                        && !nearestHit.Value.StartsOverlapping)))
             {
                 nearestHit = new GrenadeEnvironmentHit(
                     result.Value.Distance,
@@ -132,8 +137,9 @@ internal sealed partial class CombatResolver
             }
         }
 
-        foreach (var roomObjectIndex in Level.ProjectileObstacleIndices)
+        foreach (var indexedRoomObject in GetPotentialRoomObjectRaycastCandidates(rayBounds))
         {
+            var roomObjectIndex = indexedRoomObject.Index;
             ref readonly var roomObject = ref Level.GetRoomObject(roomObjectIndex);
             if (roomObject.Type == RoomObjectType.DamageableZone)
             {
@@ -143,7 +149,12 @@ internal sealed partial class CombatResolver
             if (!TryGetProjectileRoomObjectHitbox(roomObjectIndex, roomObject, grenade.Team, ProjectileRoomObjectBlockerProfile.Standard, out var hitbox)) { continue; }
             if (!RayBoundsMayIntersectRectangle(rayBounds, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom)) { continue; }
             var result = GetRayIntersectionWithNormalWithRectangle(grenade.PreviousX, grenade.PreviousY, directionX, directionY, hitbox.Left, hitbox.Top, hitbox.Right, hitbox.Bottom, maxDistance);
-            if (result.HasValue && (!nearestHit.HasValue || result.Value.Distance < nearestHit.Value.Distance))
+            if (result.HasValue
+                && (!nearestHit.HasValue
+                    || result.Value.Distance < nearestHit.Value.Distance
+                    || (result.Value.Distance == nearestHit.Value.Distance
+                        && result.Value.StartsOverlapping
+                        && !nearestHit.Value.StartsOverlapping)))
             {
                 nearestHit = new GrenadeEnvironmentHit(
                     result.Value.Distance,
@@ -156,7 +167,194 @@ internal sealed partial class CombatResolver
             }
         }
 
+        if (nearestHit is { StartsOverlapping: true } overlapHit
+            && TryResolveGrenadeOverlapEscape(grenade, out var escapeNormalX, out var escapeNormalY, out var escapeDistance))
+        {
+            nearestHit = overlapHit with
+            {
+                NormalX = escapeNormalX,
+                NormalY = escapeNormalY,
+                OverlapDistance = escapeDistance,
+            };
+        }
+
         return nearestHit;
+    }
+
+    private bool TryResolveGrenadeOverlapEscape(
+        GrenadeProjectileEntity grenade,
+        out float normalX,
+        out float normalY,
+        out float overlapDistance)
+    {
+        const float linePadding = 0.001f;
+        // A nearby blocker within the ejection clearance must be treated as
+        // part of the same escape interval. Otherwise the 3px push can put the
+        // grenade into a narrow gap's next blocker.
+        const float intervalEpsilon = GrenadeProjectileEntity.EnvironmentCollisionBackoffDistance + linePadding;
+        normalX = 0f;
+        normalY = 0f;
+        overlapDistance = 0f;
+
+        var originX = grenade.PreviousX;
+        var originY = grenade.PreviousY;
+        var horizontalIntervals = new List<(float Start, float End)>();
+        var horizontalBounds = new RectangleHitbox(
+            MathF.Min(0f, originX),
+            originY - linePadding,
+            MathF.Max(Level.Bounds.Width, originX),
+            originY + linePadding);
+        foreach (var solid in GetPotentialSolidRaycastCandidates(horizontalBounds))
+        {
+            if (originY > solid.Top && originY < solid.Bottom)
+            {
+                horizontalIntervals.Add((solid.Left, solid.Right));
+            }
+        }
+
+        foreach (var indexedRoomObject in GetPotentialRoomObjectRaycastCandidates(horizontalBounds))
+        {
+            if (!TryGetProjectileRoomObjectHitbox(
+                    indexedRoomObject.Index,
+                    indexedRoomObject.Marker,
+                    grenade.Team,
+                    ProjectileRoomObjectBlockerProfile.Standard,
+                    out var hitbox)
+                || originY <= hitbox.Top
+                || originY >= hitbox.Bottom)
+            {
+                continue;
+            }
+
+            horizontalIntervals.Add((hitbox.Left, hitbox.Right));
+        }
+
+        var verticalIntervals = new List<(float Start, float End)>();
+        var verticalBounds = new RectangleHitbox(
+            originX - linePadding,
+            MathF.Min(0f, originY),
+            originX + linePadding,
+            MathF.Max(Level.Bounds.Height, originY));
+        foreach (var solid in GetPotentialSolidRaycastCandidates(verticalBounds))
+        {
+            if (originX > solid.Left && originX < solid.Right)
+            {
+                verticalIntervals.Add((solid.Top, solid.Bottom));
+            }
+        }
+
+        foreach (var indexedRoomObject in GetPotentialRoomObjectRaycastCandidates(verticalBounds))
+        {
+            if (!TryGetProjectileRoomObjectHitbox(
+                    indexedRoomObject.Index,
+                    indexedRoomObject.Marker,
+                    grenade.Team,
+                    ProjectileRoomObjectBlockerProfile.Standard,
+                    out var hitbox)
+                || originX <= hitbox.Left
+                || originX >= hitbox.Right)
+            {
+                continue;
+            }
+
+            verticalIntervals.Add((hitbox.Top, hitbox.Bottom));
+        }
+
+        if (!TryGetConnectedInterval(
+                horizontalIntervals,
+                originX,
+                intervalEpsilon,
+                out var horizontalStart,
+                out var horizontalEnd)
+            || !TryGetConnectedInterval(
+                verticalIntervals,
+                originY,
+                intervalEpsilon,
+                out var verticalStart,
+                out var verticalEnd))
+        {
+            return false;
+        }
+
+        var nearestDistance = originX - horizontalStart;
+        normalX = -1f;
+        normalY = 0f;
+        var candidateDistance = horizontalEnd - originX;
+        if (candidateDistance < nearestDistance)
+        {
+            nearestDistance = candidateDistance;
+            normalX = 1f;
+            normalY = 0f;
+        }
+
+        candidateDistance = originY - verticalStart;
+        if (candidateDistance < nearestDistance)
+        {
+            nearestDistance = candidateDistance;
+            normalX = 0f;
+            normalY = -1f;
+        }
+
+        candidateDistance = verticalEnd - originY;
+        if (candidateDistance < nearestDistance)
+        {
+            nearestDistance = candidateDistance;
+            normalX = 0f;
+            normalY = 1f;
+        }
+
+        overlapDistance = MathF.Max(0f, nearestDistance);
+        return float.IsFinite(overlapDistance);
+    }
+
+    private static bool TryGetConnectedInterval(
+        List<(float Start, float End)> intervals,
+        float origin,
+        float epsilon,
+        out float start,
+        out float end)
+    {
+        start = origin;
+        end = origin;
+        var containsOrigin = false;
+        foreach (var interval in intervals)
+        {
+            if (interval.Start < origin && interval.End > origin)
+            {
+                containsOrigin = true;
+                start = MathF.Min(start, interval.Start);
+                end = MathF.Max(end, interval.End);
+            }
+        }
+
+        if (!containsOrigin)
+        {
+            return false;
+        }
+
+        intervals.Sort(static (left, right) => left.Start.CompareTo(right.Start));
+        foreach (var interval in intervals)
+        {
+            if (interval.End <= origin || interval.Start > end + epsilon)
+            {
+                continue;
+            }
+
+            end = MathF.Max(end, interval.End);
+        }
+
+        intervals.Sort(static (left, right) => right.End.CompareTo(left.End));
+        foreach (var interval in intervals)
+        {
+            if (interval.Start >= origin || interval.End < start - epsilon)
+            {
+                continue;
+            }
+
+            start = MathF.Min(start, interval.Start);
+        }
+
+        return true;
     }
 
     public bool TryGetGrenadeDamageableZoneContact(
@@ -187,7 +385,7 @@ internal sealed partial class CombatResolver
 
             ref readonly var roomObject = ref Level.GetRoomObject(index);
             if (roomObject.Type != RoomObjectType.DamageableZone
-                || !_host.BlocksProjectileDamageableZone(index))
+                || !_host.MapLogic.BlocksProjectileDamageableZone(index))
             {
                 continue;
             }
@@ -261,8 +459,8 @@ internal sealed partial class CombatResolver
         foreach (var player in EnumerateSimulatedPlayers())
         {
             if (!player.IsAlive || player.Id == flare.OwnerId || flare.HasHitPlayer(player.Id)
-                || !_host.CanTeamDamagePlayer(flare.Team, flare.OwnerId, player)) continue;
-            _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+                || !_host.DamageRules.CanTeamDamagePlayer(flare.Team, flare.OwnerId, player)) continue;
+            _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             var distance = GetRayIntersectionDistanceWithRectangle(flare.PreviousX, flare.PreviousY,
                 directionX, directionY, left - radius, top - radius, right + radius, bottom + radius, maxDistance);
             if (distance.HasValue)
@@ -383,7 +581,7 @@ internal sealed partial class CombatResolver
 
             if (applyDamage && roomObject.Type == RoomObjectType.DamageableZone)
             {
-                _host.TryApplyDamageableZoneDamage(
+                _host.MapLogic.TryApplyDamageableZoneDamage(
                     roomObjectIndex,
                     ResolveEnvironmentProjectileDamage(projectile),
                     projectileTeam);
@@ -409,8 +607,8 @@ internal sealed partial class CombatResolver
         var rayBounds = GetRayBounds(previousX, previousY, directionX, directionY, maxDistance);
         foreach (var player in EnumerateSimulatedPlayers())
         {
-            if (!_host.CanTeamDamagePlayer(projectileTeam, ownerId, player) || player.Id == ownerId) { continue; }
-            _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+            if (!_host.DamageRules.CanTeamDamagePlayer(projectileTeam, ownerId, player) || player.Id == ownerId) { continue; }
+            _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             if (!RayBoundsMayIntersectRectangle(
                 rayBounds,
                 left,
@@ -437,14 +635,14 @@ internal sealed partial class CombatResolver
         foreach (var player in EnumerateSimulatedPlayers())
         {
             if (!player.IsAlive
-                || !_host.CanTeamDamagePlayer(flame.Team, flame.OwnerId, player)
+                || !_host.DamageRules.CanTeamDamagePlayer(flame.Team, flame.OwnerId, player)
                 || player.Id == flame.OwnerId
                 || flame.HasHitPlayer(player.Id))
             {
                 continue;
             }
 
-            _host.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
+            _host.PresentationBounds.GetCachedPlayerPresentationHitBounds(player, out var left, out var top, out var right, out var bottom);
             if (!RayBoundsMayIntersectRectangle(rayBounds, left, top, right, bottom))
             {
                 continue;
@@ -596,7 +794,7 @@ internal sealed partial class CombatResolver
         {
             case ProjectileRoomObjectBlockerProfile.Standard:
                 if (roomObject.Type == RoomObjectType.DamageableZone
-                    && _host.BlocksProjectileDamageableZone(roomObjectIndex))
+                    && _host.MapLogic.BlocksProjectileDamageableZone(roomObjectIndex))
                 {
                     hitbox = new RectangleHitbox(roomObject.Left, roomObject.Top, roomObject.Right, roomObject.Bottom);
                     return true;

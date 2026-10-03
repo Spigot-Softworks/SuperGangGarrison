@@ -39,7 +39,7 @@ internal sealed partial class RoomEffectsSystem
             ClearConfiguredGameplayAbilityCooldownsForResupply(player);
             if (player.CanPlayHealingCabinetSound())
             {
-                _host.RegisterWorldSoundEvent("CbntHealSnd", roomObject.CenterX, roomObject.CenterY, player.Id);
+                _host.WorldEffects.RegisterWorldSoundEvent("CbntHealSnd", roomObject.CenterX, roomObject.CenterY, player.Id);
                 player.RestartHealingCabinetSoundCooldown();
             }
         }
@@ -150,9 +150,9 @@ internal sealed partial class RoomEffectsSystem
                         continue;
                     }
 
-                    _host.RegisterWorldSoundEvent("ExplosionSnd", player.X, player.Y);
-                    _host.RegisterVisualEffect("Explosion", player.X, player.Y);
-                    _host.KillPlayer(player, weaponSpriteName: "DeadKL");
+                    _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", player.X, player.Y);
+                    _host.WorldEffects.RegisterVisualEffect("Explosion", player.X, player.Y);
+                    _host.PlayerDeaths.KillPlayer(player, weaponSpriteName: "DeadKL");
                     return;
                 case RoomObjectType.KillBox:
                     if (!player.IntersectsMarker(
@@ -164,7 +164,7 @@ internal sealed partial class RoomEffectsSystem
                         continue;
                     }
 
-                    _host.KillPlayer(player);
+                    _host.PlayerDeaths.KillPlayer(player);
                     return;
                 case RoomObjectType.FireBox:
                     if (!player.IntersectsMarker(

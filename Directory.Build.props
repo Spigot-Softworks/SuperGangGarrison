@@ -30,6 +30,11 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
+  <!-- Lets the .editorconfig dead-code rules (IDE0005, IDE0051, IDE0052) report in the build. -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenGarrison.Core'">
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenGarrison.Core.Tests'">
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>

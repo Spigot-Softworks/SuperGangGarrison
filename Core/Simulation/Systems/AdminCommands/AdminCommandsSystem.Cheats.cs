@@ -4,32 +4,32 @@ internal sealed partial class AdminCommandsSystem
 {
     internal bool TryBuildNetworkJumpPad(byte slot)
     {
-        return _host.TryGetNetworkPlayer(slot, out var player)
-            && _host.TryBuildJumpPad(player, ignoreMetalCost: true);
+        return _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
+            && _host.Structures.TryBuildJumpPad(player, ignoreMetalCost: true);
     }
 
     internal bool TrySetNetworkPlayerNoclip(byte slot, bool enabled)
     {
-        return _host.TryGetNetworkPlayer(slot, out var player)
+        return _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             && player.SetServerNoclip(enabled);
     }
 
     internal bool TrySetNetworkPlayerFrozen(byte slot, bool frozen)
     {
-        return _host.TryGetNetworkPlayer(slot, out var player)
+        return _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             && player.SetServerFrozen(frozen);
     }
 
     internal bool TryStunNetworkPlayer(byte slot, int durationTicks)
     {
-        return _host.TryGetNetworkPlayer(slot, out var player)
+        return _host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player)
             && player.SetServerStunTicks(durationTicks);
     }
 
     internal bool TryTeleportNetworkPlayerToPlayer(byte sourceSlot, byte targetSlot)
     {
-        if (!_host.TryGetNetworkPlayer(sourceSlot, out var source)
-            || !_host.TryGetNetworkPlayer(targetSlot, out var target))
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(sourceSlot, out var source)
+            || !_host.NetworkPlayerRules.TryGetNetworkPlayer(targetSlot, out var target))
         {
             return false;
         }
@@ -45,19 +45,19 @@ internal sealed partial class AdminCommandsSystem
 
     internal bool TrySetNetworkPlayerRespawnOverride(byte slot, float x, float y)
     {
-        return _host.TrySetNetworkPlayerSpawnOverride(slot, x, y);
+        return _host.NetworkPlayerRules.TrySetNetworkPlayerSpawnOverride(slot, x, y);
     }
 
     internal bool TryExplodeNetworkPlayer(byte slot)
     {
-        if (!_host.TryGetNetworkPlayer(slot, out var player) || !player.IsAlive)
+        if (!_host.NetworkPlayerRules.TryGetNetworkPlayer(slot, out var player) || !player.IsAlive)
         {
             return false;
         }
 
-        _host.RegisterWorldSoundEvent("ExplosionSnd", player.X, player.Y);
-        _host.RegisterVisualEffect("Explosion", player.X, player.Y);
-        _host.KillPlayer(player, gibbed: true, weaponSpriteName: "ExplodeKL");
+        _host.WorldEffects.RegisterWorldSoundEvent("ExplosionSnd", player.X, player.Y);
+        _host.WorldEffects.RegisterVisualEffect("Explosion", player.X, player.Y);
+        _host.PlayerDeaths.KillPlayer(player, gibbed: true, weaponSpriteName: "ExplodeKL");
         return true;
     }
 
@@ -69,7 +69,7 @@ internal sealed partial class AdminCommandsSystem
             return false;
         }
 
-        input = _host.ResolveNetworkPlayerInput(slot);
+        input = _host.NetworkPlayerRules.ResolveNetworkPlayerInput(slot);
         return true;
     }
 }
