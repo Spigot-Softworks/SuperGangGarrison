@@ -26,7 +26,7 @@ public partial class Game1
 
     public int GetGameplayCameraViewportHeight(int viewportHeight)
     {
-        if (!IsLocalSpectatorPresentationActive())
+        if (_gameplayHudHidden || _gameplayHudMinimal || !IsLocalSpectatorPresentationActive())
         {
             return viewportHeight;
         }

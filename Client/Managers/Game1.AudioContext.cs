@@ -89,7 +89,7 @@ public partial class Game1 : IAudioContext
 
     OpenGarrison.Core.PlayerEntity IAudioContext.GetImmediatePrimaryPresentationPlayer() => GetImmediatePrimaryPresentationPlayer();
 
-    ValueTuple<float, float> IAudioContext.GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource) => GetLoopedWorldSoundMix(soundName, worldX, worldY, isLocalSource);
+    ValueTuple<float, float> IAudioContext.GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource, int sourcePlayerId) => GetLoopedWorldSoundMix(soundName, worldX, worldY, isLocalSource, sourcePlayerId);
 
     int IAudioContext.GetPlayerBuffBannerChargeDamage(OpenGarrison.Core.PlayerEntity player) => GetPlayerBuffBannerChargeDamage(player);
 
@@ -126,6 +126,8 @@ public partial class Game1 : IAudioContext
     bool IAudioContext.IsLastToDieMenuActive() => IsLastToDieMenuActive();
 
     bool IAudioContext.IsLocalPlayerSoundSource(int sourcePlayerId) => IsLocalPlayerSoundSource(sourcePlayerId);
+
+    string IAudioContext.ResolvePlayerDeathVoiceSoundName(OpenGarrison.Core.WorldSoundEvent soundEvent) => ResolvePlayerDeathVoiceSoundName(soundEvent);
 
     void IAudioContext.NotifyClientPluginsWorldSound(OpenGarrison.Core.WorldSoundEvent soundEvent) { NotifyClientPluginsWorldSound(soundEvent); }
 

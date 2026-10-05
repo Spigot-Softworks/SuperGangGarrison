@@ -22,7 +22,7 @@ public partial class Game1
         _lastGameplayPresentationClockSeconds = _networkInterpolationClockSeconds;
         ObserveCameraDebugFrameTicks(clientTicks);
         var browserPresentationStartTimestamp = ShouldMeasureClientPerformanceDurations() ? Stopwatch.GetTimestamp() : 0L;
-        var interpolationStartTimestamp = (_networkDiagnosticsEnabled || IsClientPerformanceDiagnosticsEnabled()) ? Stopwatch.GetTimestamp() : 0L;
+        var interpolationStartTimestamp = (_networkDiagnosticsEnabled || IsClientPerformanceTimingCollectionEnabled()) ? Stopwatch.GetTimestamp() : 0L;
         UpdateInterpolatedWorldState();
         if (_networkDiagnosticsEnabled)
         {
@@ -39,7 +39,7 @@ public partial class Game1
         UpdateLocalSentryNotice();
         UpdateIntelNotice();
         UpdateLocalPredictedRenderPosition();
-        var renderStateStartTimestamp = IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
+        var renderStateStartTimestamp = IsClientPerformanceTimingCollectionEnabled() ? Stopwatch.GetTimestamp() : 0L;
         foreach (var player in EnumerateRenderablePlayers())
         {
             UpdatePlayerRenderState(player);
@@ -50,6 +50,7 @@ public partial class Game1
         }
 
         RemoveStalePlayerRenderState();
+        UpdateLocalPlayerAudioCues((float)gameTime.ElapsedGameTime.TotalSeconds);
         AdvanceGameplayClientTicks(clientTicks);
         UpdateVotePresentation(clientTicks);
         UpdateVipPresentation(clientTicks);
@@ -70,7 +71,7 @@ public partial class Game1
         PlayDeathCamSoundIfNeeded();
         PlayRoundEndSoundIfNeeded();
         PlayKillFeedAnnouncementSounds();
-        var musicStartTimestamp = IsClientPerformanceDiagnosticsEnabled() ? Stopwatch.GetTimestamp() : 0L;
+        var musicStartTimestamp = IsClientPerformanceTimingCollectionEnabled() ? Stopwatch.GetTimestamp() : 0L;
         UpdateGameplaySounds(gameTime);
         EnsureIngameMusicPlaying();
         UpdateDynamicMusic(gameTime, clientTicks);

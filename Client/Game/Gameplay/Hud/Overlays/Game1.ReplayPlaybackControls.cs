@@ -108,6 +108,7 @@ public partial class Game1
     private bool TryGetInteractiveReplayPlaybackState(out NetworkGameClient.ReplayPlaybackState state)
     {
         if (_gameplayHudHidden
+            || _gameplayHudMinimal
             || !_networkClient.IsConnected
             || !_networkClient.IsReplayConnection
             || _mainMenuOpen

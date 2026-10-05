@@ -38,6 +38,8 @@ public static class CustomMapEntityRuntimeRegistry
         Register(new GameplaySoundMapEntityRuntimeImporter());
         Register(new SpawnClassBehaviorMapEntityRuntimeImporter());
         Register(new LogicMapEntityRuntimeImporter());
+        Register(new IndoorRegionMapEntityRuntimeImporter());
+        Register(new MapLightMapEntityRuntimeImporter());
     }
 
     public static IReadOnlyList<ICustomMapEntityRuntimeImporter> RegisteredImporters => Importers;
@@ -111,6 +113,8 @@ public sealed class CustomMapEntityImportContext
     public IList<GameplayMessageMarker> GameplayMessages { get; init; } = [];
     public IList<GameplaySoundMarker> GameplaySounds { get; init; } = [];
     public IList<SpawnClassBehaviorMarker> SpawnClassBehaviors { get; init; } = [];
+    public IList<IndoorRegionMarker> IndoorRegions { get; init; } = [];
+    public IList<MapLightMarker> MapLights { get; init; } = [];
 
     /// <summary>
     /// When true, entity X/Y are sprite-origin coordinates and room-object markers are shifted to top-left.

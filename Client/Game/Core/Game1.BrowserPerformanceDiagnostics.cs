@@ -40,12 +40,13 @@ public partial class Game1
             return;
         }
 
-        var elapsedMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        var completedTimestamp = Stopwatch.GetTimestamp();
+        var elapsedMilliseconds = (completedTimestamp - startTimestamp) * 1000d / Stopwatch.Frequency;
         if (IsClientPerformanceDiagnosticsEnabled())
         {
             // This boundary is after RenderPipeline's frame limiter; it tracks
             // completed CPU draw calls, before the framework presents the GPU buffer.
-            _clientDrawFrameTiming.RecordCompletedFrame(Stopwatch.GetTimestamp());
+            _clientDrawFrameTiming.RecordCompletedFrame(completedTimestamp);
         }
 
         if (OperatingSystem.IsBrowser())
@@ -54,6 +55,7 @@ public partial class Game1
         }
 
         RecordClientPerformanceMetric(ClientPerformanceMetric.Draw, elapsedMilliseconds);
+        RecordClientFrameCaptureCompletedDraw(elapsedMilliseconds, completedTimestamp);
     }
 
     private void RecordBrowserSimulationDuration(long startTimestamp, int tickCount)

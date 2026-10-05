@@ -61,4 +61,22 @@
   <resource name="FlaregunSnd" type="RESOURCE"/>
   <resource name="BuffbannerSnd" type="RESOURCE"/>
   <resource name="BottleCrashSnd" type="RESOURCE"/>
+  <resource name="ScattergunSnd" type="RESOURCE"/>
+  <resource name="SMGSnd" type="RESOURCE"/>
+  <resource name="TommygunSnd" type="RESOURCE"/>
+  <resource name="NailgunSnd" type="RESOURCE"/>
+  <resource name="NailReloadSnd" type="RESOURCE"/>
+  <resource name="ShotgunShellReloadSnd" type="RESOURCE"/>
+  <resource name="ShotgunReadySnd" type="RESOURCE"/>
+  <resource name="SMGReadySnd" type="RESOURCE"/>
+  <resource name="FlareReadySnd" type="RESOURCE"/>
+  <resource name="PistolReadySnd" type="RESOURCE"/>
+  <resource name="PistolHalfReloadSnd" type="RESOURCE"/>
+  <resource name="FlameJumpSnd" type="RESOURCE"/>
+  <resource name="HeavyDashSnd" type="RESOURCE"/>
+  <resource name="LandingSnd" type="RESOURCE"/>
+  <resource name="PlayerHeavyPainSnd" type="RESOURCE"/>
+  <resource name="PlayerVeryHeavyPainSnd" type="RESOURCE"/>
+  <resource name="PlayerFunnyDieSnd" type="RESOURCE"/>
+  <resource name="ChaingunShotSnd" type="RESOURCE"/>
 </resources>

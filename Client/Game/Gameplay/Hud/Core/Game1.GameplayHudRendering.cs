@@ -45,6 +45,7 @@ public partial class Game1
         _damageVignetteCompositeDeferred = false;
         var effectiveOpacity = GetEffectiveGameplayHudCompositeOpacity();
         if (_gameplayHudHidden
+            || _gameplayHudMinimal
             || effectiveOpacity >= HudLayoutProfile.MaxHudOpacity - 0.001f
             || OperatingSystem.IsBrowser())
         {
@@ -205,9 +206,9 @@ public partial class Game1
             return;
         }
 
-        if (_gameplayHudHidden)
+        if (_gameplayHudHidden || _gameplayHudMinimal)
         {
-            WriteGameplayRenderTrace("hud hidden");
+            WriteGameplayRenderTrace(_gameplayHudHidden ? "hud hidden" : "hud minimal");
             RecordBrowserHudDrawDuration(browserHudDrawStartTimestamp);
             return;
         }
@@ -383,6 +384,13 @@ public partial class Game1
             return;
         }
 
+        if (_gameplayHudMinimal)
+        {
+            DrawMinimalGameplayModalOverlays(mouse, cameraPosition);
+            RecordBrowserModalDrawDuration(browserModalDrawStartTimestamp);
+            return;
+        }
+
         if (IsLastToDieDeathFocusPresentationActive())
         {
             if (IsLastToDieFailureOverlayActive())
@@ -404,30 +412,7 @@ public partial class Game1
             WriteGameplayRenderTrace("modal after passwordprompt");
         }
 
-        if (_teamClassSelectionState.TeamSelectOpen || _teamClassSelectionState.TeamSelectAlpha > 0.02f)
-        {
-            DrawTeamSelectHud();
-            WriteGameplayRenderTrace("modal after teamselect");
-        }
-
-        if (_teamClassSelectionState.ClassSelectOpen || _teamClassSelectionState.ClassSelectAlpha > 0.02f)
-        {
-            DrawClassSelectHud();
-            WriteGameplayRenderTrace("modal after classselect");
-        }
-        else if (CanDrawGameplayCrosshair())
-        {
-            var aimScreenPosition = GetEffectiveAimScreenPosition(mouse, cameraPosition);
-            if (ShouldDrawControllerAimLine())
-            {
-                DrawControllerAimLine(cameraPosition, aimScreenPosition);
-            }
-            else
-            {
-                DrawCrosshair(aimScreenPosition);
-            }
-            WriteGameplayRenderTrace("modal after crosshair");
-        }
+        DrawTeamClassSelectionAndBattleCursor(mouse, cameraPosition);
 
         if (_consoleOpen)
         {
@@ -448,6 +433,92 @@ public partial class Game1
         DrawHostedLastToDieModal();
         WriteGameplayRenderTrace("modal after hosted-lasttodie");
 
+        DrawActiveGameplayOverlayMenu();
+
+        DrawQuitPrompt();
+        WriteGameplayRenderTrace("modal after quitprompt");
+        DrawLastToDieFailureOverlay();
+        WriteGameplayRenderTrace("modal after failureoverlay");
+
+        if (ShouldDrawSoftwareMenuCursor())
+        {
+            DrawSoftwareMenuCursor(mouse);
+            WriteGameplayRenderTrace("modal after softwarecursor");
+        }
+
+        RecordBrowserModalDrawDuration(browserModalDrawStartTimestamp);
+    }
+
+    private void DrawMinimalGameplayModalOverlays(MouseState mouse, Vector2 cameraPosition)
+    {
+        if (IsLastToDieDeathFocusPresentationActive())
+        {
+            if (IsLastToDieFailureOverlayActive())
+            {
+                DrawLastToDieFailureOverlay();
+                if (ShouldDrawSoftwareMenuCursor())
+                {
+                    DrawSoftwareMenuCursor(mouse);
+                }
+            }
+
+            return;
+        }
+
+        if (_passwordPromptOpen)
+        {
+            DrawPasswordPrompt();
+        }
+
+        DrawTeamClassSelectionAndBattleCursor(mouse, cameraPosition);
+
+        if (_consoleOpen)
+        {
+            DrawConsoleOverlay();
+        }
+
+        DrawHostedLastToDieModal();
+        DrawActiveGameplayOverlayMenu();
+        DrawQuitPrompt();
+
+        if (ShouldDrawSoftwareMenuCursor())
+        {
+            DrawSoftwareMenuCursor(mouse);
+        }
+    }
+
+    private void DrawTeamClassSelectionAndBattleCursor(MouseState mouse, Vector2 cameraPosition)
+    {
+        if (_teamClassSelectionState.TeamSelectOpen || _teamClassSelectionState.TeamSelectAlpha > 0.02f)
+        {
+            DrawTeamSelectHud();
+            WriteGameplayRenderTrace("modal after teamselect");
+        }
+
+        if (_teamClassSelectionState.ClassSelectOpen || _teamClassSelectionState.ClassSelectAlpha > 0.02f)
+        {
+            DrawClassSelectHud();
+            WriteGameplayRenderTrace("modal after classselect");
+        }
+        else if (GameplayHudVisibilityRules.ShouldDrawBattleCursor(
+            GetGameplayHudVisibilityMode(),
+            CanDrawGameplayCrosshair()))
+        {
+            var aimScreenPosition = GetEffectiveAimScreenPosition(mouse, cameraPosition);
+            if (ShouldDrawControllerAimLine() && !_gameplayHudMinimal)
+            {
+                DrawControllerAimLine(cameraPosition, aimScreenPosition);
+            }
+            else
+            {
+                DrawCrosshair(aimScreenPosition);
+            }
+            WriteGameplayRenderTrace("modal after crosshair");
+        }
+    }
+
+    private void DrawActiveGameplayOverlayMenu()
+    {
         switch (GetActiveGameplayOverlay())
         {
             case GameplayOverlayKind.InGameMenu:
@@ -516,19 +587,6 @@ public partial class Game1
                 WriteGameplayRenderTrace("modal after controls");
                 break;
         }
-
-        DrawQuitPrompt();
-        WriteGameplayRenderTrace("modal after quitprompt");
-        DrawLastToDieFailureOverlay();
-        WriteGameplayRenderTrace("modal after failureoverlay");
-
-        if (ShouldDrawSoftwareMenuCursor())
-        {
-            DrawSoftwareMenuCursor(mouse);
-            WriteGameplayRenderTrace("modal after softwarecursor");
-        }
-
-        RecordBrowserModalDrawDuration(browserModalDrawStartTimestamp);
     }
 
     public static void WriteGameplayRenderTrace(string message)

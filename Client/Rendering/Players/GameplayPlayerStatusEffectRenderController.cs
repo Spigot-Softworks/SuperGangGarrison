@@ -23,13 +23,19 @@ public sealed class GameplayPlayerStatusEffectRenderController
             var forceSpecialEnemyHealthBar = _game.ShouldForceLastToDieSpecialEnemyHealthBar(player);
             var forcePracticeCombatDummyHealthBar = _game._world.PracticeDummies.IsPracticeCombatDummy(player);
             var forceMapBotHealthBar = _game.ShouldForceMapBotHealthBar(player);
-            if ((!_game.HudRuntimeSettings.ShowHealthBarEnabled && !forceSpecialEnemyHealthBar && !forcePracticeCombatDummyHealthBar && !forceMapBotHealthBar)
-                || visibilityAlpha <= 0f
-                || (!ReferenceEquals(player, _game._world.LocalPlayer)
-                    && player.Team != _game._world.LocalPlayer.Team
-                    && !forceSpecialEnemyHealthBar
-                    && !forcePracticeCombatDummyHealthBar
-                    && !forceMapBotHealthBar))
+            var mode = _game._gameplayHudHidden
+                ? GameplayHudVisibilityMode.Hidden
+                : _game._gameplayHudMinimal
+                    ? GameplayHudVisibilityMode.Minimal
+                    : GameplayHudVisibilityMode.Visible;
+            var forceHealthBar = forceSpecialEnemyHealthBar || forcePracticeCombatDummyHealthBar || forceMapBotHealthBar;
+            if (!GameplayHudVisibilityRules.ShouldDrawFloatingHealthBar(
+                _game.HudRuntimeSettings.ShowHealthBarEnabled,
+                mode,
+                forceHealthBar,
+                visibilityAlpha,
+                ReferenceEquals(player, _game._world.LocalPlayer),
+                player.Team == _game._world.LocalPlayer.Team))
             {
                 return;
             }

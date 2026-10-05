@@ -45,7 +45,11 @@ internal static class SimpleLevelScaling
             level.GameplayMessages.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.GameplaySounds.Select(marker => Scale(marker, clampedScale)).ToArray(),
             level.SpawnClassBehaviors.Select(marker => Scale(marker, clampedScale)).ToArray(),
-            level.IsTopDown)
+            level.IsTopDown,
+            level.Weather,
+            level.IndoorRegions.Select(region => region.Scale(clampedScale)).ToArray(),
+            level.MapLights.Select(light => light.Scale(clampedScale)).ToArray(),
+            level.Lighting)
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,

@@ -144,8 +144,7 @@ internal sealed partial class WeaponFireHandler
                     result.HitPlayer,
                     killer: attacker,
                     weaponSpriteName: ExperimentalDemoknightCatalog.EyelanderKillFeedSpriteName,
-                    deadBodyAnimationKind: DeadBodyAnimationKind.Decapitated);
-                _host.PlayerRemains.TrySpawnExperimentalDemoknightDecapitationRemains(result.HitPlayer, directionX, directionY);
+                    deadBodyAnimationKind: DeadBodyAnimationKind.Bisected);
             }
 
             attacker.ConsumeExperimentalDemoknightChargeOnHit();

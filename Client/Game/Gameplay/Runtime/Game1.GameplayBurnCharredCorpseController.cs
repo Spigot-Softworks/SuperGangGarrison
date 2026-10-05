@@ -484,6 +484,11 @@ public partial class Game1
         Vector2 cameraPosition,
         float phase)
     {
+        if (ragdoll.BisectedPartner is { } partner)
+        {
+            DrawBurnCharredLiveRagdollOutlineCells(partner, cameraPosition, phase);
+        }
+
         var opaque = ragdoll.OpaqueBounds;
         if (opaque.Width <= 1 || opaque.Height <= 1)
         {

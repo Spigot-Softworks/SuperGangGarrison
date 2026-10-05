@@ -53,6 +53,7 @@ public partial class Game1
 
     private void AdvanceCorpseAcidDissolveStates()
     {
+        DisposePendingRagdollAcidCaptures(all: false);
         if (_gameplayManager.RuntimeSettings.CorpseDurationMode == ClientSettings.CorpseDurationInfinite)
         {
             // Keep burn-charred dissolve textures; only clear normal end-of-life fades.
@@ -241,6 +242,7 @@ public partial class Game1
 
     public void ResetCorpseAcidDissolves()
     {
+        DisposePendingRagdollAcidCaptures(all: true);
         foreach (var corpseId in _corpseAcidDissolveStates.Keys)
         {
             _staleCorpseAcidDissolveIds.Add(corpseId);
@@ -367,12 +369,118 @@ public partial class Game1
         return false;
     }
 
+    /// <summary>
+    /// Completed draws a ragdoll snapshot waits before its pixels are read back.
+    /// </summary>
+    /// <remarks>
+    /// Reading a render target straight after drawing it (<c>GetData</c>) makes the CPU
+    /// wait for the GPU to finish every queued frame first. With VSync the driver
+    /// keeps up to three frames queued, so the old same-frame readback cost ~48 ms, one
+    /// visible hitch per dissolving corpse. Waiting until those frames have been shown
+    /// lets the readback find the snapshot already rendered. The ragdoll is held still
+    /// during acid fading and drawn at full opacity, so the live draw in the meantime
+    /// looks the same as the snapshot.
+    /// </remarks>
+    private const int DynamicRagdollCaptureReadbackDelayDraws = 4;
+
+    private readonly Dictionary<DynamicRagdollState, PendingRagdollAcidCapture> _pendingRagdollAcidCaptures = new();
+    private readonly List<DynamicRagdollState> _stalePendingRagdollAcidCaptures = new();
+    private long _completedDrawCount;
+
+    private sealed class PendingRagdollAcidCapture
+    {
+        public required RenderTarget2D Target { get; init; }
+        public required float WorldLeft { get; init; }
+        public required float WorldTop { get; init; }
+        public required long ReadyAtDrawCount { get; init; }
+    }
+
+    /// <summary>
+    /// Snapshots a dynamic ragdoll for acid dissolve in two steps: this frame renders it
+    /// into a render target, and a later call (a few draws on) reads the pixels back.
+    /// Returns false until the snapshot is ready; the caller keeps drawing the live ragdoll.
+    /// </summary>
     private bool TryCaptureDynamicRagdollAcidDissolve(
         int corpseId,
         DynamicRagdollState ragdoll,
         out CorpseAcidDissolveState state)
     {
         state = null!;
+        if (!_pendingRagdollAcidCaptures.TryGetValue(ragdoll, out var pending))
+        {
+            if (TryRenderDynamicRagdollAcidCapture(ragdoll, out pending))
+            {
+                _pendingRagdollAcidCaptures[ragdoll] = pending;
+            }
+
+            return false;
+        }
+
+        if (_completedDrawCount < pending.ReadyAtDrawCount)
+        {
+            return false;
+        }
+
+        _pendingRagdollAcidCaptures.Remove(ragdoll);
+        var capture = pending.Target;
+        var captureWidth = capture.Width;
+        var captureHeight = capture.Height;
+        var worldLeft = pending.WorldLeft;
+        var worldTop = pending.WorldTop;
+        try
+        {
+            var rawPixels = new Color[captureWidth * captureHeight];
+            capture.GetData(rawPixels);
+            if (!TryComputeOpaqueBounds(rawPixels, captureWidth, captureHeight, out var opaque)
+                || opaque.Width <= 0
+                || opaque.Height <= 0)
+            {
+                return false;
+            }
+
+            var cropped = new Color[opaque.Width * opaque.Height];
+            for (var y = 0; y < opaque.Height; y += 1)
+            {
+                var srcRow = ((opaque.Y + y) * captureWidth) + opaque.X;
+                var dstRow = y * opaque.Width;
+                Array.Copy(rawPixels, srcRow, cropped, dstRow, opaque.Width);
+            }
+
+            if (!TryCreateCorpseAcidDissolveState(
+                    cropped,
+                    opaque.Width,
+                    opaque.Height,
+                    origin: Vector2.Zero,
+                    scale: 1f,
+                    useFrozenWorldSnapshot: true,
+                    frozenWorldX: worldLeft + opaque.X,
+                    frozenWorldY: worldTop + opaque.Y,
+                    out state))
+            {
+                return false;
+            }
+
+            FreezeDynamicRagdollForAcid(ragdoll);
+
+            _corpseAcidDissolveStates[corpseId] = state;
+            return true;
+        }
+        catch
+        {
+            state = null!;
+            return false;
+        }
+        finally
+        {
+            capture.Dispose();
+        }
+    }
+
+    private bool TryRenderDynamicRagdollAcidCapture(
+        DynamicRagdollState ragdoll,
+        out PendingRagdollAcidCapture pending)
+    {
+        pending = null!;
         if (!TryEstimateDynamicRagdollCaptureBounds(ragdoll, out var worldLeft, out var worldTop, out var captureWidth, out var captureHeight))
         {
             return false;
@@ -407,52 +515,18 @@ public partial class Game1
                 return false;
             }
 
-            var rawPixels = new Color[captureWidth * captureHeight];
-            capture.GetData(rawPixels);
-            if (!TryComputeOpaqueBounds(rawPixels, captureWidth, captureHeight, out var opaque)
-                || opaque.Width <= 0
-                || opaque.Height <= 0)
+            pending = new PendingRagdollAcidCapture
             {
-                return false;
-            }
-
-            var cropped = new Color[opaque.Width * opaque.Height];
-            for (var y = 0; y < opaque.Height; y += 1)
-            {
-                var srcRow = ((opaque.Y + y) * captureWidth) + opaque.X;
-                var dstRow = y * opaque.Width;
-                Array.Copy(rawPixels, srcRow, cropped, dstRow, opaque.Width);
-            }
-
-            if (!TryCreateCorpseAcidDissolveState(
-                    cropped,
-                    opaque.Width,
-                    opaque.Height,
-                    origin: Vector2.Zero,
-                    scale: 1f,
-                    useFrozenWorldSnapshot: true,
-                    frozenWorldX: worldLeft + opaque.X,
-                    frozenWorldY: worldTop + opaque.Y,
-                    out state))
-            {
-                return false;
-            }
-
-            ragdoll.AcidFrozen = true;
-            ragdoll.VelocityX = 0f;
-            ragdoll.VelocityY = 0f;
-            ragdoll.AngularVelocityDegrees = 0f;
-            for (var pivotIndex = 0; pivotIndex < DynamicRagdollPivotCount; pivotIndex += 1)
-            {
-                ragdoll.PivotVelocities[pivotIndex] = 0f;
-            }
-
-            _corpseAcidDissolveStates[corpseId] = state;
+                Target = capture,
+                WorldLeft = worldLeft,
+                WorldTop = worldTop,
+                ReadyAtDrawCount = _completedDrawCount + DynamicRagdollCaptureReadbackDelayDraws,
+            };
+            capture = null;
             return true;
         }
         catch
         {
-            state = null!;
             return false;
         }
         finally
@@ -470,6 +544,34 @@ public partial class Game1
         }
     }
 
+    /// <summary>Drops pending snapshots whose ragdoll is gone (or all of them).</summary>
+    private void DisposePendingRagdollAcidCaptures(bool all)
+    {
+        if (_pendingRagdollAcidCaptures.Count == 0)
+        {
+            return;
+        }
+
+        _stalePendingRagdollAcidCaptures.Clear();
+        foreach (var ragdoll in _pendingRagdollAcidCaptures.Keys)
+        {
+            if (all || !_dynamicRagdolls.ContainsValue(ragdoll))
+            {
+                _stalePendingRagdollAcidCaptures.Add(ragdoll);
+            }
+        }
+
+        for (var index = 0; index < _stalePendingRagdollAcidCaptures.Count; index += 1)
+        {
+            if (_pendingRagdollAcidCaptures.Remove(_stalePendingRagdollAcidCaptures[index], out var pending))
+            {
+                pending.Target.Dispose();
+            }
+        }
+
+        _stalePendingRagdollAcidCaptures.Clear();
+    }
+
     private static bool TryEstimateDynamicRagdollCaptureBounds(
         DynamicRagdollState ragdoll,
         out float worldLeft,
@@ -482,15 +584,38 @@ public partial class Game1
         captureWidth = 0;
         captureHeight = 0;
 
+        var minX = float.MaxValue;
+        var maxX = float.MinValue;
+        var minY = float.MaxValue;
+        var maxY = float.MinValue;
+        IncludeDynamicRagdollCaptureBounds(ragdoll, ref minX, ref maxX, ref minY, ref maxY);
+        if (ragdoll.BisectedPartner is { } partner)
+        {
+            IncludeDynamicRagdollCaptureBounds(partner, ref minX, ref maxX, ref minY, ref maxY);
+        }
+
+        worldLeft = MathF.Floor(minX);
+        worldTop = MathF.Floor(minY);
+        captureWidth = Math.Clamp((int)MathF.Ceiling(maxX - worldLeft) + 2, 8, 512);
+        captureHeight = Math.Clamp((int)MathF.Ceiling(maxY - worldTop) + 2, 8, 512);
+        return true;
+    }
+
+    private static void IncludeDynamicRagdollCaptureBounds(
+        DynamicRagdollState ragdoll,
+        ref float minX,
+        ref float maxX,
+        ref float minY,
+        ref float maxY)
+    {
         var opaque = ragdoll.OpaqueBounds;
         var halfSpan = MathF.Max(24f, MathF.Max(opaque.Width, opaque.Height) * 0.85f + 20f);
-
         Span<Vector2> nodes = stackalloc Vector2[DynamicRagdollCollisionNodeCount];
         var nodeCount = BuildRagdollCollisionNodes(ragdoll, nodes);
-        var minX = ragdoll.X - halfSpan;
-        var maxX = ragdoll.X + halfSpan;
-        var minY = ragdoll.Y - halfSpan;
-        var maxY = ragdoll.Y + halfSpan;
+        minX = MathF.Min(minX, ragdoll.X - halfSpan);
+        maxX = MathF.Max(maxX, ragdoll.X + halfSpan);
+        minY = MathF.Min(minY, ragdoll.Y - halfSpan);
+        maxY = MathF.Max(maxY, ragdoll.Y + halfSpan);
         for (var index = 0; index < nodeCount; index += 1)
         {
             minX = MathF.Min(minX, nodes[index].X - halfSpan * 0.55f);
@@ -499,7 +624,6 @@ public partial class Game1
             maxY = MathF.Max(maxY, nodes[index].Y + halfSpan * 0.55f);
         }
 
-        // Weapon flap can stick out a bit on Elkondo ragdolls.
         if (ragdoll.UseElkondoVerticalVisual && !string.IsNullOrEmpty(ragdoll.WeaponSpriteName))
         {
             minX -= 18f;
@@ -507,12 +631,6 @@ public partial class Game1
             minY -= 18f;
             maxY += 18f;
         }
-
-        worldLeft = MathF.Floor(minX);
-        worldTop = MathF.Floor(minY);
-        captureWidth = Math.Clamp((int)MathF.Ceiling(maxX - worldLeft) + 2, 8, 512);
-        captureHeight = Math.Clamp((int)MathF.Ceiling(maxY - worldTop) + 2, 8, 512);
-        return true;
     }
 
     private bool TryCreateCorpseAcidDissolveState(
@@ -645,25 +763,67 @@ public partial class Game1
 
     private static void ApplyCorpseAcidDissolveProgress(CorpseAcidDissolveState state, float progress)
     {
+        if (TryApplyCorpseAcidDissolvePixels(state, progress, out var uploadRegion))
+        {
+            var startIndex = uploadRegion.Y * state.Width;
+            var elementCount = uploadRegion.Height * state.Width;
+            state.Texture.SetData(0, uploadRegion, state.WorkingPixels, startIndex, elementCount);
+        }
+    }
+
+    /// <summary>
+    /// Updates the CPU dissolve image and returns the rows that need uploading. Forward progress
+    /// can only change pixels near the moving front; rewinds rebuild the full image.
+    /// </summary>
+    internal static bool TryApplyCorpseAcidDissolvePixels(
+        CorpseAcidDissolveState state,
+        float progress,
+        out Rectangle uploadRegion)
+    {
+        uploadRegion = Rectangle.Empty;
         progress = Math.Clamp(progress, 0f, 1f);
         if (MathF.Abs(progress - state.LastAppliedProgress) < 0.0005f)
         {
-            return;
+            return false;
+        }
+
+        var canAdvanceIncrementally = state.LastAppliedProgress >= 0f
+            && float.IsFinite(state.LastAppliedProgress)
+            && float.IsFinite(progress)
+            && progress >= state.LastAppliedProgress;
+        var firstRow = 0;
+        var endRow = state.Height;
+        if (canAdvanceIncrementally)
+        {
+            var previousBaseFront = state.LastAppliedProgress * (state.Height + state.EdgePad);
+            var currentBaseFront = progress * (state.Height + state.EdgePad);
+            var minimumPreviousFront = float.PositiveInfinity;
+            var maximumCurrentFront = float.NegativeInfinity;
+            for (var x = 0; x < state.Width; x += 1)
+            {
+                var frontOffset = state.ColumnOffsets[x]
+                    + (MathF.Sin((x * state.WaveFrequency) + state.WavePhase) * state.WaveAmplitude);
+                minimumPreviousFront = MathF.Min(minimumPreviousFront, previousBaseFront + frontOffset);
+                maximumCurrentFront = MathF.Max(maximumCurrentFront, currentBaseFront + frontOffset);
+            }
+
+            // Include neighboring rows around each mathematical boundary to make rounding conservative.
+            firstRow = Math.Clamp((int)MathF.Floor(minimumPreviousFront - state.SoftBand) - 1, 0, state.Height);
+            endRow = Math.Clamp((int)MathF.Ceiling(maximumCurrentFront) + 1, 0, state.Height);
         }
 
         state.LastAppliedProgress = progress;
-        Array.Copy(state.SourcePixels, state.WorkingPixels, state.SourcePixels.Length);
 
         // Front travels past the bottom (plus pad) so jitter/wave still fully clears by progress=1.
         var baseFront = progress * (state.Height + state.EdgePad);
-
+        var changed = false;
         for (var x = 0; x < state.Width; x += 1)
         {
             var front = baseFront
                 + state.ColumnOffsets[x]
                 + (MathF.Sin((x * state.WaveFrequency) + state.WavePhase) * state.WaveAmplitude);
 
-            for (var y = 0; y < state.Height; y += 1)
+            for (var y = firstRow; y < endRow; y += 1)
             {
                 var index = (y * state.Width) + x;
                 if (state.SourcePixels[index].A == 0)
@@ -672,29 +832,41 @@ public partial class Game1
                 }
 
                 var intoAcid = front - y;
-                if (intoAcid <= 0f)
+                var output = state.SourcePixels[index];
+                if (intoAcid > 0f)
                 {
-                    continue;
+                    if (intoAcid >= state.SoftBand)
+                    {
+                        output = Color.Transparent;
+                    }
+                    else
+                    {
+                        // Soft mottled nibble along a roughly horizontal front.
+                        var bandT = intoAcid / state.SoftBand;
+                        var nibble = Hash01(x, y, state.NoiseSeed);
+                        var threshold = 0.12f + (bandT * bandT * 0.88f);
+                        if (nibble < threshold)
+                        {
+                            output = Color.Transparent;
+                        }
+                    }
                 }
 
-                if (intoAcid >= state.SoftBand)
+                if (state.WorkingPixels[index] != output)
                 {
-                    state.WorkingPixels[index] = Color.Transparent;
-                    continue;
-                }
-
-                // Soft mottled nibble along a roughly horizontal front â€” not vertical melt columns.
-                var bandT = intoAcid / state.SoftBand;
-                var nibble = Hash01(x, y, state.NoiseSeed);
-                var threshold = 0.12f + (bandT * bandT * 0.88f);
-                if (nibble < threshold)
-                {
-                    state.WorkingPixels[index] = Color.Transparent;
+                    state.WorkingPixels[index] = output;
+                    changed = true;
                 }
             }
         }
 
-        state.Texture.SetData(state.WorkingPixels);
+        if (!changed)
+        {
+            return false;
+        }
+
+        uploadRegion = new Rectangle(0, firstRow, state.Width, endRow - firstRow);
+        return uploadRegion.Height > 0;
     }
 
     private static float Hash01(int x, int y, int seed)
@@ -811,32 +983,66 @@ public partial class Game1
         var drawPosition = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y);
         var rotation = rotationDegrees * (MathF.PI / 180f);
         var scale = new Vector2(state.Scale * facingScaleX, state.Scale);
+        var transform = GetActiveGameplayWorldSpriteBatchTransform();
+        var viewport = GraphicsDevice.Viewport;
+        var outlineTexture = state.IsBurnCharred ? state.OutlineTexture : null;
+        var drawOutline = outlineTexture is not null;
+        var outlineOrigin = state.Origin + new Vector2(0f, BurnOutlinePadTop);
+        var outlineVisible = drawOutline
+            && SpriteBatchQuadViewportVisibility.Intersects(
+                drawPosition,
+                outlineTexture!.Width,
+                outlineTexture!.Height,
+                rotation,
+                outlineOrigin,
+                scale,
+                transform,
+                viewport);
+        var textureVisible = SpriteBatchQuadViewportVisibility.Intersects(
+            drawPosition,
+            state.Width,
+            state.Height,
+            rotation,
+            state.Origin,
+            scale,
+            transform,
+            viewport);
 
-        if (state.IsBurnCharred && state.OutlineTexture is not null)
+        // An offscreen dissolve remains handled so dynamic-ragdoll callers do
+        // not fall back to their many-part live draw path.
+        if (!outlineVisible && !textureVisible)
+        {
+            return;
+        }
+
+        if (outlineVisible)
         {
             // Outline texture has BurnOutlinePadTop rows above the meat; bump origin so meat aligns.
             _spriteBatch.Draw(
-                state.OutlineTexture,
+                outlineTexture!,
                 drawPosition,
                 null,
                 Color.White,
                 rotation,
-                state.Origin + new Vector2(0f, BurnOutlinePadTop),
+                outlineOrigin,
                 scale,
                 SpriteEffects.None,
                 0f);
         }
 
-        _spriteBatch.Draw(
-            state.Texture,
-            drawPosition,
-            null,
-            Color.White,
-            rotation,
-            state.Origin,
-            scale,
-            SpriteEffects.None,
-            0f);
+        if (textureVisible)
+        {
+            _spriteBatch.Draw(
+                state.Texture,
+                drawPosition,
+                null,
+                Color.White,
+                rotation,
+                state.Origin,
+                scale,
+                SpriteEffects.None,
+                0f);
+        }
     }
 
     private bool TryGetCorpseAcidDissolveState(int corpseId, out CorpseAcidDissolveState state)
@@ -851,7 +1057,7 @@ public partial class Game1
                 ConvertDissolveStateToBurnCharred(existing);
             }
 
-            ragdoll.AcidFrozen = true;
+            FreezeDynamicRagdollForAcid(ragdoll);
             return true;
         }
 
@@ -990,6 +1196,17 @@ public partial class Game1
             return;
         }
 
+        RebuildBurnCharredOutlinePixels(state, outlinePhase);
+        state.OutlineTexture.SetData(state.OutlinePixels);
+    }
+
+    private static void RebuildBurnCharredOutlinePixels(CorpseAcidDissolveState state, float outlinePhase)
+    {
+        if (!state.IsBurnCharred || state.OutlinePixels is null)
+        {
+            return;
+        }
+
         state.LastOutlinePhase = outlinePhase;
         Array.Clear(state.OutlinePixels);
 
@@ -1021,8 +1238,6 @@ public partial class Game1
             ref readonly var cell = ref outlineCells[i];
             StampBurnOutlineCell(state, cell.X, cell.Y, cell.Color);
         }
-
-        state.OutlineTexture.SetData(state.OutlinePixels);
     }
 
     private readonly struct BurnOutlineCell

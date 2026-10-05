@@ -20,7 +20,8 @@ public partial class Game1
     public int _crtUnlockSequenceProgress;
     public TimeSpan _crtUnlockLastInputAt;
 
-    public bool IsCrtSettingsUnlockedForSession => !OperatingSystem.IsBrowser() && _crtSettingsUnlockedForSession;
+    public bool IsCrtSettingsUnlockedForSession => !OperatingSystem.IsBrowser()
+        && (_crtSettingsUnlockedForSession || _clientSettings.CrtSettingsUnlocked || _clientSettings.CrtPreset != CrtPresetKind.Off);
 
     public void UpdateCrtUnlockSequence(KeyboardState keyboard, TimeSpan totalGameTime)
     {
@@ -87,7 +88,7 @@ public partial class Game1
     public bool CanListenForCrtUnlockSequence()
     {
         return !OperatingSystem.IsBrowser()
-            && !_crtSettingsUnlockedForSession
+            && !IsCrtSettingsUnlockedForSession
             && IsWindowInputActive
             && _mainMenuOpen
             && !_startupSplashOpen
@@ -114,6 +115,8 @@ public partial class Game1
     {
         _crtSettingsUnlockedForSession = true;
         _crtUnlockSequenceProgress = 0;
+        _clientSettings.CrtSettingsUnlocked = true;
+        PersistClientSettings();
         if (string.IsNullOrWhiteSpace(_menuStatusMessage))
         {
             _menuStatusMessage = "CRT options unlocked in Graphics.";
@@ -223,6 +226,7 @@ public partial class Game1
 
     private void CommitCrtSettingsChange()
     {
+        _clientSettings.CrtSettingsUnlocked = true;
         OnCrtSettingsChanged();
         PersistClientSettings();
     }

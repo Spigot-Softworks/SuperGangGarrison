@@ -9,6 +9,7 @@ public sealed class MenuResources
     public LoadedSpriteFrame? BackgroundTexture;
     public string? BackgroundTexturePath;
     public int ImageFrame;
+    public LoadedSpriteFrame? CursorTexture;
     public LoadedSpriteFrame? BitmapFontTexture;
     public readonly Dictionary<char, Game1.MenuBitmapGlyph> BitmapFontGlyphs = new();
     public int BitmapFontLineHeight;

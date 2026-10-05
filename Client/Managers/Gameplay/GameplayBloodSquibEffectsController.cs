@@ -12,10 +12,10 @@ namespace OpenGarrison.Client;
 
 public sealed partial class GameplayGoreEffectsController
     {
-        private const float BloodCellSize = 2f;
+        private const float BloodCellSize = SettledBloodConstants.CellSize;
         private const int MaxBloodSquibParticles = 96;
         private const int MaxSettledBloodCells = 2800;
-        private const float SettledBloodMaxAmount = 2.4f;
+        private const float SettledBloodMaxAmount = SettledBloodConstants.MaxAmount;
         private const float SettledBloodDepositAmount = 1.05f;
         private const float SettledBloodDripThreshold = 1f;
         private const float SettledBloodDripRate = 0.004f;
@@ -49,6 +49,9 @@ public sealed partial class GameplayGoreEffectsController
             _staleSettledBloodDropIds.Clear();
             _staleSettledBloodCellKeys.Clear();
             _pendingSettledBloodTransfers.Clear();
+            _settledBloodHostSolidCache.Clear();
+            _settledBloodNeighbourSupportCache.Clear();
+            _settledBloodPoolDrawCache.Clear();
             _bloodDrawCellsScratch.Clear();
             _bloodCryoDrawCellsScratch.Clear();
             ResetGibBloodTrails();
@@ -345,7 +348,8 @@ public sealed partial class GameplayGoreEffectsController
 
             FadeSettledBloodFromEdges();
 
-            var solids = _context._world.Level.Solids;
+            var level = _context._world.Level;
+            _settledBloodHostSolidCache.PrepareForLevel(level);
             _pendingSettledBloodTransfers.Clear();
             _staleSettledBloodCellKeys.Clear();
 
@@ -359,10 +363,12 @@ public sealed partial class GameplayGoreEffectsController
                     continue;
                 }
 
-                var worldX = (entry.Key.X * BloodCellSize) + (BloodCellSize * 0.5f);
-                var worldY = (entry.Key.Y * BloodCellSize) + (BloodCellSize * 0.5f);
-                if (!TryFindSolidContainingPoint(solids, worldX, worldY, out var hostSolid)
-                    && !TryFindSolidBelowCell(solids, worldX, worldY, BloodCellSize, out hostSolid))
+                if (!_settledBloodHostSolidCache.TryFindHostSolid(
+                        level,
+                        entry.Key.X,
+                        entry.Key.Y,
+                        BloodCellSize,
+                        out var hostSolid))
                 {
                     continue;
                 }
@@ -404,7 +410,7 @@ public sealed partial class GameplayGoreEffectsController
 
             for (var index = 0; index < _staleSettledBloodCellKeys.Count; index += 1)
             {
-                _settledBloodCells.Remove(_staleSettledBloodCellKeys[index]);
+                RemoveSettledBloodCell(_staleSettledBloodCellKeys[index]);
             }
 
             _staleSettledBloodCellKeys.Clear();
@@ -471,7 +477,7 @@ public sealed partial class GameplayGoreEffectsController
 
             for (var index = 0; index < _staleSettledBloodCellKeys.Count; index += 1)
             {
-                _settledBloodCells.Remove(_staleSettledBloodCellKeys[index]);
+                RemoveSettledBloodCell(_staleSettledBloodCellKeys[index]);
             }
 
             _staleSettledBloodCellKeys.Clear();
@@ -886,6 +892,17 @@ public sealed partial class GameplayGoreEffectsController
             };
         }
 
+        private bool RemoveSettledBloodCell((int X, int Y) key)
+        {
+            if (!_settledBloodCells.Remove(key))
+            {
+                return false;
+            }
+
+            _settledBloodHostSolidCache.ForgetCell(key);
+            return true;
+        }
+
         private void TrimSettledBloodCellsIfNeeded()
         {
             var overflow = _settledBloodCells.Count - MaxSettledBloodCells;
@@ -909,7 +926,7 @@ public sealed partial class GameplayGoreEffectsController
 
             for (var index = 0; index < _staleSettledBloodCellKeys.Count; index += 1)
             {
-                _settledBloodCells.Remove(_staleSettledBloodCellKeys[index]);
+                RemoveSettledBloodCell(_staleSettledBloodCellKeys[index]);
             }
 
             _staleSettledBloodCellKeys.Clear();
@@ -941,9 +958,35 @@ public sealed partial class GameplayGoreEffectsController
 
         private void DrawSettledBloodSquibPools(Vector2 cameraPosition)
         {
+            EnsureSettledBloodPoolDrawCache();
+            var drawCache = _settledBloodPoolDrawCache;
+            DrawCachedSettledBloodCells(drawCache.NormalCells, cameraPosition);
+            DrawCachedSettledBloodCells(drawCache.CryoCells, cameraPosition);
+        }
+
+        internal bool EnsureSettledBloodPoolDrawCache()
+        {
+            var drawCache = _settledBloodPoolDrawCache;
+            if (drawCache.TryUse(_settledBloodCells))
+            {
+                return true;
+            }
+
+            RebuildSettledBloodPoolDrawCache(drawCache);
+            return false;
+        }
+
+        internal void RebuildSettledBloodPoolDrawCache()
+        {
+            RebuildSettledBloodPoolDrawCache(_settledBloodPoolDrawCache);
+        }
+
+        private void RebuildSettledBloodPoolDrawCache(SettledBloodPoolDrawCache drawCache)
+        {
+            drawCache.BeginBuild();
+
             var normalCells = _bloodDrawCellsScratch;
             var cryoCells = _bloodCryoDrawCellsScratch;
-
             normalCells.Clear();
             cryoCells.Clear();
             foreach (var entry in _settledBloodCells)
@@ -953,15 +996,61 @@ public sealed partial class GameplayGoreEffectsController
                     continue;
                 }
 
-                var cells = entry.Value.ExperimentalCryoTinted ? cryoCells : normalCells;
+                var isCryo = entry.Value.ExperimentalCryoTinted;
+                drawCache.CaptureSourceCell(entry.Key, entry.Value.Amount, isCryo);
+                var cells = isCryo ? cryoCells : normalCells;
                 AddCellAmount(cells, entry.Key.X, entry.Key.Y, entry.Value.Amount);
             }
 
             SmoothSettledBloodPools(normalCells);
             SmoothSettledBloodPools(cryoCells);
 
-            DrawProceduralBloodCells(normalCells, cameraPosition, useCryoColors: false, useFlightColors: false);
-            DrawProceduralBloodCells(cryoCells, cameraPosition, useCryoColors: true, useFlightColors: false);
+            AppendSettledBloodRenderCells(normalCells, drawCache.NormalCells, useCryoColors: false);
+            AppendSettledBloodRenderCells(cryoCells, drawCache.CryoCells, useCryoColors: true);
+
+            drawCache.CompleteBuild();
+        }
+
+        private void DrawCachedSettledBloodCells(List<SettledBloodRenderCell> cells, Vector2 cameraPosition)
+        {
+            const int cellSize = (int)BloodCellSize;
+            for (var index = 0; index < cells.Count; index += 1)
+            {
+                var cell = cells[index];
+                var rect = GetSettledBloodRenderRectangle(cell, cameraPosition, cellSize);
+                _context._spriteBatch.Draw(_context._pixel, rect, cell.Color);
+            }
+        }
+
+        internal static void AppendSettledBloodRenderCells(
+            Dictionary<(int, int), float> cells,
+            List<SettledBloodRenderCell> renderedCells,
+            bool useCryoColors)
+        {
+            foreach (var ((gx, gy), _) in cells)
+            {
+                renderedCells.Add(new SettledBloodRenderCell(
+                    gx,
+                    gy,
+                    ResolveProceduralBloodCellColor(
+                        cells,
+                        gx,
+                        gy,
+                        useCryoColors,
+                        useFlightColors: false)));
+            }
+        }
+
+        internal static Rectangle GetSettledBloodRenderRectangle(
+            SettledBloodRenderCell cell,
+            Vector2 cameraPosition,
+            int cellSize)
+        {
+            return new Rectangle(
+                (int)MathF.Round((cell.X * cellSize) - cameraPosition.X),
+                (int)MathF.Round((cell.Y * cellSize) - cameraPosition.Y),
+                cellSize,
+                cellSize);
         }
 
         private void SmoothSettledBloodPools(Dictionary<(int, int), float> cells)
@@ -972,81 +1061,11 @@ public sealed partial class GameplayGoreEffectsController
             }
 
             var bridgeScratch = _bloodBridgeScratch;
-            bridgeScratch.Clear();
-
-            // Aggressive morphological close: unify nearby pools into one sheet.
-            foreach (var ((gx, gy), amount) in cells)
-            {
-                if (amount < 0.2f)
-                {
-                    continue;
-                }
-
-                for (var offsetY = -1; offsetY <= 2; offsetY += 1)
-                {
-                    for (var offsetX = -3; offsetX <= 3; offsetX += 1)
-                    {
-                        if (offsetX == 0 && offsetY == 0)
-                        {
-                            continue;
-                        }
-
-                        var key = (gx + offsetX, gy + offsetY);
-                        if (cells.ContainsKey(key))
-                        {
-                            continue;
-                        }
-
-                        var neighbourSupport = 0f;
-                        var neighbourCount = 0;
-                        for (var ny = -1; ny <= 1; ny += 1)
-                        {
-                            for (var nx = -1; nx <= 1; nx += 1)
-                            {
-                                if (nx == 0 && ny == 0)
-                                {
-                                    continue;
-                                }
-
-                                if (!cells.TryGetValue((key.Item1 + nx, key.Item2 + ny), out var neighbourAmount)
-                                    || neighbourAmount < 0.2f)
-                                {
-                                    continue;
-                                }
-
-                                neighbourSupport += neighbourAmount;
-                                neighbourCount += 1;
-                            }
-                        }
-
-                        if (neighbourCount < 2)
-                        {
-                            continue;
-                        }
-
-                        var fillAmount = MathF.Min(SettledBloodMaxAmount, neighbourSupport / Math.Max(2, neighbourCount));
-                        if (offsetY > 0)
-                        {
-                            fillAmount *= 0.65f;
-                        }
-
-                        if (offsetY == 0)
-                        {
-                            fillAmount = MathF.Max(fillAmount, 0.85f);
-                        }
-
-                        if (fillAmount < 0.2f)
-                        {
-                            continue;
-                        }
-
-                        if (!bridgeScratch.TryGetValue(key, out var existing) || fillAmount > existing)
-                        {
-                            bridgeScratch[key] = fillAmount;
-                        }
-                    }
-                }
-            }
+            SettledBloodMorphologicalClose.BuildBridges(
+                cells,
+                bridgeScratch,
+                _settledBloodNeighbourSupportCache,
+                SettledBloodMaxAmount);
 
             foreach (var entry in bridgeScratch)
             {
@@ -1401,31 +1420,12 @@ public sealed partial class GameplayGoreEffectsController
             var cellSize = (int)BloodCellSize;
             foreach (var ((gx, gy), _) in cells)
             {
-                // Inner silhouette: darker rim cells only — never expand outside the pool.
-                var isOutline = !cells.ContainsKey((gx - 1, gy))
-                    || !cells.ContainsKey((gx + 1, gy))
-                    || !cells.ContainsKey((gx, gy - 1))
-                    || !cells.ContainsKey((gx, gy + 1));
-
-                Color pixelColor;
-                if (useCryoColors)
-                {
-                    pixelColor = isOutline
-                        ? new Color(140, 195, 220)
-                        : ResolveSettledBloodFillColor(cells, gx, gy, cryo: true, flight: useFlightColors);
-                }
-                else if (useFlightColors)
-                {
-                    pixelColor = isOutline
-                        ? new Color(165, 10, 16)
-                        : new Color(218, 22, 28);
-                }
-                else
-                {
-                    pixelColor = isOutline
-                        ? new Color(145, 8, 14)
-                        : ResolveSettledBloodFillColor(cells, gx, gy, cryo: false, flight: false);
-                }
+                var pixelColor = ResolveProceduralBloodCellColor(
+                    cells,
+                    gx,
+                    gy,
+                    useCryoColors,
+                    useFlightColors);
 
                 var rect = new Rectangle(
                     (int)MathF.Round((gx * cellSize) - cameraPosition.X),
@@ -1436,9 +1436,41 @@ public sealed partial class GameplayGoreEffectsController
             }
         }
 
+        internal static Color ResolveProceduralBloodCellColor(
+            Dictionary<(int, int), float> cells,
+            int gx,
+            int gy,
+            bool useCryoColors,
+            bool useFlightColors)
+        {
+            // Inner silhouette: darker rim cells only — never expand outside the pool.
+            var isOutline = !cells.ContainsKey((gx - 1, gy))
+                || !cells.ContainsKey((gx + 1, gy))
+                || !cells.ContainsKey((gx, gy - 1))
+                || !cells.ContainsKey((gx, gy + 1));
+
+            if (useCryoColors)
+            {
+                return isOutline
+                    ? new Color(140, 195, 220)
+                    : ResolveSettledBloodFillColor(cells, gx, gy, cryo: true, flight: useFlightColors);
+            }
+
+            if (useFlightColors)
+            {
+                return isOutline
+                    ? new Color(165, 10, 16)
+                    : new Color(218, 22, 28);
+            }
+
+            return isOutline
+                ? new Color(145, 8, 14)
+                : ResolveSettledBloodFillColor(cells, gx, gy, cryo: false, flight: false);
+        }
+
         // Multi-scale blotches of blood shades. Continuous field is neighbour-softened, then
         // quantized so bands sit next to midtones (no harsh dark↔bright jumps).
-        private static Color ResolveSettledBloodFillColor(
+        internal static Color ResolveSettledBloodFillColor(
             Dictionary<(int, int), float> cells,
             int gx,
             int gy,
@@ -1572,55 +1604,4 @@ public sealed partial class GameplayGoreEffectsController
             }
         }
 
-        private static bool TryFindSolidContainingPoint(
-            IReadOnlyList<LevelSolid> solids,
-            float worldX,
-            float worldY,
-            out LevelSolid solid)
-        {
-            for (var index = 0; index < solids.Count; index += 1)
-            {
-                var candidate = solids[index];
-                if (worldX >= candidate.Left
-                    && worldX < candidate.Right
-                    && worldY >= candidate.Top
-                    && worldY < candidate.Bottom)
-                {
-                    solid = candidate;
-                    return true;
-                }
-            }
-
-            solid = default;
-            return false;
-        }
-
-        private static bool TryFindSolidBelowCell(
-            IReadOnlyList<LevelSolid> solids,
-            float worldX,
-            float worldY,
-            float cellSize,
-            out LevelSolid solid)
-        {
-            var probeY = worldY + cellSize;
-            for (var index = 0; index < solids.Count; index += 1)
-            {
-                var candidate = solids[index];
-                if (worldX < candidate.Left || worldX >= candidate.Right)
-                {
-                    continue;
-                }
-
-                if (worldY <= candidate.Top + 0.01f
-                    && probeY >= candidate.Top
-                    && worldY >= candidate.Top - cellSize)
-                {
-                    solid = candidate;
-                    return true;
-                }
-            }
-
-            solid = default;
-            return false;
-        }
 }

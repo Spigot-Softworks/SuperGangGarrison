@@ -353,6 +353,13 @@ public sealed class GameplayAudioEventController
                 return CompleteSoundEvent(soundEvent);
             }
 
+            // Jumps are silent now; the local player hears a landing cue instead
+            // (Game1.LocalPlayerAudioCues). Plugins still see the event.
+            if (string.Equals(soundEvent.SoundName, "JumpSnd", StringComparison.OrdinalIgnoreCase))
+            {
+                return CompleteSoundEvent(soundEvent);
+            }
+
             if (string.Equals(soundEvent.SoundName, "ExplosionSnd", StringComparison.OrdinalIgnoreCase)
                 && !_context.HasPresentedExplosionVisualThisFrame(soundEvent.X, soundEvent.Y)
                 && !_context.HasPresentedExplosionVisualForSoundEvent(soundEvent)
@@ -392,9 +399,7 @@ public sealed class GameplayAudioEventController
                 return CompleteSoundEvent(soundEvent);
             }
 
-            var resolvedSoundName = string.Equals(soundEvent.SoundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase)
-                ? "ExplosionSnd"
-                : soundEvent.SoundName;
+            var resolvedSoundName = ResolveOneShotSoundName(soundEvent);
             if (_context._runtimeAssets is null)
             {
                 return false;
@@ -442,6 +447,29 @@ public sealed class GameplayAudioEventController
             }
 
             return true;
+        }
+
+        /// <summary>The clip a world sound event plays as a one-shot.</summary>
+        private string ResolveOneShotSoundName(WorldSoundEvent soundEvent)
+        {
+            var soundName = soundEvent.SoundName;
+            if (string.Equals(soundName, "HealExplosionSnd", StringComparison.OrdinalIgnoreCase))
+            {
+                return "ExplosionSnd";
+            }
+
+            // The minigun sound is a long seamless loop owned by the rapid-fire controller.
+            // A per-shot event that still reaches here (replays, or a shot the remote loop
+            // did not claim) must not play the whole multi-second loop once per shot, which
+            // stacks into a wall of noise that outlasts the firing; it gets a short burst.
+            if (string.Equals(soundName, Game1.MinigunLoopSoundName, StringComparison.OrdinalIgnoreCase))
+            {
+                return Game1.MinigunShotSoundName;
+            }
+
+            return Game1.IsPlayerDeathVoiceSoundName(soundName)
+                ? _context.ResolvePlayerDeathVoiceSoundName(soundEvent)
+                : soundName;
         }
 
         private bool CompleteSoundEvent(WorldSoundEvent soundEvent)
@@ -526,7 +554,7 @@ public sealed class GameplayAudioEventController
                     return true;
                 }
 
-                return false;
+                return IsPermanentlyUnavailableDesktopSound(soundEvent.SoundName);
             }
 
             var (volume, pan) = Game1.UsesGlobalWorldSoundMix(soundEvent.SoundName)
@@ -539,5 +567,23 @@ public sealed class GameplayAudioEventController
 
             playbackSucceeded = _context.TryPlaySound(sound, volume, 0f, pan);
             return playbackSucceeded;
+        }
+
+        private bool IsPermanentlyUnavailableDesktopSound(string soundName)
+        {
+            if (OperatingSystem.IsBrowser() || _context._runtimeAssets is not { } runtimeAssets)
+            {
+                return false;
+            }
+
+            var isFlareImpact = string.Equals(soundName, "FlareImpactSnd", StringComparison.OrdinalIgnoreCase);
+            var soundIsUnavailable = runtimeAssets.IsDesktopSoundPermanentlyUnavailable(soundName);
+            if (!isFlareImpact)
+            {
+                return soundIsUnavailable;
+            }
+
+            return soundIsUnavailable
+                && runtimeAssets.IsDesktopSoundPermanentlyUnavailable("DirecthitSnd");
         }
 }

@@ -986,7 +986,7 @@ public partial class Game1
         if (_hasGameplayCameraTopLeft)
         {
             sourcePosition = position;
-            targetPosition -= _gameplayCameraTopLeft;
+            targetPosition = GetWorldHudScreenPosition(targetPosition, _gameplayCameraTopLeft);
         }
 
         var sourceX = sourcePosition.X;

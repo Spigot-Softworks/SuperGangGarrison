@@ -27,7 +27,7 @@ public partial class Game1
     private static readonly HttpClient PeerRoomHttp = new();
 
     private PeerPracticeSettings CapturePeerPracticeSettings() => new(
-        Map: _practiceSetupState.GetSelectedMapEntry()?.LevelName ?? "Harvest",
+        Map: _practiceSetupState.GetSelectedMapEntry()?.LevelName ?? "cp_powerstrip",
         TickRate: _practiceSetupState.TickRate, TimeLimitMinutes: _practiceSetupState.TimeLimitMinutes,
         CaptureLimit: _practiceSetupState.CapLimit, RespawnSeconds: _practiceSetupState.RespawnSeconds,
         RedBots: _practiceSetupState.FriendlyBotCount, BlueBots: _practiceSetupState.EnemyBotCount,

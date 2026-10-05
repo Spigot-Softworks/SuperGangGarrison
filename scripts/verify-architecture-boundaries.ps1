@@ -186,6 +186,159 @@ foreach ($entry in $worldBackReferenceAllowlist) {
     }
 }
 
+# Rule 8: Tests do not reflect on the world.
+# Tests call the systems or the Test* seams (World/SimulationWorld.TestSeams.cs or a
+# system's *.TestSeams.cs). Add an internal seam instead of reflecting.
+foreach ($file in Get-CSharpFiles "Tests") {
+    $content = Remove-CSharpComments (Get-Content -LiteralPath $file.FullName -Raw)
+    if ($content -match 'typeof\s*\(\s*SimulationWorld\s*\)') {
+        Add-Failure "Test reflects on SimulationWorld (use a system or a Test* seam): $($file.FullName.Substring($rootPath.Length + 1))"
+    }
+}
+
+# Rule 9: World layout. The world's partials live in Core/Simulation/World/ (world-owned
+# members) and Core/Simulation/World/Hosts/ (one file per host interface), and there are
+# no forwarder files: callers use the systems directly.
+foreach ($file in Get-CSharpFiles "Core/Simulation") {
+    $relative = $file.FullName.Substring($rootPath.Length + 1).Replace('\', '/')
+    if ($file.Name -like "*Forwarders.cs") {
+        Add-Failure "Forwarder file reintroduced (call the system directly): $relative"
+    }
+    $content = Remove-CSharpComments (Get-Content -LiteralPath $file.FullName -Raw)
+    if ($content -match '\bpartial\s+class\s+SimulationWorld\b' -and -not $relative.StartsWith("Core/Simulation/World/")) {
+        Add-Failure "SimulationWorld partial outside Core/Simulation/World/: $relative"
+    }
+}
+
+# Rule 10: SimulationWorld public-member ratchet. New behavior goes on a system; the world
+# exposes the system as a property. This count may only go down.
+# (Counted: 4-space-indented `public` member lines across Core/Simulation/World/.)
+$maxSimulationWorldPublicMembers = 133
+$simulationWorldPublicMemberCount = 0
+foreach ($file in Get-CSharpFiles "Core/Simulation/World") {
+    $content = Remove-CSharpComments (Get-Content -LiteralPath $file.FullName -Raw)
+    $simulationWorldPublicMemberCount += [regex]::Matches($content, '(?m)^    public\b').Count
+}
+if ($simulationWorldPublicMemberCount -gt $maxSimulationWorldPublicMembers) {
+    Add-Failure "SimulationWorld has $simulationWorldPublicMemberCount public members (limit $maxSimulationWorldPublicMembers). Put new behavior on a system."
+} elseif ($simulationWorldPublicMemberCount -lt $maxSimulationWorldPublicMembers) {
+    Write-Host "Note: SimulationWorld has $simulationWorldPublicMemberCount public members; lower `$maxSimulationWorldPublicMembers from $maxSimulationWorldPublicMembers to lock in the improvement."
+}
+
+# Rule 11: Host interface ceilings. A host lists what a system needs from the world; when a
+# member is a straight forward to a sibling system, expose that system as a host property
+# instead (see docs/architecture/simulation-cleanup-plan.md, B2). Counts may only go down;
+# a new host starts with a ceiling of $defaultHostMemberCeiling.
+# (Counted: 4-space-indented member lines inside `interface I...Host` bodies.)
+$hostMemberCeilings = @{
+    "IAdminCommandsHost" = 4
+    "IAirblastRulesHost" = 19
+    "IClassRulesHost" = 6
+    "ICombatFeedbackHost" = 8
+    "ICombatGeometryHost" = 8
+    "ICombatSystemHost" = 0
+    "IDamageRulesHost" = 5
+    "IDecisionGateHost" = 7
+    "IEntityPhaseHost" = 34
+    "IExperimentalRulesHost" = 28
+    "IExplosionRulesHost" = 24
+    "IGameplayAbilityHost" = 32
+    "IKillFeedHost" = 1
+    "ILastToDieHost" = 22
+    "IMapLifecycleHost" = 35
+    "IMapLogicHost" = 9
+    "IMatchObjectiveHost" = 32
+    "IMatchPhaseHost" = 16
+    "IMovementSystemHost" = 3
+    "INetworkPlayerHost" = 32
+    "IObjectiveRulesHost" = 36
+    "IPickupHost" = 14
+    "IPlayerCountHost" = 5
+    "IPlayerDeathHost" = 29
+    "IPlayerInputHost" = 24
+    "IPlayerPresentationBoundsHost" = 2
+    "IPlayerRemainsHost" = 10
+    "IPracticeDummyHost" = 16
+    "IProjectileSystemHost" = 0
+    "IReadyUpHost" = 4
+    "IRoomEffectsHost" = 2
+    "IScorekeepingHost" = 1
+    "IServerTuningHost" = 8
+    "ISimulationTickHost" = 12
+    "ISnapshotApplyHost" = 41
+    "ISnapshotSystemHost" = 7
+    "ISpawnHost" = 19
+    "IStructureHost" = 25
+    "ISupportRulesHost" = 13
+    "IVipRulesHost" = 10
+    "IWeaponFireHost" = 37
+    "IWorldEffectsHost" = 9
+}
+$defaultHostMemberCeiling = 20
+$hostMemberCounts = @{}
+foreach ($file in Get-CSharpFiles "Core/Simulation/Systems") {
+    $content = Remove-CSharpComments (Get-Content -LiteralPath $file.FullName -Raw)
+    foreach ($match in [regex]::Matches($content, '\binterface\s+(I\w+Host)\b[^{;]*\{')) {
+        $depth = 0
+        $end = $match.Index + $match.Length - 1
+        for ($i = $end; $i -lt $content.Length; $i++) {
+            $character = $content[$i]
+            if ($character -eq '{') { $depth++ }
+            elseif ($character -eq '}') {
+                $depth--
+                if ($depth -eq 0) { $end = $i; break }
+            }
+        }
+        $bodyStart = $match.Index + $match.Length
+        $body = $content.Substring($bodyStart, $end - $bodyStart)
+        $name = $match.Groups[1].Value
+        $count = [regex]::Matches($body, '(?m)^    [A-Za-z_]').Count
+        if ($hostMemberCounts.ContainsKey($name)) { $hostMemberCounts[$name] += $count } else { $hostMemberCounts[$name] = $count }
+    }
+}
+foreach ($name in $hostMemberCounts.Keys) {
+    $ceiling = if ($hostMemberCeilings.ContainsKey($name)) { $hostMemberCeilings[$name] } else { $defaultHostMemberCeiling }
+    $count = $hostMemberCounts[$name]
+    if ($count -gt $ceiling) {
+        Add-Failure "$name has $count members (limit $ceiling). Expose a sibling system as a host property instead of forwarding each call."
+    } elseif ($count -lt $ceiling -and $hostMemberCeilings.ContainsKey($name)) {
+        Write-Host "Note: $name has $count members; lower its ceiling from $ceiling to lock in the improvement."
+    }
+}
+
+# Rule 12: System property naming. A world property that exposes a system is named after
+# its type without the `System` suffix (`KillFeedSystem KillFeed`), optionally plural
+# (`SpawnSystem Spawns`, `PracticeDummySystem PracticeDummies`). Older names that predate
+# the rule are listed here; do not add to the list.
+$systemPropertyNameExceptions = @{
+    "GameplayAbilitySystem" = "Abilities"
+    "PlayerPresentationBoundsSystem" = "PresentationBounds"
+}
+foreach ($file in Get-CSharpFiles "Core/Simulation/World") {
+    $content = Remove-CSharpComments (Get-Content -LiteralPath $file.FullName -Raw)
+    foreach ($match in [regex]::Matches($content, '(?m)^    (?:public|internal)\s+(\w+System)\s+(\w+)\s*\{\s*get;')) {
+        $typeName = $match.Groups[1].Value
+        $propertyName = $match.Groups[2].Value
+        $baseName = $typeName.Substring(0, $typeName.Length - "System".Length)
+        $allowed = @($baseName, ($baseName + "s"))
+        if ($baseName.EndsWith("y")) { $allowed += ($baseName.Substring(0, $baseName.Length - 1) + "ies") }
+        if ($systemPropertyNameExceptions.ContainsKey($typeName)) { $allowed += $systemPropertyNameExceptions[$typeName] }
+        if ($allowed -notcontains $propertyName) {
+            Add-Failure "World property '$propertyName' of type $typeName should be named '$baseName' (or its plural)."
+        }
+    }
+}
+
+# Rule 13: Lua is the only plugin runtime. Product code must not load assemblies from disk.
+foreach ($dir in @("Core", "Client", "Client.Shared", "Client.Browser", "Server", "SessionRuntime")) {
+    foreach ($file in Get-CSharpFiles $dir) {
+        $content = Remove-CSharpComments (Get-Content -LiteralPath $file.FullName -Raw)
+        if ($content -match '\bLoadFromAssemblyPath\b|\bAssembly\.LoadFrom\b|\bAssembly\.LoadFile\b|\bAssembly\.UnsafeLoadFrom\b') {
+            Add-Failure "Loads assemblies from disk (plugins are Lua-only): $($file.FullName.Substring($rootPath.Length + 1))"
+        }
+    }
+}
+
 if ($failures.Count -gt 0) {
     Write-Host "Architecture boundary violations found:"
     foreach ($failure in $failures) {

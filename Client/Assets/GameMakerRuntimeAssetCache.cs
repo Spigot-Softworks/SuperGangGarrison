@@ -16,9 +16,13 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
 {
     private readonly GraphicsDevice _graphicsDevice;
     private readonly GameMakerAssetManifest _manifest;
+    private readonly Func<string, bool> _fileExists;
     private readonly Dictionary<string, LoadedGameMakerSprite> _sprites = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Texture2D> _backgrounds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SoundEffect> _sounds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _missingSoundPaths = new(OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal);
     private readonly Dictionary<string, Task<LoadedGameMakerSprite?>> _pendingBrowserSprites = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Task<Texture2D?>> _pendingBrowserBackgrounds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Task<SoundEffect?>> _pendingBrowserSounds = new(StringComparer.OrdinalIgnoreCase);
@@ -30,9 +34,18 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
     private bool _disposed;
 
     public GameMakerRuntimeAssetCache(GraphicsDevice graphicsDevice, GameMakerAssetManifest manifest)
+        : this(graphicsDevice, manifest, File.Exists)
+    {
+    }
+
+    internal GameMakerRuntimeAssetCache(
+        GraphicsDevice graphicsDevice,
+        GameMakerAssetManifest manifest,
+        Func<string, bool> fileExists)
     {
         _graphicsDevice = graphicsDevice;
         _manifest = manifest;
+        _fileExists = fileExists;
 
         var atlasManifest = ClientRuntimeBootstrap.GetBrowserGameMakerAtlasManifest();
         if (atlasManifest is not null)
@@ -304,15 +317,22 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             return TryGetBrowserSound(soundName, soundAsset);
         }
 
-        var loadStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
-        if (!File.Exists(soundAsset.AudioPath))
+        var audioPath = ResolveDesktopSoundAssetPath(soundAsset.AudioPath, ContentRoot.Path);
+        if (_missingSoundPaths.Contains(audioPath))
         {
+            return null;
+        }
+
+        var loadStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
+        if (!_fileExists(audioPath))
+        {
+            _missingSoundPaths.Add(audioPath);
             if (loadStartTimestamp > 0L)
             {
                 ClientAssetLoadDiagnostics.RecordOnce(
                     "sound",
                     soundName,
-                    FormattableString.Invariant($"path=\"{soundAsset.AudioPath}\" result=missing-file"),
+                    FormattableString.Invariant($"path=\"{audioPath}\" result=missing-file"),
                     loadStartTimestamp);
             }
 
@@ -327,7 +347,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         var decodeCompleted = false;
         try
         {
-            var soundBytes = File.ReadAllBytes(soundAsset.AudioPath);
+            var soundBytes = File.ReadAllBytes(audioPath);
             readCompleted = true;
             if (readStartTimestamp > 0L)
             {
@@ -335,7 +355,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             }
 
             decodeStartTimestamp = ClientAssetLoadDiagnostics.StartTimestamp();
-            cached = SoundDecodeUtility.LoadSoundEffect(soundBytes, soundAsset.AudioPath);
+            cached = SoundDecodeUtility.LoadSoundEffect(soundBytes, audioPath);
             decodeCompleted = true;
             if (decodeStartTimestamp > 0L)
             {
@@ -348,7 +368,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
                 ClientAssetLoadDiagnostics.RecordOnce(
                     "sound",
                     soundName,
-                    FormattableString.Invariant($"path=\"{soundAsset.AudioPath}\" readMs={readMilliseconds:F3} decodeMs={decodeMilliseconds:F3} bytes={soundBytes.Length}"),
+                    FormattableString.Invariant($"path=\"{audioPath}\" readMs={readMilliseconds:F3} decodeMs={decodeMilliseconds:F3} bytes={soundBytes.Length}"),
                     loadStartTimestamp);
             }
 
@@ -371,12 +391,52 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
                 ClientAssetLoadDiagnostics.RecordOnce(
                     "sound",
                     soundName,
-                    FormattableString.Invariant($"path=\"{soundAsset.AudioPath}\" readMs={readMilliseconds:F3} decodeMs={decodeMilliseconds:F3} result=failed error={exception.GetType().Name}"),
+                    FormattableString.Invariant($"path=\"{audioPath}\" readMs={readMilliseconds:F3} decodeMs={decodeMilliseconds:F3} result=failed error={exception.GetType().Name}"),
                     loadStartTimestamp);
             }
 
             return null;
         }
+    }
+
+    internal bool IsDesktopSoundPermanentlyUnavailable(string soundName)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (OperatingSystem.IsBrowser() || _sounds.ContainsKey(soundName))
+        {
+            return false;
+        }
+
+        if (!_manifest.Sounds.TryGetValue(soundName, out var soundAsset))
+        {
+            return true;
+        }
+
+        var audioPath = ResolveDesktopSoundAssetPath(soundAsset.AudioPath, ContentRoot.Path);
+        return _missingSoundPaths.Contains(audioPath);
+    }
+
+    internal static string ResolveDesktopSoundAssetPath(string audioPath, string contentRoot)
+    {
+        if (Path.IsPathRooted(audioPath))
+        {
+            return audioPath;
+        }
+
+        var relativePath = audioPath.Replace('\\', '/');
+        const string packagedContentPrefix = "Content/";
+        if (relativePath.StartsWith(packagedContentPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            relativePath = relativePath[packagedContentPrefix.Length..];
+        }
+        else if (string.Equals(relativePath, "Content", StringComparison.OrdinalIgnoreCase))
+        {
+            relativePath = string.Empty;
+        }
+
+        var platformRelativePath = relativePath.Replace('/', Path.DirectorySeparatorChar);
+        return Path.GetFullPath(Path.Combine(contentRoot, platformRelativePath));
     }
 
     public void Dispose()
@@ -408,6 +468,7 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         _sprites.Clear();
         _backgrounds.Clear();
         _sounds.Clear();
+        _missingSoundPaths.Clear();
         _pendingBrowserSprites.Clear();
         _pendingBrowserBackgrounds.Clear();
         _pendingBrowserSounds.Clear();

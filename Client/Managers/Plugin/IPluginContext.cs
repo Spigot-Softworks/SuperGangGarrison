@@ -46,5 +46,6 @@ public interface IPluginContext
     void RegisterLastToDieLocalDamageDealt(int amount);
     void ResetClientPluginGameplayEventState();
     void TriggerLocalHudDamageVignette(int damageAmount);
+    void ObserveLocalPainDamage(int damageAmount, bool wasFatal, OpenGarrison.Core.DamageEventFlags flags);
     void TriggerLocalHudPortraitDamageFeedback(int damageAmount);
 }

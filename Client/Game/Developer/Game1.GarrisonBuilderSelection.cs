@@ -197,7 +197,7 @@ public partial class Game1
         var worldRect = ScreenRectangleToGarrisonBuilderWorldRectangle(screenRect);
         for (var index = 0; index < _builderEntities.Count; index += 1)
         {
-            if (IsGarrisonBuilderEntityHidden(index))
+            if (IsGarrisonBuilderEntityUnpickable(index))
             {
                 continue;
             }

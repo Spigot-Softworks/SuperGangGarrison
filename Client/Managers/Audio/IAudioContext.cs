@@ -39,7 +39,7 @@ public interface IAudioContext
     void EnqueuePendingBrowserSoundEvent(OpenGarrison.Core.WorldSoundEvent soundEvent);
     void ForgetPresentedExplosionVisualForSoundEvent(OpenGarrison.Core.WorldSoundEvent soundEvent);
     OpenGarrison.Core.PlayerEntity GetImmediatePrimaryPresentationPlayer();
-    (float Volume, float Pan) GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource);
+    (float Volume, float Pan) GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource, int sourcePlayerId = -1);
     int GetPlayerBuffBannerChargeDamage(OpenGarrison.Core.PlayerEntity player);
     int GetPlayerBuffBannerMaxChargeDamage(OpenGarrison.Core.PlayerEntity player);
     bool GetPlayerIsHeavyEating(OpenGarrison.Core.PlayerEntity player);
@@ -58,6 +58,7 @@ public interface IAudioContext
     bool IsLastToDieFailurePresentationActive();
     bool IsLastToDieMenuActive();
     bool IsLocalPlayerSoundSource(int sourcePlayerId);
+    string ResolvePlayerDeathVoiceSoundName(OpenGarrison.Core.WorldSoundEvent soundEvent);
     void NotifyClientPluginsWorldSound(OpenGarrison.Core.WorldSoundEvent soundEvent);
     void RecordPlayedExplosionSoundThisFrame(float x, float y);
     void RememberPlayedGibSound(OpenGarrison.Core.WorldSoundEvent soundEvent);

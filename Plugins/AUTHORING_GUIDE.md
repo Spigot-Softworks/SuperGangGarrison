@@ -204,12 +204,6 @@ Useful client host APIs include:
 - Chat: `register_chat_filter`, `register_chat_command`.
 - Messaging: `send_message_to_server`.
 
-CLR parity notes: Lua `capture_hotkey_input` and `clear_hotkey_capture` correspond to
-`IOpenGarrisonClientPluginHotkeys.SetHotkeyCaptureEnabled(true)` and
-`SetHotkeyCaptureEnabled(false)`. Lua `register_legacy_animation_asset` corresponds to
-the CLR texture-atlas pair `IOpenGarrisonClientPluginAssets.RegisterTextureAtlasAsset`
-and `TryGetTextureAtlasAsset`.
-
 ### HUD Drawing
 
 `on_gameplay_hud_draw(canvas)` is the simplest way to draw client UI:
@@ -379,10 +373,6 @@ or registered command to provide a friendly alias. Registrations and active owne
 removed automatically on unload/reload. Lua registration is initialization-only; validation
 runs in the read-only query phase, while apply runs in the bounded command-interaction phase.
 
-CLR server plugins use `IOpenGarrisonServerPluginContext.TryRegisterVoteKind` and
-`TryStartVote` with `OpenGarrisonServerVoteRegistration`. The same ownership, target resolution,
-callback, and lifecycle rules apply.
-
 ### Cancellable Decision Hooks
 
 Server plugins can participate in decisions before the host applies them. Use these for rules, restrictions, voting gates, or custom game modes.
@@ -492,10 +482,6 @@ Client asset APIs include:
 - `register_legacy_animation_asset`
 - `register_sound_asset`
 - `play_sound`
-
-The CLR counterpart to `register_legacy_animation_asset` is
-`IOpenGarrisonClientPluginAssets.RegisterTextureAtlasAsset`, followed by
-`TryGetTextureAtlasAsset` when the frames are needed.
 
 Do not assume assets can be loaded from outside the plugin folder.
 

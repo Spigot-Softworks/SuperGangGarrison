@@ -18,7 +18,7 @@
     "refillsAllAtOnce": false
   },
   "combat": {
-    "fireSoundName": "ShotgunSnd",
+    "fireSoundName": "ScattergunSnd",
     "playerKnockback": {
       "impulsePerUse": 4.0,
       "airborneVerticalScale": 0.5,

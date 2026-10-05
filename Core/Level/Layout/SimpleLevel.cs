@@ -57,7 +57,11 @@ public sealed class SimpleLevel
         IReadOnlyList<GameplayMessageMarker>? gameplayMessages = null,
         IReadOnlyList<GameplaySoundMarker>? gameplaySounds = null,
         IReadOnlyList<SpawnClassBehaviorMarker>? spawnClassBehaviors = null,
-        bool isTopDown = false)
+        bool isTopDown = false,
+        MapWeather weather = default,
+        IReadOnlyList<IndoorRegionMarker>? indoorRegions = null,
+        IReadOnlyList<MapLightMarker>? mapLights = null,
+        MapLighting? lighting = null)
     {
         Name = name;
         Mode = mode;
@@ -86,6 +90,10 @@ public sealed class SimpleLevel
         GameplaySounds = gameplaySounds ?? Array.Empty<GameplaySoundMarker>();
         SpawnClassBehaviors = spawnClassBehaviors ?? Array.Empty<SpawnClassBehaviorMarker>();
         IsTopDown = isTopDown;
+        Weather = weather;
+        IndoorRegions = indoorRegions ?? Array.Empty<IndoorRegionMarker>();
+        MapLights = mapLights ?? Array.Empty<MapLightMarker>();
+        Lighting = lighting ?? MapLighting.None;
         ControlPointSettings = controlPointSettings ?? CustomMapControlPointSettings.Default;
         ScrSettings = scrSettings ?? CustomMapScrSettings.Default;
         ShowControlPoints = showControlPoints;
@@ -182,6 +190,18 @@ public sealed class SimpleLevel
     public bool ShowControlPoints { get; }
 
     public bool IsTopDown { get; }
+
+    /// <summary>Author-chosen ambient weather. Presentation only.</summary>
+    public MapWeather Weather { get; }
+
+    /// <summary>Author-marked indoor areas that ambient weather treats as roofed. Presentation only.</summary>
+    public IReadOnlyList<IndoorRegionMarker> IndoorRegions { get; }
+
+    /// <summary>Author-placed point lights. Presentation only.</summary>
+    public IReadOnlyList<MapLightMarker> MapLights { get; }
+
+    /// <summary>Map-wide lighting mood. Presentation only.</summary>
+    public MapLighting Lighting { get; }
 
     public MapLogicGraph LogicGraph { get; }
 

@@ -4,7 +4,9 @@ namespace OpenGarrison.Core;
 
 public sealed class GameplayPrimaryWeaponContext
 {
-    public required SimulationWorld World { get; init; }
+    // Internal: plugins are Lua-only and reach the simulation through validated
+    // host operations, never through the world itself. Only the built-in executors use it.
+    internal SimulationWorld World { get; init; } = null!;
 
     public required PlayerEntity Player { get; init; }
 

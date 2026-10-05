@@ -71,7 +71,11 @@ public sealed class GameplayPlayerRenderController
             _game.DrawExperimentalEssenceExtractorOverlay(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
             _game.DrawExperimentalCryoOverlays(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
             _game.DrawAfterburnOverlay(player, renderPosition, cameraPosition, visibilityAlpha);
-            if (!_game._gameplayHudHidden)
+            if (_game._gameplayHudMinimal)
+            {
+                _game.TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
+            }
+            else if (!_game._gameplayHudHidden)
             {
                 _game.DrawDominationIndicator(player, cameraPosition, visibilityAlpha);
                 _game.DrawPracticeCombatDummyDps(player, cameraPosition);

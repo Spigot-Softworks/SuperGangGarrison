@@ -19,6 +19,7 @@ public partial class Game1
     public const int RecentGibSoundEchoLimit = 16;
     public const float RecentGibSoundEchoDistanceSquared = 64f * 64f;
     public const int RecentProjectileSoundEchoLifetimeTicks = 18;
+    public const float RecentProjectileWeaponFireSoundEchoLifetimeSeconds = 0.75f;
     public const int RecentProjectileSoundEchoLimit = 32;
     public const float RecentProjectileExplosionSoundEchoDistanceSquared = 64f * 64f;
     public const float RecentProjectileFireSoundEchoDistanceSquared = 24f * 24f;
@@ -26,10 +27,24 @@ public partial class Game1
     public const int LowPriorityWorldSoundThrottleLimit = 24;
     public const int LowPriorityWorldSoundFrameLimit = 4;
     public const float JumpSoundThrottleDistanceSquared = 96f * 96f;
-    public const float LocalWeaponSoundVolumeMultiplier = 2.1f;
-    public const float LocalWeaponSoundMinimumVolume = 0.9f;
-    public const float RemoteWeaponSoundVolumeMultiplier = 0.52f;
+    // Volume by who made the sound: your own sounds at full volume, enemies a bit quieter,
+    // allies quieter still. Sounds with no owner (explosions, objectives) use plain distance.
+    public const float OwnSoundVolume = 1f;
+    public const float EnemySoundVolumeMultiplier = 0.72f;
+    public const float AllySoundVolumeMultiplier = 0.56f;
+
+    /// <summary>
+    /// Own sounds this close to you play at full volume; an owned sound out in the world
+    /// (a far-off explosion of yours) keeps normal distance falloff.
+    /// </summary>
+    public const float OwnSoundAttachedDistanceSquared = 256f * 256f;
     public const float LocalWeaponSoundPanMultiplier = 0.35f;
+
+    /// <summary>Seamless minigun loop, played only by the rapid-fire loop controller.</summary>
+    public const string MinigunLoopSoundName = "ChaingunSnd";
+
+    /// <summary>Short burst cut from the loop, for minigun shot events played one at a time.</summary>
+    public const string MinigunShotSoundName = "ChaingunShotSnd";
     public const float LocalWeaponSoundFocusDurationSeconds = 0.16f;
     public const float FocusedRemoteWeaponSoundVolumeMultiplier = 0.58f;
     public const float FocusedOtherWorldSoundVolumeMultiplier = 0.76f;
@@ -67,7 +82,8 @@ public partial class Game1
             float y,
             bool isNetworkEvent,
             int sourcePlayerId,
-            int ticksRemaining)
+            int ticksRemaining,
+            float secondsRemaining = 0f)
         {
             SoundName = soundName;
             X = x;
@@ -75,6 +91,7 @@ public partial class Game1
             IsNetworkEvent = isNetworkEvent;
             SourcePlayerId = sourcePlayerId;
             TicksRemaining = ticksRemaining;
+            SecondsRemaining = secondsRemaining;
         }
 
         public string SoundName { get; }
@@ -88,6 +105,8 @@ public partial class Game1
         public int SourcePlayerId { get; }
 
         public int TicksRemaining { get; set; }
+
+        public float SecondsRemaining { get; set; }
     }
 
     public sealed class RecentLowPriorityWorldSoundEvent
@@ -586,8 +605,20 @@ public partial class Game1
     {
         for (var index = _recentProjectileSoundEvents.Count - 1; index >= 0; index -= 1)
         {
-            _recentProjectileSoundEvents[index].TicksRemaining -= 1;
-            if (_recentProjectileSoundEvents[index].TicksRemaining <= 0)
+            var soundEvent = _recentProjectileSoundEvents[index];
+            if (IsWeaponFireSoundName(soundEvent.SoundName))
+            {
+                soundEvent.SecondsRemaining -= Math.Max(0f, _clientUpdateElapsedSeconds);
+                if (soundEvent.SecondsRemaining <= 0f)
+                {
+                    _recentProjectileSoundEvents.RemoveAt(index);
+                }
+
+                continue;
+            }
+
+            soundEvent.TicksRemaining -= 1;
+            if (soundEvent.TicksRemaining <= 0)
             {
                 _recentProjectileSoundEvents.RemoveAt(index);
             }
@@ -710,6 +741,7 @@ public partial class Game1
 
         var normalizedSoundName = NormalizeProjectileSoundEchoName(resolvedSoundName);
         var isNetworkEvent = soundEvent.EventId != 0;
+        var isWeaponFireSound = IsWeaponFireSoundName(normalizedSoundName);
         var maxDistanceSquared = GetProjectileSoundEchoDistanceSquared(normalizedSoundName);
         for (var index = 0; index < _recentProjectileSoundEvents.Count; index += 1)
         {
@@ -730,7 +762,12 @@ public partial class Game1
 
             var deltaX = soundEvent.X - recent.X;
             var deltaY = soundEvent.Y - recent.Y;
-            if ((deltaX * deltaX) + (deltaY * deltaY) <= maxDistanceSquared)
+            // A matching player and sound name identify a weapon-fire echo.
+            // Client prediction and the later authoritative snapshot can put
+            // the shot origins farther apart than the small spatial radius,
+            // especially while the shooter is moving. Keep spatial matching
+            // for world impacts, where source identity may be unavailable.
+            if (isWeaponFireSound || (deltaX * deltaX) + (deltaY * deltaY) <= maxDistanceSquared)
             {
                 // An echo match is one-shot. Leaving it in the recent list can
                 // swallow the next legitimate shot during sustained fire.
@@ -749,6 +786,18 @@ public partial class Game1
             return;
         }
 
+        var isWeaponFireSound = IsWeaponFireSoundName(resolvedSoundName);
+        if (soundEvent.EventId != 0
+            && isWeaponFireSound
+            && !IsLocalPlayerSoundSource(soundEvent.SourcePlayerId))
+        {
+            // Remote firing events cannot match local prediction because the
+            // echo matcher requires the same source player. Keep them out of
+            // the bounded local firing history so a busy fight cannot evict
+            // the local player's pending echoes.
+            return;
+        }
+
         while (_recentProjectileSoundEvents.Count >= RecentProjectileSoundEchoLimit)
         {
             _recentProjectileSoundEvents.RemoveAt(0);
@@ -760,7 +809,8 @@ public partial class Game1
             soundEvent.Y,
             soundEvent.EventId != 0,
             soundEvent.SourcePlayerId,
-            RecentProjectileSoundEchoLifetimeTicks));
+            isWeaponFireSound ? 0 : RecentProjectileSoundEchoLifetimeTicks,
+            isWeaponFireSound ? RecentProjectileWeaponFireSoundEchoLifetimeSeconds : 0f));
     }
 
     private void ResetRecentProjectileSoundEvents()
@@ -991,32 +1041,77 @@ public partial class Game1
         }
 
         var (volume, pan) = GetWorldSoundMix(soundEvent.X, soundEvent.Y);
-        if (!IsWeaponFireSoundName(soundEvent.SoundName))
+        var relation = GetSoundSourceRelation(soundEvent.SourcePlayerId);
+        if (relation == SoundSourceRelation.Own)
         {
-            if (IsHealingCabinetSoundName(soundEvent.SoundName) && !IsLocalPlayerSoundSource(soundEvent.SourcePlayerId))
-            {
-                volume *= RemoteHealingCabinetSoundVolumeMultiplier;
-            }
-
-            return _localWeaponSoundFocusRemainingSeconds > 0f && !IsLocalPlayerSoundSource(soundEvent.SourcePlayerId)
-                ? (volume * FocusedOtherWorldSoundVolumeMultiplier, pan)
+            return IsNearLocalPlayer(soundEvent.X, soundEvent.Y)
+                ? (OwnSoundVolume, Math.Clamp(pan * LocalWeaponSoundPanMultiplier, -1f, 1f))
                 : (volume, pan);
         }
 
-        if (IsLocalPlayerSoundSource(soundEvent.SourcePlayerId))
+        volume *= GetSoundSourceRelationVolumeMultiplier(relation);
+        if (IsHealingCabinetSoundName(soundEvent.SoundName))
         {
-            return (
-                Math.Clamp(Math.Max(volume, LocalWeaponSoundMinimumVolume) * LocalWeaponSoundVolumeMultiplier, 0f, 1f),
-                Math.Clamp(pan * LocalWeaponSoundPanMultiplier, -1f, 1f));
+            volume *= RemoteHealingCabinetSoundVolumeMultiplier;
         }
 
-        var remoteMultiplier = RemoteWeaponSoundVolumeMultiplier;
+        // While you fire, everyone else ducks a little so your own shots stay readable.
         if (_localWeaponSoundFocusRemainingSeconds > 0f)
         {
-            remoteMultiplier *= FocusedRemoteWeaponSoundVolumeMultiplier;
+            volume *= IsWeaponFireSoundName(soundEvent.SoundName)
+                ? FocusedRemoteWeaponSoundVolumeMultiplier
+                : FocusedOtherWorldSoundVolumeMultiplier;
         }
 
-        return (volume * remoteMultiplier, pan);
+        return (volume, pan);
+    }
+
+    private enum SoundSourceRelation
+    {
+        Unowned,
+        Own,
+        Ally,
+        Enemy,
+    }
+
+    private SoundSourceRelation GetSoundSourceRelation(int sourcePlayerId)
+    {
+        if (sourcePlayerId < 0)
+        {
+            return SoundSourceRelation.Unowned;
+        }
+
+        if (IsLocalPlayerSoundSource(sourcePlayerId))
+        {
+            return SoundSourceRelation.Own;
+        }
+
+        var source = FindPlayerById(sourcePlayerId);
+        var localTeam = _world.LocalPlayer.Team;
+        if (source is null
+            || _networkClient.IsSpectator
+            || (localTeam != PlayerTeam.Red && localTeam != PlayerTeam.Blue))
+        {
+            return SoundSourceRelation.Enemy;
+        }
+
+        return source.Team == localTeam ? SoundSourceRelation.Ally : SoundSourceRelation.Enemy;
+    }
+
+    private static float GetSoundSourceRelationVolumeMultiplier(SoundSourceRelation relation) => relation switch
+    {
+        SoundSourceRelation.Own => OwnSoundVolume,
+        SoundSourceRelation.Ally => AllySoundVolumeMultiplier,
+        SoundSourceRelation.Enemy => EnemySoundVolumeMultiplier,
+        _ => 1f,
+    };
+
+    private bool IsNearLocalPlayer(float worldX, float worldY)
+    {
+        var localPlayer = _world.LocalPlayer;
+        var deltaX = worldX - localPlayer.X;
+        var deltaY = worldY - localPlayer.Y;
+        return (deltaX * deltaX) + (deltaY * deltaY) <= OwnSoundAttachedDistanceSquared;
     }
 
     internal static bool UsesGlobalWorldSoundMix(string soundName)
@@ -1026,22 +1121,15 @@ public partial class Game1
         return string.Equals(soundName, "IntelPutSnd", StringComparison.OrdinalIgnoreCase);
     }
 
-    public (float Volume, float Pan) GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource)
+    public (float Volume, float Pan) GetLoopedWorldSoundMix(string soundName, float worldX, float worldY, bool isLocalSource, int sourcePlayerId = -1)
     {
         var (volume, pan) = GetWorldSoundMix(worldX, worldY);
-        if (!IsWeaponFireSoundName(soundName))
-        {
-            return (volume, pan);
-        }
-
         if (isLocalSource)
         {
-            return (
-                Math.Clamp(Math.Max(volume, LocalWeaponSoundMinimumVolume) * LocalWeaponSoundVolumeMultiplier, 0f, 1f),
-                Math.Clamp(pan * LocalWeaponSoundPanMultiplier, -1f, 1f));
+            return (OwnSoundVolume, Math.Clamp(pan * LocalWeaponSoundPanMultiplier, -1f, 1f));
         }
 
-        return (volume * RemoteWeaponSoundVolumeMultiplier, pan);
+        return (volume * GetSoundSourceRelationVolumeMultiplier(GetSoundSourceRelation(sourcePlayerId)), pan);
     }
 
     public bool IsLocalPlayerSoundSource(int sourcePlayerId)
@@ -1058,6 +1146,11 @@ public partial class Game1
     {
         return string.Equals(soundName, "PistolSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "ShotgunSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "ScattergunSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, MinigunShotSoundName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "SMGSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "TommygunSnd", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(soundName, "NailgunSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "RifleSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "RocketSnd", StringComparison.OrdinalIgnoreCase)
             || string.Equals(soundName, "DirecthitSnd", StringComparison.OrdinalIgnoreCase)

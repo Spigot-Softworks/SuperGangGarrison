@@ -71,6 +71,8 @@ public static class CustomMapBuilderEntityCatalog
         Define("pitfall", AllModes, "xscale=1;yscale=1", 62, "Pitfall", "Kills a player.", "sprite64", 3),
         Define("fragbox", AllModes, "xscale=1;yscale=1", 60, "Frag box", "Gibs a player.", "sprite64", 4),
         Define("firebox", AllModes, "xscale=1;yscale=1", 58, "Fire zone", "Ignites players while they remain inside this zone.", "sprite64", 2),
+        Define(MapLightMetadata.EntityType, AllModes, "color=ffcf80;radius=160;intensity=100;flicker=steady", 30, "Light", "Point light for map lighting: colour (hex), radius, intensity (0-200) and steady/flicker/pulse. Only shows when the map's lighting is on.", string.Empty, 0),
+        Define(IndoorRegionMetadata.EntityType, AllModes, "xscale=1;yscale=1", 74, "Indoor (no weather)", "Resizable area that map weather treats as indoors: rain and snow stop at its top edge and never appear inside. No gameplay effect.", "sprite64", 1),
         Define(
             HealthPackMetadata.HealthPackEntityType,
             AllModes,

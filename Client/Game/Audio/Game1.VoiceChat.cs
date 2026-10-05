@@ -212,7 +212,7 @@ public partial class Game1
 
     public void DrawVoiceParticipants()
     {
-        if (_gameplayHudHidden || !_networkClient.IsConnected || _networkClient.IsReplayConnection || _voiceChat is not { } voice) return;
+        if (_gameplayHudHidden || _gameplayHudMinimal || !_networkClient.IsConnected || _networkClient.IsReplayConnection || _voiceChat is not { } voice) return;
         const int width = 192;
         const int rowStride = 32;
         var now = VoiceClockSeconds;

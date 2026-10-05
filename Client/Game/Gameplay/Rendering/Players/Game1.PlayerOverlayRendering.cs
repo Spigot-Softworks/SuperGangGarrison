@@ -379,12 +379,8 @@ public partial class Game1
         var bounds = GetPlayerScreenBounds(player, renderPosition, cameraPosition);
         var barWidth = Math.Max(18, bounds.Width + 4);
         const int barHeight = 4;
-        const int aboveVerticalOffset = 14;
-        const int belowVerticalOffset = 8;
         var barX = bounds.Left + ((bounds.Width - barWidth) / 2);
-        var barY = placeBelow
-            ? bounds.Bottom + belowVerticalOffset
-            : bounds.Top - aboveVerticalOffset;
+        var barY = GetPlayerMeterBarY(bounds, placeBelow);
         var borderRectangle = new Rectangle(
             barX - 1,
             barY - 1,
@@ -406,5 +402,15 @@ public partial class Game1
 
         var fillRectangle = new Rectangle(backRectangle.X, backRectangle.Y, fillWidth, backRectangle.Height);
         _spriteBatch.Draw(_pixel, fillRectangle, fillColor);
+    }
+
+    internal static int GetPlayerMeterBarY(Rectangle playerBounds, bool placeBelow)
+    {
+        const int aboveVerticalOffset = 14;
+        const int belowVerticalOffset = 8;
+        const int healthBarUpwardNudge = 3;
+        return placeBelow
+            ? playerBounds.Bottom + belowVerticalOffset
+            : playerBounds.Top - aboveVerticalOffset - healthBarUpwardNudge;
     }
 }

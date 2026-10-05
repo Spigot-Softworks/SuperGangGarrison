@@ -1,17 +1,17 @@
 {
   "schemaVersion": 2,
-  "version": "0.8.8",
-  "packageVersion": "0.8.8",
+  "version": "0.8.8.3",
+  "packageVersion": "0.8.8.3",
   "channel": "stable",
-  "url": "OpenGarrison-Linux-x64-0.8.8.tar.gz",
-  "sha256": "9168653a94b49ac73ae9b8eab540ddfb002ccd3314cc32bf7024b0dd6eb1bd31",
-  "size": 143465670,
+  "url": "https://api.superganggarrison.com/updates/linux-x64/stable/OpenGarrison-Linux-x64-0.8.8.3.tar.gz",
+  "sha256": "c7127955865a9ca4617415d04fa51fca473cd982188a6513d315df37ce2d0412",
+  "size": 145284812,
   "minLauncherVersion": "0.1.0",
   "notesUrl": "",
   "fullPackage": {
-    "url": "OpenGarrison-Linux-x64-0.8.8.tar.gz",
-    "sha256": "9168653a94b49ac73ae9b8eab540ddfb002ccd3314cc32bf7024b0dd6eb1bd31",
-    "size": 143465670
+    "url": "https://api.superganggarrison.com/updates/linux-x64/stable/OpenGarrison-Linux-x64-0.8.8.3.tar.gz",
+    "sha256": "c7127955865a9ca4617415d04fa51fca473cd982188a6513d315df37ce2d0412",
+    "size": 145284812
   },
   "deltas": []
 }

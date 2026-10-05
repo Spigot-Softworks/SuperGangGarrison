@@ -309,6 +309,12 @@ public partial class Game1
                 return;
             }
 
+            if (_builderSelectionFilterMenuOpen)
+            {
+                CloseGarrisonBuilderSelectionFilterMenu();
+                return;
+            }
+
             if (_builderLayerParallaxDialogOpen)
             {
                 CloseGarrisonBuilderLayerParallaxDialog(applyChanges: false);
@@ -1183,6 +1189,12 @@ public partial class Game1
 
     private bool TryHandleModernGarrisonBuilderUiClick(Point position, bool leftClick, bool rightClick)
     {
+        if (_builderLightingDialogOpen && (leftClick || rightClick))
+        {
+            // The lighting dialog handles its own clicks; keep the map inert meanwhile.
+            return true;
+        }
+
         if (TryHandleGarrisonBuilderEntityOverlapPickerClick(position, leftClick))
         {
             return true;
@@ -1194,6 +1206,11 @@ public partial class Game1
         }
 
         if (TryHandleGarrisonBuilderLayerContextMenuClick(position, leftClick))
+        {
+            return true;
+        }
+
+        if (TryHandleGarrisonBuilderSelectionFilterMenuClick(position, leftClick))
         {
             return true;
         }
@@ -1644,11 +1661,14 @@ public partial class Game1
                 ($"Symmetry mode{(_builderSymmetry ? " *" : string.Empty)}", ToggleGarrisonBuilderSymmetryMode),
                 ($"Scale mode{(_builderScaleMode ? " *" : string.Empty)}", ToggleGarrisonBuilderScaleMode),
                 ($"Entity palette{(_builderEntityPaletteVisible ? " *" : string.Empty)}", ToggleGarrisonBuilderEntityPalette),
+                ($"Preview lighting{(_builderLightingPreviewEnabled ? " *" : string.Empty)}", ToggleGarrisonBuilderLightingPreview),
             ],
             GarrisonBuilderMenuBarMenu.Map =>
             [
                 ("Set game mode...", () => _builderGameModeMenuOpen = true),
                 ($"Top-down movement{(MapMovementModeMetadata.IsTopDown(_builderDocument.Metadata) ? " *" : string.Empty)}", ToggleGarrisonBuilderTopDownMode),
+                ($"Weather: {DescribeGarrisonBuilderWeather()}", CycleGarrisonBuilderWeather),
+                ($"Lighting... ({MapLightingMetadata.GetPresetDisplayLabel(MapLightingMetadata.Parse(_builderDocument.Metadata).Preset)})", OpenGarrisonBuilderLightingDialog),
                 ("Center on map", () =>
                 {
                     CenterGarrisonBuilderCameraOnMap();
@@ -1713,6 +1733,33 @@ public partial class Game1
         _builderStatus = MapMovementModeMetadata.IsTopDown(metadata)
             ? "top-down movement enabled (opaque walkmask pixels block)"
             : "platformer movement enabled";
+    }
+
+    private string DescribeGarrisonBuilderWeather()
+    {
+        var weather = MapWeatherMetadata.Parse(_builderDocument.Metadata);
+        if (!weather.IsActive)
+        {
+            return "None";
+        }
+
+        return $"{MapWeatherMetadata.GetKindDisplayLabel(MapWeatherMetadata.ToPropertyValue(weather.Kind))}"
+            + $" ({MapWeatherMetadata.GetIntensityDisplayLabel(MapWeatherMetadata.ToPropertyValue(weather.Intensity)).ToLowerInvariant()})";
+    }
+
+    /// <summary>Quick None -> Rain -> Snow -> Leaves cycle; intensity and wind live in Map properties.</summary>
+    private void CycleGarrisonBuilderWeather()
+    {
+        RecordGarrisonBuilderHistory();
+        var metadata = new Dictionary<string, string>(
+            _builderDocument.Metadata,
+            StringComparer.OrdinalIgnoreCase);
+        metadata.TryGetValue(MapWeatherMetadata.WeatherPropertyKey, out var current);
+        metadata[MapWeatherMetadata.WeatherPropertyKey] = MapWeatherMetadata.CycleKindPropertyValue(current);
+        MapWeatherMetadata.Normalize(metadata);
+        _builderDocument = (_builderDocument with { Metadata = metadata }).NormalizeForEditing();
+        _builderDirty = true;
+        _builderStatus = $"weather: {DescribeGarrisonBuilderWeather().ToLowerInvariant()} (intensity and wind in Map properties)";
     }
 
     private void ToggleGarrisonBuilderShowBackground()
@@ -1842,7 +1889,13 @@ public partial class Game1
         {
             _builderLayerStripExpanded = !_builderLayerStripExpanded;
             CloseGarrisonBuilderLayerContextMenu();
+            CloseGarrisonBuilderSelectionFilterMenu();
             _builderStatus = _builderLayerStripExpanded ? "layers panel shown" : "layers panel hidden";
+            return true;
+        }
+
+        if (TryHandleGarrisonBuilderSelectionFilterButtonClick(position))
+        {
             return true;
         }
 
@@ -3387,6 +3440,7 @@ public partial class Game1
         var mapViewport = GetModernGarrisonBuilderMapViewport();
         _spriteBatch.Draw(_pixel, mapViewport, new Color(32, 30, 28));
         DrawGarrisonBuilderMap(mapViewport);
+        DrawGarrisonBuilderLightingPreview(mapViewport);
         DrawGarrisonBuilderMapPickDimming();
 
         DrawModernGarrisonBuilderEntityDecorations();
@@ -3406,6 +3460,7 @@ public partial class Game1
         DrawGarrisonBuilderEntityOverlapPicker(mouse);
         DrawGarrisonBuilderEntityContextMenu(mouse);
         DrawGarrisonBuilderLayerContextMenu(mouse);
+        DrawGarrisonBuilderSelectionFilterMenu(mouse);
         DrawGarrisonBuilderObjectiveMapPickPrompt(mouse);
         DrawGarrisonBuilderLogicMapPickPrompt(mouse);
         DrawGarrisonBuilderEntityMapPickPrompt(mouse);
@@ -3413,6 +3468,7 @@ public partial class Game1
         DrawGarrisonBuilderPropertyEditor(mouse);
         DrawGarrisonBuilderLogicRecolorDialog(mouse);
         DrawGarrisonBuilderLayerParallaxDialog(mouse);
+        DrawGarrisonBuilderLightingDialog(mouse);
         DrawGarrisonBuilderMapNameCollisionDialog(mouse);
         DrawGarrisonBuilderTransientStatus();
     }
@@ -3674,6 +3730,7 @@ public partial class Game1
             DrawLayerStripPreview(previewBounds, index, hidden);
         }
 
+        DrawModernGarrisonBuilderSelectionFilterButton(mouse);
         var markBounds = GetModernGarrisonBuilderLayerStripMarkBounds();
         DrawBuilderMenuButton(markBounds, "Mark", _builderLayerMarkModeEnabled || markBounds.Contains(mouse.Position));
     }

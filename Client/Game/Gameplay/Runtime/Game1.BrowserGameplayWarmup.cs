@@ -113,14 +113,34 @@ public partial class Game1
         WarmBrowserSprite("IntelTimerS");
     }
 
+    private static readonly string[] BrowserWarmupLocalCueSounds =
+    [
+        LandingSoundName,
+        ShotgunShellReloadSoundName,
+        ShotgunReadySoundName,
+        SmgReadySoundName,
+        FlareReadySoundName,
+        PistolReadySoundName,
+        PistolHalfReloadSoundName,
+        NailgunReloadSoundName,
+        HeavyPainSoundName,
+        VeryHeavyPainSoundName,
+    ];
+
     private void WarmBrowserPlayableClassAssets(PlayerClass classId, PlayerTeam team)
     {
         WarmBrowserClassAssets(classId, team, includeExtendedAnimations: true);
+        // Local cues play the instant they trigger, so load them before they are needed.
+        foreach (var soundName in BrowserWarmupLocalCueSounds)
+        {
+            WarmBrowserSound(soundName);
+        }
 
         switch (classId)
         {
             case PlayerClass.Heavy:
-                WarmBrowserSound("ChaingunSnd");
+                WarmBrowserSound(MinigunLoopSoundName);
+                WarmBrowserSound(MinigunShotSoundName);
                 break;
             case PlayerClass.Pyro:
                 WarmBrowserSound("FlamethrowerSnd");

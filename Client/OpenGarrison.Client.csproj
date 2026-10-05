@@ -29,6 +29,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Configuration\FirstPlayMessages.json" LogicalName="OpenGarrison.FirstPlayMessages.json" />
     <EmbeddedResource Include="..\Core\Content\PlayerSkins.json" LogicalName="OpenGarrison.PlayerSkins.json" />
+    <EmbeddedResource Include="..\cursor.png" LogicalName="OpenGarrison.MenuCursor.png" />
     <EmbeddedResource Include="Properties\Icon.ico">
       <LogicalName>Icon.ico</LogicalName>
     </EmbeddedResource>

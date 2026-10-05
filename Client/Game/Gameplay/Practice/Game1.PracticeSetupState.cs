@@ -32,6 +32,7 @@ public partial class Game1
             ("cp_coldfront_js", "Coldfront"),
             ("Kulay", "Kulay"),
             ("Harvest", "Harvest"),
+            ("cp_powerstrip", "Powerstrip"),
             ("Docking", "Docking"),
             ("Conflict", "Conflict"),
             ("Gallery", "Gallery"),
@@ -352,8 +353,8 @@ public partial class Game1
 
         public int FindDefaultMapIndex()
         {
-            var harvestIndex = MapEntries.FindIndex(entry => string.Equals(entry.LevelName, "Harvest", StringComparison.OrdinalIgnoreCase));
-            return harvestIndex >= 0 ? harvestIndex : 0;
+            var powerstripIndex = MapEntries.FindIndex(entry => string.Equals(entry.LevelName, "cp_powerstrip", StringComparison.OrdinalIgnoreCase));
+            return powerstripIndex >= 0 ? powerstripIndex : 0;
         }
 
         public PracticeMapEntry? GetSelectedMapEntry()

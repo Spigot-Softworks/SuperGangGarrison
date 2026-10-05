@@ -136,6 +136,7 @@ public sealed class BootstrapController
             _context._spriteBatch = new SpriteBatch(_context.GraphicsDevice);
             _context._pixel = new Texture2D(_context.GraphicsDevice, 1, 1);
             _context._pixel.SetData(new[] { Color.White });
+            _context.LoadMenuCursorTexture();
             _context._consoleFont = _context.LoadInitialSpriteFont("ConsoleFont");
             _context._menuFont = _context.LoadInitialSpriteFont("MenuFont");
             _context._grayscaleEffect = _context.Content.Load<Effect>("Grayscale");
@@ -316,6 +317,7 @@ public sealed class BootstrapController
             SpriteFrameCacheResources.SpriteFontOpaqueBoundsCache.Clear();
             LevelBackgroundResources.Texture?.Dispose();
             _context.MenuResources.BackgroundTexture?.Dispose();
+            _context.MenuResources.CursorTexture?.Dispose();
             _context.MenuResources.BitmapFontTexture?.Dispose();
             _context.MenuResources.PlaqueTexture?.Dispose();
             _context.MenuResources.PlaqueTallTexture?.Dispose();
@@ -364,6 +366,7 @@ public sealed class BootstrapController
             LevelBackgroundResources.TextureLevel = null;
             _context.MenuResources.BackgroundTexture = null;
             _context.MenuResources.BackgroundTexturePath = null;
+            _context.MenuResources.CursorTexture = null;
             _context.MenuResources.BitmapFontTexture = null;
             _context.MenuResources.BitmapFontGlyphs.Clear();
             _context.MenuResources.BitmapFontLineHeight = 0;

@@ -31,7 +31,8 @@ internal sealed partial class AirblastRulesSystem
         var poofX = sourceX + DeterministicMath.Cos(aimRadians) * 25f;
         var poofY = sourceY + DeterministicMath.Sin(aimRadians) * 25f;
 
-        _host.WorldEffects.RegisterSoundEvent(player, "CompressionBlastSnd");
+        // The Firebug flame jump has its own whoosh, separate from the M2 airblast.
+        _host.WorldEffects.RegisterSoundEvent(player, "FlameJumpSnd");
         _host.WorldEffects.RegisterVisualEffect("AirBlast", poofX, poofY, aimDegrees);
         ApplyAirblastToSelf(player, sourceX, sourceY, aimRadians);
         var applyTeammateKnockback = _host.ExperimentalGameplaySettings.EnableFriendlyAirburstKnockback;

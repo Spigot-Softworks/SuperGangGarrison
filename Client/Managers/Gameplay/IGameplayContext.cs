@@ -50,6 +50,7 @@ public interface IGameplayContext
     Task<OpenGarrison.ClientShared.GameplaySessionCreateResponse> _gameplayAccountSessionTask { get; set; }
     System.DateTimeOffset _gameplayAccountTokenExpiresAt { get; set; }
     bool _gameplayHudHidden { get; set; }
+    bool _gameplayHudMinimal { get; }
     bool _gameplayLoadoutMenuAwaitingEscapeRelease { get; set; }
     int _gameplayLoadoutMenuHoverIndex { get; set; }
     bool _gameplayLoadoutMenuOpen { get; set; }
@@ -282,6 +283,7 @@ public interface IGameplayContext
     void LoadLastToDieIngameMusic();
     void LoadLastToDieMenuMusic();
     void LoadMenuBitmapFont();
+    void LoadMenuCursorTexture();
     void LoadMenuMusic();
     void LoadMenuPlaqueTextures();
     void LogClientPerformanceLine(string line);
@@ -297,6 +299,8 @@ public interface IGameplayContext
     void PersistClientSettings();
     void PersistInputBindings();
     void PrepareDeathCamCaptureIfNeeded(int viewportWidth, int viewportHeight);
+    void PrepareGameplayLightmap(Microsoft.Xna.Framework.Vector2 cameraPosition, int worldViewWidth, int worldViewHeight);
+    void PrepareGarrisonBuilderLightingPreview();
     void PrepareGameplayHudOpacityComposite(Microsoft.Xna.Framework.Input.MouseState mouse, Microsoft.Xna.Framework.Vector2 cameraPosition);
     void PrepareHostedServerLaunchUi(bool closeHostSetup, bool disconnectNetworkClient);
     void PrepareLastToDieDeathFocusOverlayIfNeeded(int viewportWidth, int viewportHeight);

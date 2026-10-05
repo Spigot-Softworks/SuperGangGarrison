@@ -48,6 +48,9 @@ public partial class Game1
         GarrisonBuilderMapPropertyVisualScaleKey,
         GarrisonBuilderMapPropertyWalkmaskScaleKey,
         MapMovementModeMetadata.MovementModePropertyKey,
+        MapWeatherMetadata.WeatherPropertyKey,
+        MapWeatherMetadata.IntensityPropertyKey,
+        MapWeatherMetadata.WindPropertyKey,
         ScrMapSettingsMetadata.ShowControlPointsPropertyKey,
         ScrMapSettingsMetadata.ScoreToWinPropertyKey,
         ScrMapSettingsMetadata.WinWhenScorePropertyKey,
@@ -301,6 +304,7 @@ public partial class Game1
         UpdateLegacyGarrisonBuilderAnimation(deltaSeconds);
         if (UpdateGarrisonBuilderPropertyEditor(keyboard, mouse)) return;
         if (UpdateGarrisonBuilderLayerParallaxDialog(keyboard, mouse)) return;
+        if (UpdateGarrisonBuilderLightingDialog(keyboard, mouse)) return;
         if (UpdateGarrisonBuilderMapNameCollisionDialog(keyboard, mouse)) return;
         if (UpdateGarrisonBuilderPathKeyboard(keyboard)) return;
         if (_builderUseModernUi)
@@ -1453,6 +1457,15 @@ public partial class Game1
             return true;
         }
 
+        if (MapLightMetadata.IsLightEntityType(entity.Type))
+        {
+            const float lightPickSize = 14f;
+            left = entity.X - (lightPickSize * 0.5f);
+            top = entity.Y - (lightPickSize * 0.5f);
+            width = height = lightPickSize;
+            return true;
+        }
+
         if (!CustomMapBuilderEntityCatalog.TryGetDefinition(entity.Type, out var definition))
         {
             const float fallbackSize = 32f;
@@ -1600,7 +1613,7 @@ public partial class Game1
         for (var index = 0; index < _builderEntities.Count; index += 1)
         {
             var entity = _builderEntities[index];
-            if (IsGarrisonBuilderEntityHidden(index))
+            if (IsGarrisonBuilderEntityUnpickable(index))
             {
                 continue;
             }
@@ -1634,7 +1647,7 @@ public partial class Game1
         for (var index = 0; index < _builderEntities.Count; index += 1)
         {
             var entity = _builderEntities[index];
-            if (IsGarrisonBuilderEntityHidden(index))
+            if (IsGarrisonBuilderEntityUnpickable(index))
             {
                 continue;
             }
@@ -2600,6 +2613,12 @@ public partial class Game1
                 ScrMapSettingsMetadata.ParseScrSettings(normalized.Metadata).BlueStartingScore).ToString(System.Globalization.CultureInfo.InvariantCulture),
             [ControlPointMapSettingsMetadata.OverrideInitialCpsPropertyKey] = ControlPointMapSettingsMetadata.ToPropertyValue(
                 ControlPointMapSettingsMetadata.ParseOverrideInitialCps(normalized.Metadata)),
+            [MapWeatherMetadata.WeatherPropertyKey] = MapWeatherMetadata.ToPropertyValue(
+                MapWeatherMetadata.Parse(normalized.Metadata).Kind),
+            [MapWeatherMetadata.IntensityPropertyKey] = MapWeatherMetadata.ToPropertyValue(
+                MapWeatherMetadata.Parse(normalized.Metadata).Intensity),
+            [MapWeatherMetadata.WindPropertyKey] = MapWeatherMetadata.ToPropertyValue(
+                MapWeatherMetadata.Parse(normalized.Metadata).Wind),
             ["background"] = normalized.Metadata.TryGetValue("background", out var background)
                 ? background
                 : CustomMapBuilderDocument.DefaultBackgroundColor,
@@ -2629,6 +2648,7 @@ public partial class Game1
             || key.Equals(CustomMapEntityRuntimeRegistry.EntitySchemaMetadataKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapGameModeMetadata.GameModePropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapMovementModeMetadata.MovementModePropertyKey, StringComparison.OrdinalIgnoreCase)
+            || MapWeatherMetadata.IsEditableMapMetadataKey(key)
             || IsSkippedGarrisonBuilderPropertyKey(key);
     }
 
@@ -2637,6 +2657,12 @@ public partial class Game1
         if (ScrMapSettingsMetadata.IsScrOnlyMapMetadataKey(key))
         {
             return _builderSelectedGameMode == CustomMapBuilderGameMode.Scr;
+        }
+
+        if (MapWeatherMetadata.IsWeatherDetailKey(key))
+        {
+            _builderPropertyEditorValues.TryGetValue(MapWeatherMetadata.WeatherPropertyKey, out var weatherKind);
+            return MapWeatherMetadata.ParseKind(weatherKind) != MapWeatherKind.None;
         }
 
         return true;
@@ -2699,6 +2725,15 @@ public partial class Game1
             metadata[CustomMapEntityRuntimeRegistry.EntitySchemaMetadataKey] = entitySchema;
         }
 
+        // Lighting is edited in its own dialog; carry it through unchanged.
+        foreach (var lightingKey in MapLightingMetadata.Keys)
+        {
+            if (_builderDocument.Metadata.TryGetValue(lightingKey, out var lightingValue))
+            {
+                metadata[lightingKey] = lightingValue;
+            }
+        }
+
         _builderPropertyEditorValues.TryGetValue("background", out var backgroundBuffer);
         _builderPropertyEditorValues.TryGetValue("void", out var voidBuffer);
         metadata["background"] = NormalizeGarrisonBuilderHexColor(backgroundBuffer ?? string.Empty, CustomMapBuilderDocument.DefaultBackgroundColor);
@@ -2707,6 +2742,20 @@ public partial class Game1
             MapMovementModeMetadata.IsTopDown(_builderPropertyEditorValues)
                 ? MapMovementModeMetadata.TopDownPropertyValue
                 : MapMovementModeMetadata.PlatformerPropertyValue;
+        foreach (var weatherKey in new[]
+        {
+            MapWeatherMetadata.WeatherPropertyKey,
+            MapWeatherMetadata.IntensityPropertyKey,
+            MapWeatherMetadata.WindPropertyKey,
+        })
+        {
+            if (_builderPropertyEditorValues.TryGetValue(weatherKey, out var weatherValue))
+            {
+                metadata[weatherKey] = weatherValue;
+            }
+        }
+
+        MapWeatherMetadata.Normalize(metadata);
         RecordGarrisonBuilderHistory();
         _builderDocument = _builderDocument with
         {
@@ -3257,7 +3306,7 @@ public partial class Game1
         for (var index = _builderEntities.Count - 1; index >= 0; index -= 1)
         {
             var entity = _builderEntities[index];
-            if (IsGarrisonBuilderEntityHidden(index)
+            if (IsGarrisonBuilderEntityUnpickable(index)
                 || !DoesGarrisonBuilderEntityIntersectRectangle(entity, rectangle))
             {
                 continue;
@@ -3815,6 +3864,18 @@ public partial class Game1
             return true;
         }
 
+        if (IndoorRegionMetadata.IsIndoorRegionEntityType(definition.Type))
+        {
+            DrawGarrisonBuilderIndoorRegionPattern(entity, tint);
+            return true;
+        }
+
+        if (MapLightMetadata.IsLightEntityType(definition.Type))
+        {
+            DrawGarrisonBuilderLightEntity(entity, tint);
+            return true;
+        }
+
         if (!TryGetGarrisonBuilderEntityFrame(definition, entity, out var frame, out var origin))
         {
             return false;
@@ -4255,7 +4316,8 @@ public partial class Game1
             || type.Equals("playerwall_horizontal", StringComparison.OrdinalIgnoreCase)
             || type.Equals("bulletwall_horizontal", StringComparison.OrdinalIgnoreCase)
             || type.Equals("dropdownplatform", StringComparison.OrdinalIgnoreCase)
-            || type.Equals("setupgate", StringComparison.OrdinalIgnoreCase);
+            || type.Equals("setupgate", StringComparison.OrdinalIgnoreCase)
+            || IndoorRegionMetadata.IsIndoorRegionEntityType(type);
     }
 
     private static bool TryGetGarrisonBuilderAnchorSizedEntityMetrics(
@@ -4483,6 +4545,44 @@ public partial class Game1
         var borderColor = Color.Lerp(new Color(24, 96, 92, 255), tint, 0.15f);
         _spriteBatch.Draw(_pixel, screenBounds, fillColor);
         DrawGarrisonBuilderRectangleOutline(screenBounds, borderColor);
+    }
+
+    /// <summary>Indoor (no weather) region: translucent sky-blue box with a dashed top edge
+    /// marking where weather stops.</summary>
+    private void DrawGarrisonBuilderIndoorRegionPattern(CustomMapBuilderEntity entity, Color tint)
+    {
+        if (!TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+        {
+            return;
+        }
+
+        var topLeft = BuilderWorldToScreen(new Vector2(left, top));
+        var bottomRight = BuilderWorldToScreen(new Vector2(left + width, top + height));
+        var screenBounds = new Rectangle(
+            (int)MathF.Floor(MathF.Min(topLeft.X, bottomRight.X)),
+            (int)MathF.Floor(MathF.Min(topLeft.Y, bottomRight.Y)),
+            Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.X - topLeft.X))),
+            Math.Max(1, (int)MathF.Ceiling(MathF.Abs(bottomRight.Y - topLeft.Y))));
+        var fillColor = Color.Lerp(new Color(60, 104, 160, 70), tint, 0.25f);
+        var borderColor = Color.Lerp(new Color(120, 176, 240, 220), tint, 0.15f);
+        _spriteBatch.Draw(_pixel, screenBounds, fillColor);
+        DrawGarrisonBuilderRectangleOutline(screenBounds, borderColor);
+
+        // Dashed "roof" line along the top edge.
+        var roofColor = new Color(214, 232, 255, 235);
+        for (var x = screenBounds.X; x < screenBounds.Right; x += 8)
+        {
+            _spriteBatch.Draw(_pixel, new Rectangle(x, screenBounds.Y, Math.Min(5, screenBounds.Right - x), 2), roofColor);
+        }
+
+        if (screenBounds.Height >= 18 && screenBounds.Width >= 48)
+        {
+            DrawBitmapFontText(
+                "Indoor",
+                new Vector2(screenBounds.X + 4f, screenBounds.Y + 5f),
+                borderColor,
+                GetModernBuilderTextScale(0.8f));
+        }
     }
 
     private void DrawGarrisonBuilderBarrierPattern(CustomMapBuilderEntity entity, Color tint)
@@ -5554,6 +5654,26 @@ public partial class Game1
             _builderPropertyEditorValues[key] = MapMovementModeMetadata.IsTopDown(_builderPropertyEditorValues)
                 ? MapMovementModeMetadata.PlatformerPropertyValue
                 : MapMovementModeMetadata.TopDownPropertyValue;
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+            return true;
+        }
+
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties
+            && MapWeatherMetadata.TryCyclePropertyValue(key, value, out var nextWeatherValue))
+        {
+            _builderPropertyEditorValues[key] = nextWeatherValue;
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+            return true;
+        }
+
+        if (_builderPropertyTarget != GarrisonBuilderPropertyTarget.MapProperties
+            && key.Equals(MapLightMetadata.FlickerKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var lightEntityType)
+            && MapLightMetadata.IsLightEntityType(lightEntityType))
+        {
+            _builderPropertyEditorValues[key] = MapLightMetadata.CycleFlickerValue(value);
             ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
             return true;
@@ -8823,6 +8943,12 @@ public partial class Game1
         if (key.Equals(ScrMapSettingsMetadata.WinWhenScorePropertyKey, StringComparison.OrdinalIgnoreCase))
         {
             return $"Win when score: {ScrMapSettingsMetadata.GetWinWhenScoreDisplayLabel(value)}";
+        }
+
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties
+            && MapWeatherMetadata.TryFormatRowLabel(key, value) is { } weatherRowLabel)
+        {
+            return weatherRowLabel;
         }
 
         if (key.Equals(ScrMapSettingsMetadata.RoundEndWinPropertyKey, StringComparison.OrdinalIgnoreCase))

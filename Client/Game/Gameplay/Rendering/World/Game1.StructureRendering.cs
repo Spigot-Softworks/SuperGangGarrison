@@ -575,7 +575,10 @@ public partial class Game1
             new Color(255, 245, 150, 210),
             3f);
 
-        DrawCivilDefenseTurretHealthBar(turret, renderPosition, cameraPosition);
+        if (!_gameplayHudMinimal)
+        {
+            DrawCivilDefenseTurretHealthBar(turret, renderPosition, cameraPosition);
+        }
         if (turret.IsBuilt && turret.IsShotTraceVisible)
         {
             DrawWorldLine(

@@ -20,6 +20,9 @@ public sealed partial class GameplayGoreEffectsController
         private readonly List<(int X, int Y)> _staleSettledBloodCellKeys = new();
         private readonly Dictionary<(int X, int Y), OpenGarrison.Client.Game1.SettledBloodCell> _settledBloodCells = new();
         private readonly List<(int X, int Y, float Amount, bool Cryo)> _pendingSettledBloodTransfers = new();
+        private readonly SettledBloodHostSolidCache _settledBloodHostSolidCache = new();
+        private readonly SettledBloodNeighbourSupportCache _settledBloodNeighbourSupportCache = new();
+        private readonly SettledBloodPoolDrawCache _settledBloodPoolDrawCache = new();
         private readonly Dictionary<(int X, int Y), float> _bloodDrawCellsScratch = new();
         private readonly Dictionary<(int X, int Y), float> _bloodCryoDrawCellsScratch = new();
         private readonly Dictionary<(int X, int Y), float> _bloodBridgeScratch = new();
@@ -382,6 +385,19 @@ public sealed partial class GameplayGoreEffectsController
 
             var burstCount = Math.Clamp(Math.Max(3, damageAmount / 18), 3, 8);
             SpawnBloodImpactVisuals(x, y, 270f, burstCount, explosive: true);
+        }
+
+        public void SpawnBisectCutSquibs(float x, float y)
+        {
+            if (!_context.AreBloodVisualsEnabled)
+            {
+                return;
+            }
+
+            // Two restrained sprays leave opposite sides of the cut. The regular
+            // visual path applies the player's gore setting and render mode.
+            SpawnBloodImpactVisuals(x, y - 1f, 270f, burstCount: 1);
+            SpawnBloodImpactVisuals(x, y + 1f, 90f, burstCount: 1);
         }
 
         public void SpawnBackstabVisual(

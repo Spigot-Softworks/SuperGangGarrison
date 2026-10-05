@@ -98,28 +98,7 @@ public sealed class BrowserAtlasTextureCache(GraphicsDevice graphicsDevice) : ID
         }
 
         using var image = Image.Load<Rgba32>(bytes);
-        var pixelData = new Rgba32[image.Width * image.Height];
-        image.CopyPixelDataTo(pixelData);
-
-        var textureData = new XnaColor[pixelData.Length];
-        for (var index = 0; index < pixelData.Length; index += 1)
-        {
-            var pixel = pixelData[index];
-            if (pixel.A == 0)
-            {
-                textureData[index] = XnaColor.Transparent;
-                continue;
-            }
-
-            var premultipliedRed = (pixel.R * pixel.A + 127) / 255;
-            var premultipliedGreen = (pixel.G * pixel.A + 127) / 255;
-            var premultipliedBlue = (pixel.B * pixel.A + 127) / 255;
-            textureData[index] = new XnaColor(
-                (byte)premultipliedRed,
-                (byte)premultipliedGreen,
-                (byte)premultipliedBlue,
-                pixel.A);
-        }
+        var textureData = BrowserAtlasPixelConverter.ConvertToPremultipliedColors(image);
 
         var texture = new Texture2D(_graphicsDevice, image.Width, image.Height);
         texture.SetData(textureData);
@@ -156,6 +135,48 @@ public sealed class BrowserAtlasTextureCache(GraphicsDevice graphicsDevice) : ID
         return maxX >= minX && maxY >= minY
             ? new XnaRectangle(minX, minY, (maxX - minX) + 1, (maxY - minY) + 1)
             : new XnaRectangle(0, 0, sourceRect.Width, sourceRect.Height);
+    }
+}
+
+internal static class BrowserAtlasPixelConverter
+{
+    public static XnaColor[] ConvertToPremultipliedColors(Image<Rgba32> image)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+
+        var width = image.Width;
+        var pixels = new XnaColor[checked(width * image.Height)];
+        image.ProcessPixelRows(accessor =>
+        {
+            for (var y = 0; y < accessor.Height; y += 1)
+            {
+                var sourceRow = accessor.GetRowSpan(y);
+                var destinationRow = pixels.AsSpan(y * width, width);
+                for (var x = 0; x < sourceRow.Length; x += 1)
+                {
+                    destinationRow[x] = ToPremultipliedColor(sourceRow[x]);
+                }
+            }
+        });
+
+        return pixels;
+    }
+
+    private static XnaColor ToPremultipliedColor(Rgba32 pixel)
+    {
+        if (pixel.A == 0)
+        {
+            return XnaColor.Transparent;
+        }
+
+        var premultipliedRed = (pixel.R * pixel.A + 127) / 255;
+        var premultipliedGreen = (pixel.G * pixel.A + 127) / 255;
+        var premultipliedBlue = (pixel.B * pixel.A + 127) / 255;
+        return new XnaColor(
+            (byte)premultipliedRed,
+            (byte)premultipliedGreen,
+            (byte)premultipliedBlue,
+            pixel.A);
     }
 }
 

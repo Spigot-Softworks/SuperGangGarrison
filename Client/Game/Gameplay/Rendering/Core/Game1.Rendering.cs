@@ -898,6 +898,11 @@ public partial class Game1
         Vector2 scale,
         SpriteEffects effects = SpriteEffects.None)
     {
+        if (!IsSpriteFrameVisibleInCurrentViewport(frame, position, rotation, origin, scale))
+        {
+            return;
+        }
+
         var mask = GetSpriteFrameAlphaMask(frame);
         _spriteBatch.End();
         _spriteBatch.Begin(
@@ -932,6 +937,11 @@ public partial class Game1
         Vector2 scale,
         SpriteEffects effects = SpriteEffects.None)
     {
+        if (!IsSpriteFrameVisibleInCurrentViewport(frame, position, rotation, origin, scale))
+        {
+            return;
+        }
+
         var mask = GetSpriteFrameAlphaMask(frame);
         _spriteBatch.End();
         _spriteBatch.Begin(
@@ -955,6 +965,25 @@ public partial class Game1
             samplerState: SamplerState.PointClamp,
             rasterizerState: RasterizerState.CullNone,
             transformMatrix: GetActiveGameplayWorldSpriteBatchTransform());
+    }
+
+    private bool IsSpriteFrameVisibleInCurrentViewport(
+        LoadedSpriteFrame frame,
+        Vector2 position,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale)
+    {
+        var viewport = GraphicsDevice.Viewport;
+        return SpriteBatchQuadViewportVisibility.Intersects(
+            position,
+            frame.Width,
+            frame.Height,
+            rotation,
+            origin,
+            scale,
+            GetActiveGameplayWorldSpriteBatchTransform(),
+            viewport);
     }
 
     private Texture2D GetSpriteFrameAlphaMask(LoadedSpriteFrame frame)
@@ -1107,4 +1136,129 @@ public partial class Game1
         return MathF.Atan2(velocityY, velocityX);
     }
 
+}
+
+/// <summary>
+/// Conservative viewport test for the transformed quad SpriteBatch draws.
+/// Coordinates are relative to the viewport origin: MonoGame's SpriteEffect
+/// projection spans (0, 0) to (Viewport.Width, Viewport.Height), while the
+/// rasterizer applies the viewport's X/Y offset afterward.
+/// </summary>
+internal static class SpriteBatchQuadViewportVisibility
+{
+    private const float ViewportSafetyMarginPixels = 2f;
+
+    internal static bool Intersects(
+        Vector2 position,
+        int width,
+        int height,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        Matrix? transformMatrix,
+        Viewport viewport)
+    {
+        // Invalid dimensions or coordinates should retain the existing draw
+        // path. This helper is only allowed to reject a quad when disjointness
+        // is certain.
+        if (width <= 0 || height <= 0
+            || viewport.Width <= 0 || viewport.Height <= 0
+            || !IsFinite(position) || !IsFinite(origin) || !IsFinite(scale)
+            || !float.IsFinite(rotation))
+        {
+            return true;
+        }
+
+        var matrix = transformMatrix ?? Matrix.Identity;
+        if (!IsFiniteTransform(matrix) || !IsTwoDimensionalAffineTransform(matrix))
+        {
+            return true;
+        }
+
+        var sin = MathF.Sin(rotation);
+        var cos = MathF.Cos(rotation);
+        var left = -origin.X * scale.X;
+        var top = -origin.Y * scale.Y;
+        var right = left + (width * scale.X);
+        var bottom = top + (height * scale.Y);
+
+        // Match SpriteBatch's rotation around position and its signed scale.
+        // SpriteEffects only flips texture coordinates, not quad geometry.
+        Span<Vector2> corners = stackalloc Vector2[4]
+        {
+            TransformCorner(position, left, top, sin, cos, matrix),
+            TransformCorner(position, right, top, sin, cos, matrix),
+            TransformCorner(position, left, bottom, sin, cos, matrix),
+            TransformCorner(position, right, bottom, sin, cos, matrix),
+        };
+
+        var minX = float.PositiveInfinity;
+        var minY = float.PositiveInfinity;
+        var maxX = float.NegativeInfinity;
+        var maxY = float.NegativeInfinity;
+        foreach (var corner in corners)
+        {
+            if (!IsFinite(corner))
+            {
+                return true;
+            }
+
+            minX = MathF.Min(minX, corner.X);
+            minY = MathF.Min(minY, corner.Y);
+            maxX = MathF.Max(maxX, corner.X);
+            maxY = MathF.Max(maxY, corner.Y);
+        }
+
+        return !(maxX < -ViewportSafetyMarginPixels
+            || minX > viewport.Width + ViewportSafetyMarginPixels
+            || maxY < -ViewportSafetyMarginPixels
+            || minY > viewport.Height + ViewportSafetyMarginPixels);
+    }
+
+    private static Vector2 TransformCorner(
+        Vector2 position,
+        float offsetX,
+        float offsetY,
+        float sin,
+        float cos,
+        Matrix transformMatrix)
+    {
+        var corner = new Vector2(
+            position.X + (offsetX * cos) - (offsetY * sin),
+            position.Y + (offsetX * sin) + (offsetY * cos));
+        return Vector2.Transform(corner, transformMatrix);
+    }
+
+    private static bool IsFiniteTransform(Matrix matrix)
+        => float.IsFinite(matrix.M11)
+            && float.IsFinite(matrix.M12)
+            && float.IsFinite(matrix.M13)
+            && float.IsFinite(matrix.M14)
+            && float.IsFinite(matrix.M21)
+            && float.IsFinite(matrix.M22)
+            && float.IsFinite(matrix.M23)
+            && float.IsFinite(matrix.M24)
+            && float.IsFinite(matrix.M31)
+            && float.IsFinite(matrix.M32)
+            && float.IsFinite(matrix.M33)
+            && float.IsFinite(matrix.M34)
+            && float.IsFinite(matrix.M41)
+            && float.IsFinite(matrix.M42)
+            && float.IsFinite(matrix.M43)
+            && float.IsFinite(matrix.M44);
+
+    private static bool IsTwoDimensionalAffineTransform(Matrix matrix)
+        => matrix.M13 == 0f
+            && matrix.M14 == 0f
+            && matrix.M23 == 0f
+            && matrix.M24 == 0f
+            && matrix.M31 == 0f
+            && matrix.M32 == 0f
+            && matrix.M33 == 1f
+            && matrix.M34 == 0f
+            && matrix.M43 == 0f
+            && matrix.M44 == 1f;
+
+    private static bool IsFinite(Vector2 value)
+        => float.IsFinite(value.X) && float.IsFinite(value.Y);
 }

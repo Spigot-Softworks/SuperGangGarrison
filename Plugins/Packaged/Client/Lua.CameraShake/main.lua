@@ -116,9 +116,9 @@ local function get_shake_contribution(event)
     local sound_distance = get_distance_to_camera_center(event.worldPosition)
     if event.soundName == "ExplosionSnd" then
         return 40.0 / sound_distance
-    elseif event.soundName == "ChaingunSnd" then
+    elseif event.soundName == "ChaingunSnd" or event.soundName == "SMGSnd" or event.soundName == "TommygunSnd" then
         return math.min(0.1, 30.0 / sound_distance)
-    elseif event.soundName == "ShotgunSnd" then
+    elseif event.soundName == "ShotgunSnd" or event.soundName == "ScattergunSnd" then
         return math.min(get_shotgun_shake_cap(event.worldPosition), 30.0 / sound_distance)
     elseif event.soundName == "RevolverSnd" then
         return math.min(0.1, 30.0 / sound_distance)

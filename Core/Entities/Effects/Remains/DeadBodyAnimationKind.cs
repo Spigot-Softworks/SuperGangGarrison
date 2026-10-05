@@ -6,4 +6,5 @@ public enum DeadBodyAnimationKind : byte
     Rifle = 1,
     Severe = 2,
     Decapitated = 3,
+    Bisected = 4,
 }

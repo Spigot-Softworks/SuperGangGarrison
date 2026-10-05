@@ -523,8 +523,7 @@ internal sealed class PluginHost
 
         if (LegacyServerPluginsExist())
         {
-            _log("[plugin] discovered legacy server plugins under Plugins root; prefer Plugins/Server/<PluginFolder>/ for new installs.");
-            yield return new PluginLoader.PluginSearchDirectory(_pluginsRootDirectory, SearchOption.TopDirectoryOnly);
+            _log("[plugin] ignored plugin assemblies under the Plugins root: C# plugins are no longer loaded; install Lua plugins under Plugins/Server/<PluginFolder>/.");
         }
     }
 

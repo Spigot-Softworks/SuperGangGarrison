@@ -32,9 +32,10 @@ state lives in owned systems and stores (`EntityStore`, `CombatSystem`,
 `VipState`, `CompetitiveReadyUpState`, `PracticeDummyState`, `LastToDieState`, `MatchSettingsState`,
 `ClientSnapshotState`, `MapRuntimeState`, `CombatRuntimeState`, `LocalSimulationState`, `MatchLifecycleState`).
 Per-mode objective rules live in `Core/Simulation/Systems/Objectives/`, and raycast/weapon-fire logic in `Core/Simulation/Systems/Combat/`.
-The world still holds a lot of rule logic; see
-[simulation boundaries](architecture/simulation-boundaries.md) for the current
-status and the enforced limits. `PlayerEntity`, under `Core/Entities/Players/`, holds player state and behavior.
+The world itself only composes: it builds the systems, holds the stores, and
+implements their host interfaces (`Core/Simulation/World/`). See
+[simulation boundaries](architecture/simulation-boundaries.md) for the layout,
+how to add a system, and the enforced limits. `PlayerEntity`, under `Core/Entities/Players/`, holds player state and behavior.
 Definitions in `Core/Content/Gameplay/stock.gg2/` supply the stock classes, items,
 and loadouts interpreted by the simulation.
 

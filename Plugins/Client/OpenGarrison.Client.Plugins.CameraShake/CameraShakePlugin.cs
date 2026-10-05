@@ -145,8 +145,8 @@ public sealed class CameraShakePlugin :
         return soundEvent.SoundName switch
         {
             "ExplosionSnd" => 40f / distance,
-            "ChaingunSnd" => MathF.Min(0.1f, 30f / distance),
-            "ShotgunSnd" => MathF.Min(GetShotgunShakeCap(soundEvent.WorldPosition), 30f / distance),
+            "ChaingunSnd" or "SMGSnd" or "TommygunSnd" => MathF.Min(0.1f, 30f / distance),
+            "ShotgunSnd" or "ScattergunSnd" => MathF.Min(GetShotgunShakeCap(soundEvent.WorldPosition), 30f / distance),
             "RevolverSnd" => MathF.Min(0.1f, 30f / distance),
             "RifleSnd" => GetRifleShakeContribution(soundEvent.WorldPosition, distance),
             _ => 0f,

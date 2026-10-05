@@ -194,7 +194,11 @@ public static class SimpleLevelFactory
             gameplayMessages: gameplayMessages,
             gameplaySounds: gameplaySounds,
             spawnClassBehaviors: spawnClassBehaviors,
-            isTopDown: importedRoom.IsTopDown);
+            isTopDown: importedRoom.IsTopDown,
+            weather: importedRoom.Weather,
+            indoorRegions: importedRoom.IndoorRegions,
+            mapLights: importedRoom.MapLights,
+            lighting: importedRoom.Lighting);
         return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 

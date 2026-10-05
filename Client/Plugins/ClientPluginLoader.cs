@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Runtime.Loader;
 using OpenGarrison.Client.Plugins;
 using OpenGarrison.ClientShared;
 using OpenGarrison.Core;
@@ -18,48 +17,25 @@ internal static class ClientPluginLoader
             return DiscoverFromBrowserBundle(pluginsDirectory, log);
         }
 
+        // Lua is the only plugin runtime: plugin assemblies on disk are never loaded.
         Directory.CreateDirectory(pluginsDirectory);
-        var loadedAssemblies = new List<LoadedAssembly>();
-        foreach (var candidate in EnumerateAssemblyCandidates(pluginsDirectory, log))
-        {
-            try
-            {
-                loadedAssemblies.Add(new LoadedAssembly(
-                    AssemblyLoadContext.Default.LoadFromAssemblyPath(candidate.AssemblyPath),
-                    candidate.PluginDirectory,
-                    candidate.Manifest));
-            }
-            catch (Exception ex)
-            {
-                log($"[plugin] failed to load assembly \"{candidate.AssemblyPath}\": {ex.Message}");
-            }
-        }
-
-        var discoveredPlugins = DiscoverFromLoadedAssemblies(loadedAssemblies, log).ToList();
-        var discoveredPluginsById = discoveredPlugins.ToDictionary(plugin => plugin.PluginId, StringComparer.OrdinalIgnoreCase);
+        var discoveredPlugins = new List<DiscoveredPlugin>();
+        var discoveredPluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var luaCandidate in EnumerateLuaPluginCandidates(pluginsDirectory, log))
         {
-            if (discoveredPluginsById.TryGetValue(luaCandidate.Manifest.Id, out var existingPlugin))
+            if (!discoveredPluginIds.Add(luaCandidate.Manifest.Id))
             {
-                if (existingPlugin.Manifest.Runtime == OpenGarrisonPluginRuntimeKind.Lua)
-                {
-                    log($"[plugin] duplicate client plugin id \"{luaCandidate.Manifest.Id}\" from Lua manifest \"{luaCandidate.ManifestPath}\" ignored.");
-                    continue;
-                }
-
-                discoveredPlugins.Remove(existingPlugin);
-                log($"[plugin] Lua manifest \"{luaCandidate.ManifestPath}\" overrides legacy CLR client plugin id \"{luaCandidate.Manifest.Id}\".");
+                log($"[plugin] duplicate client plugin id \"{luaCandidate.Manifest.Id}\" from Lua manifest \"{luaCandidate.ManifestPath}\" ignored.");
+                continue;
             }
 
-            var luaPlugin = new DiscoveredPlugin(
+            discoveredPlugins.Add(new DiscoveredPlugin(
                 luaCandidate.Manifest.Id,
                 luaCandidate.Manifest.DisplayName,
                 Version.TryParse(luaCandidate.Manifest.Version, out var version) ? version : new Version(1, 0, 0, 0),
                 typeof(LuaClientPlugin),
                 luaCandidate.PluginDirectory,
-                luaCandidate.Manifest);
-            discoveredPlugins.Add(luaPlugin);
-            discoveredPluginsById[luaCandidate.Manifest.Id] = luaPlugin;
+                luaCandidate.Manifest));
         }
 
         return PlanDiscoveredPlugins(discoveredPlugins, log);
@@ -143,6 +119,10 @@ internal static class ClientPluginLoader
         return PlanDiscoveredPlugins(discoveredPlugins, log);
     }
 
+    /// <summary>
+    /// Discovers client plugins compiled into assemblies that are already loaded. Only
+    /// the host and its tests use this; it never reads plugin assemblies from disk.
+    /// </summary>
     public static IReadOnlyList<DiscoveredPlugin> DiscoverFromAssemblies(
         IEnumerable<Assembly> assemblies,
         Action<string> log)
@@ -240,66 +220,6 @@ internal static class ClientPluginLoader
         return PlanDiscoveredPlugins(discoveredPlugins, log);
     }
 
-    private static IEnumerable<AssemblyCandidate> EnumerateAssemblyCandidates(string pluginsDirectory, Action<string> log)
-    {
-        var coveredDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var manifestPath in Directory.EnumerateFiles(pluginsDirectory, OpenGarrisonPluginManifestLoader.DefaultManifestFileName, SearchOption.AllDirectories)
-                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-        {
-            var pluginDirectory = Path.GetDirectoryName(manifestPath) ?? string.Empty;
-            coveredDirectories.Add(Path.GetFullPath(pluginDirectory));
-
-            if (!OpenGarrisonPluginManifestLoader.TryLoadFromPath(manifestPath, out var manifest, out var error))
-            {
-                log($"[plugin] failed to read manifest \"{manifestPath}\": {error}");
-                continue;
-            }
-
-            if (manifest.Type != OpenGarrisonPluginType.Client)
-            {
-                log($"[plugin] skipped manifest \"{manifestPath}\" because it targets {manifest.Type} plugins.");
-                continue;
-            }
-
-            if (manifest.Runtime != OpenGarrisonPluginRuntimeKind.Clr)
-            {
-                continue;
-            }
-
-            if (!OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(manifest, OpenGarrisonPluginHostApi.CreateClientDefault(), out error))
-            {
-                log($"[plugin] incompatible manifest \"{manifestPath}\": {error}");
-                continue;
-            }
-
-            if (!OpenGarrisonPluginManifestLoader.TryResolveEntryPointPath(manifest, pluginDirectory, out var entryPointPath, out error))
-            {
-                log($"[plugin] invalid manifest \"{manifestPath}\": {error}");
-                continue;
-            }
-
-            if (!File.Exists(entryPointPath))
-            {
-                log($"[plugin] manifest entry point \"{entryPointPath}\" was not found.");
-                continue;
-            }
-
-            yield return new AssemblyCandidate(entryPointPath, pluginDirectory, manifest);
-        }
-
-        foreach (var pluginPath in Directory.EnumerateFiles(pluginsDirectory, "*.dll", SearchOption.AllDirectories)
-                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-        {
-            var pluginDirectory = Path.GetDirectoryName(pluginPath) ?? string.Empty;
-            if (IsCoveredByManifest(pluginDirectory, coveredDirectories))
-            {
-                continue;
-            }
-
-            yield return new AssemblyCandidate(Path.GetFullPath(pluginPath), pluginDirectory, Manifest: null);
-        }
-    }
-
     private static IEnumerable<LuaPluginCandidate> EnumerateLuaPluginCandidates(string pluginsDirectory, Action<string> log)
     {
         foreach (var manifestPath in Directory.EnumerateFiles(pluginsDirectory, OpenGarrisonPluginManifestLoader.DefaultManifestFileName, SearchOption.AllDirectories)
@@ -312,8 +232,14 @@ internal static class ClientPluginLoader
                 continue;
             }
 
-            if (manifest.Type != OpenGarrisonPluginType.Client || manifest.Runtime != OpenGarrisonPluginRuntimeKind.Lua)
+            if (manifest.Type != OpenGarrisonPluginType.Client)
             {
+                continue;
+            }
+
+            if (manifest.Runtime != OpenGarrisonPluginRuntimeKind.Lua)
+            {
+                log($"[plugin] skipped \"{manifestPath}\": only Lua plugins are supported (manifest runtime is {manifest.Runtime}).");
                 continue;
             }
 
@@ -396,14 +322,6 @@ internal static class ClientPluginLoader
         return true;
     }
 
-    private static bool IsCoveredByManifest(string pluginDirectory, HashSet<string> coveredDirectories)
-    {
-        var fullPluginDirectory = Path.GetFullPath(pluginDirectory);
-        return coveredDirectories.Any(coveredDirectory =>
-            string.Equals(coveredDirectory, fullPluginDirectory, StringComparison.OrdinalIgnoreCase)
-            || fullPluginDirectory.StartsWith(coveredDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
-    }
-
     private static DiscoveredPlugin[] PlanDiscoveredPlugins(IEnumerable<DiscoveredPlugin> discoveredPlugins, Action<string> log)
     {
         var result = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(
@@ -431,11 +349,6 @@ internal static class ClientPluginLoader
         IOpenGarrisonClientPlugin Plugin,
         IOpenGarrisonClientPluginContext Context,
         string PluginDirectory);
-
-    private sealed record AssemblyCandidate(
-        string AssemblyPath,
-        string PluginDirectory,
-        OpenGarrisonPluginManifest? Manifest);
 
     private sealed record LoadedAssembly(
         Assembly Assembly,

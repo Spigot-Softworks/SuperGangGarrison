@@ -18,7 +18,7 @@
     "refillsAllAtOnce": true
   },
   "combat": {
-    "fireSoundName": "ChaingunSnd",
+    "fireSoundName": "SMGSnd",
     "killFeedSpriteName": "SmgKL",
     "directHitDamage": 5,
     "playerKnockback": {

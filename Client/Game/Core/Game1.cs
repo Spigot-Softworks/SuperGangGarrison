@@ -368,6 +368,7 @@ public partial class Game1 : Game
 
     private void OnGameExiting(object? sender, EventArgs e)
     {
+        FlushClientFrameCapture();
         PreserveGarrisonBuilderOnExit();
         ResetVoiceChat();
         // Ensure we disconnect from the server before exiting
@@ -402,6 +403,9 @@ public partial class Game1 : Game
 
     protected override void UnloadContent()
     {
+        FlushClientFrameCapture();
+        _gameplayLightmap.Dispose();
+        _builderLightmap.Dispose();
         _voiceChat?.Dispose();
         _voiceChat = null;
         _runUploads?.Dispose();
@@ -420,6 +424,7 @@ public partial class Game1 : Game
         PollBrowserBootstrapAssetPreload();
         _gameplayManager.Bootstrap.AdvanceDeferredContentBootstrap();
         BeginNetworkDiagnosticsFrame(gameTime);
+        EnsureTextureUploadSyncPolicy();
         BeginClientPerformanceDiagnosticsFrame(gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
         var clientTicks = _gameplayManager.Frame.Update(gameTime);
@@ -431,6 +436,7 @@ public partial class Game1 : Game
         AdvanceClientPerformanceAutomation();
         FinalizeNetworkDiagnosticsFrame();
 
+        UpdateGameplayCursorConfinement();
         base.Update(gameTime);
         RecordBrowserUpdateDuration(browserUpdateStartTimestamp);
         FinalizeClientPerformanceDiagnosticsFrame();
@@ -439,6 +445,26 @@ public partial class Game1 : Game
     protected override void Draw(GameTime gameTime)
     {
         _renderPipeline.Draw(gameTime);
+        _completedDrawCount += 1;
+    }
+
+    protected override void EndDraw()
+    {
+        if (!ShouldCaptureClientFrameFrameworkEndDrawDuration())
+        {
+            base.EndDraw();
+            return;
+        }
+
+        var startTimestamp = Stopwatch.GetTimestamp();
+        try
+        {
+            base.EndDraw();
+        }
+        finally
+        {
+            RecordClientFrameCaptureFrameworkEndDrawDuration(startTimestamp);
+        }
     }
 
     private void LogBrowserFrameState(string phase, ref int counter, GameTime gameTime)

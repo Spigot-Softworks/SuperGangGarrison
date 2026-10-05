@@ -61,7 +61,10 @@ public partial class Game1
         DrawGameplayEffectsAndProjectiles(cameraPosition, viewportWidth, viewportHeight);
         DrawGameplayStructures(cameraPosition);
         DrawDispenserBeams(cameraPosition);
-        DrawDamageableZoneHealthBars(cameraPosition);
+        if (!_gameplayHudMinimal)
+        {
+            DrawDamageableZoneHealthBars(cameraPosition);
+        }
         DrawGameplayMapMarkers(cameraPosition, hasLevelBackground, centerLine, centerColumn, worldTopBorder, worldBottomBorder, worldLeftBorder, worldRightBorder, spawnRectangle);
         DrawGameplayRemains(cameraPosition, skippedDeadBodySourcePlayerId);
         PrepareGameplayPlayerLayers();
@@ -100,6 +103,8 @@ public partial class Game1
         DrawForegroundSprites(cameraPosition, ForegroundSpriteLayerKind.Bg);
         DrawCustomMapForegroundAndVoid(cameraPosition, worldRectangle, viewportWidth, viewportHeight);
         DrawForegroundSprites(cameraPosition, ForegroundSpriteLayerKind.Fg);
+        DrawMapWeather(cameraPosition, viewportWidth, viewportHeight);
+        DrawGameplayLightingOverlay(cameraPosition);
         DrawRocketCollisionDebug(cameraPosition);
         DrawProjectileSpawnBlockedDebug(cameraPosition);
         DrawHitboxDebugOverlay(cameraPosition);
@@ -204,7 +209,10 @@ public partial class Game1
                     sentryColor);
             }
 
-            DrawSentryHealthBar(sentry, cameraPosition);
+            if (!_gameplayHudMinimal)
+            {
+                DrawSentryHealthBar(sentry, cameraPosition);
+            }
             DrawSentryShotTrace(sentry, cameraPosition);
         }
 
@@ -601,13 +609,20 @@ public partial class Game1
         _gameplayWeaponRenderController.DrawCivvieUmbrellaShieldBlockVisuals(_world.LocalPlayer, cameraPosition, visibilityAlpha, bodySelection);
         DrawExperimentalCryoOverlays(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
         DrawAfterburnOverlay(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);
-        DrawChatBubble(_world.LocalPlayer, cameraPosition);
-        DrawWriteBubble(_world.LocalPlayer, cameraPosition);
-        DrawOverheadChatMessage(_world.LocalPlayer, cameraPosition);
-        DrawEvasionMissPopup(_world.LocalPlayer, cameraPosition);
-        DrawHeavyDashDodgePopup(_world.LocalPlayer, cameraPosition);
-        TryDrawAdditionalHealthBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
-        TryDrawCivvieUmbrellaShieldBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
+        if (_gameplayHudMinimal)
+        {
+            TryDrawAdditionalHealthBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
+        }
+        else
+        {
+            DrawChatBubble(_world.LocalPlayer, cameraPosition);
+            DrawWriteBubble(_world.LocalPlayer, cameraPosition);
+            DrawOverheadChatMessage(_world.LocalPlayer, cameraPosition);
+            DrawEvasionMissPopup(_world.LocalPlayer, cameraPosition);
+            DrawHeavyDashDodgePopup(_world.LocalPlayer, cameraPosition);
+            TryDrawAdditionalHealthBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
+            TryDrawCivvieUmbrellaShieldBar(_world.LocalPlayer, cameraPosition, visibilityAlpha);
+        }
     }
 
 }

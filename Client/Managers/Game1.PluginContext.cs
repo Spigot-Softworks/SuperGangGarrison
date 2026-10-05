@@ -74,7 +74,7 @@ public partial class Game1 : IPluginContext
 
     Microsoft.Xna.Framework.Vector2 IPluginContext.GetUntrackedCameraTopLeft(int viewportWidth, int viewportHeight, int mouseX, int mouseY) => GetUntrackedCameraTopLeft(viewportWidth, viewportHeight, mouseX, mouseY);
 
-    bool IPluginContext.IsClientPerformanceDiagnosticsEnabled() => IsClientPerformanceDiagnosticsEnabled();
+    bool IPluginContext.IsClientPerformanceDiagnosticsEnabled() => IsClientPerformanceTimingCollectionEnabled();
 
     bool IPluginContext.IsLocalSpectatorPresentationActive() => IsLocalSpectatorPresentationActive();
 
@@ -103,6 +103,8 @@ public partial class Game1 : IPluginContext
     void IPluginContext.ResetClientPluginGameplayEventState() { ResetClientPluginGameplayEventState(); }
 
     void IPluginContext.TriggerLocalHudDamageVignette(int damageAmount) { TriggerLocalHudDamageVignette(damageAmount); }
+
+    void IPluginContext.ObserveLocalPainDamage(int damageAmount, bool wasFatal, OpenGarrison.Core.DamageEventFlags flags) { ObserveLocalPainDamage(damageAmount, wasFatal, flags); }
 
     void IPluginContext.TriggerLocalHudPortraitDamageFeedback(int damageAmount) { TriggerLocalHudPortraitDamageFeedback(damageAmount); }
 

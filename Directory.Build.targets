@@ -1,22 +1,4 @@
 <Project>
-  <PropertyGroup>
-    <StageLegacyPluginRuntimeOutput Condition="'$(StageLegacyPluginRuntimeOutput)' == ''">false</StageLegacyPluginRuntimeOutput>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'OpenGarrison.Client.Plugins.Abstractions' and $([System.String]::Copy('$(MSBuildProjectName)').StartsWith('OpenGarrison.Client.Plugins.'))">
-    <PluginRuntimeScope>Client</PluginRuntimeScope>
-    <PluginRuntimeFolderName>$([System.String]::Copy('$(MSBuildProjectName)').Replace('OpenGarrison.Client.Plugins.', ''))</PluginRuntimeFolderName>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'OpenGarrison.Server.Plugins.Abstractions' and $([System.String]::Copy('$(MSBuildProjectName)').StartsWith('OpenGarrison.Server.Plugins.'))">
-    <PluginRuntimeScope>Server</PluginRuntimeScope>
-    <PluginRuntimeFolderName>$([System.String]::Copy('$(MSBuildProjectName)').Replace('OpenGarrison.Server.Plugins.', ''))</PluginRuntimeFolderName>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(PluginRuntimeScope)' != '' and '$(PluginRuntimeFolderName)' != ''">
-    <PluginRuntimeStageDir>$(MSBuildThisFileDirectory)$(PluginRuntimeScope)\bin\$(Configuration)\$(TargetFramework)\Plugins\$(PluginRuntimeScope)\$(PluginRuntimeFolderName)\</PluginRuntimeStageDir>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'OpenGarrison.Client' and '$(OpenGarrisonClientAsLibrary)' != 'true'">
     <PackagedPluginRuntimeScope>Client</PackagedPluginRuntimeScope>
   </PropertyGroup>
@@ -29,19 +11,6 @@
     <PackagedPluginRuntimeSourceDir>$(MSBuildThisFileDirectory)Plugins\Packaged\$(PackagedPluginRuntimeScope)\</PackagedPluginRuntimeSourceDir>
     <PackagedPluginRuntimeDestinationDir>$(TargetDir)Plugins\$(PackagedPluginRuntimeScope)\</PackagedPluginRuntimeDestinationDir>
   </PropertyGroup>
-
-  <Target Name="StagePluginRuntimeOutput"
-          AfterTargets="Build"
-          Condition="'$(PluginRuntimeStageDir)' != '' and '$(StageLegacyPluginRuntimeOutput)' == 'true'">
-    <ItemGroup>
-      <PluginRuntimeFiles Include="$(TargetDir)**\*" />
-    </ItemGroup>
-
-    <MakeDir Directories="$(PluginRuntimeStageDir)" />
-    <Copy SourceFiles="@(PluginRuntimeFiles)"
-          DestinationFiles="@(PluginRuntimeFiles->'$(PluginRuntimeStageDir)%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
 
   <Target Name="MirrorPackagedPluginRuntimeOutput"
           AfterTargets="Build"

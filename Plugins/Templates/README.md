@@ -2,7 +2,6 @@
 
 These templates demonstrate plugin manifests and host APIs.
 
-- `ClientClr` is the baseline manifest for packaged C# client plugins.
 - `ClientLua.RandomBackgrounds` is a runnable Lua client plugin template.
 - `ClientLua.ShowPing` is a runnable Lua HUD and scoreboard plugin template.
 - `ClientLua.LowHealthIndicator` is a runnable Lua client update and audio plugin template.
@@ -11,7 +10,6 @@ These templates demonstrate plugin manifests and host APIs.
 - `ClientLua.MoreAnimations` is a runnable Lua dead-body animation plugin template.
 - `ClientLua.BubbleWheel` is a runnable Lua bubble-menu override template.
 - `ClientLua.TeamOnlyMinimap` is a runnable Lua minimap HUD plugin template.
-- `ServerClr` is the baseline manifest for packaged C# server plugins.
 - `ServerLua` is a runnable Lua server plugin template.
 - `ServerLua.ChatVoting` is a runnable Lua native vote-kind extension template.
 - `ServerLua.GameplayAbility` is a runnable Lua server gameplay ability template

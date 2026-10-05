@@ -23,8 +23,7 @@ param(
     [switch]$LegacyRootLayout,
     [switch]$RunTests,
     [switch]$SkipTests,
-    [switch]$RequireDeltas,
-    [switch]$IncludeLegacyClrPlugins
+    [switch]$RequireDeltas
 )
 
 Set-StrictMode -Version Latest
@@ -2065,96 +2064,6 @@ function Add-UnixLaunchers {
     }
 }
 
-function Get-BundledPluginProjects {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$RepoRoot
-    )
-
-    $pluginsRoot = Join-Path $RepoRoot "Plugins"
-    if (-not (Test-Path $pluginsRoot)) {
-        return @()
-    }
-
-    $pluginProjects = Get-ChildItem -Path $pluginsRoot -Recurse -Filter *.csproj -File |
-        Where-Object { $_.BaseName -notlike "*.Abstractions" }
-
-    $bundledPlugins = foreach ($project in $pluginProjects) {
-        $scope = if ($project.BaseName -like "OpenGarrison.Client.Plugins.*") {
-            "Client"
-        }
-        elseif ($project.BaseName -like "OpenGarrison.Server.Plugins.*") {
-            "Server"
-        }
-        else {
-            continue
-        }
-
-        $folder = $project.BaseName -replace '^OpenGarrison\.(Client|Server)\.Plugins\.', ''
-        if ([string]::IsNullOrWhiteSpace($folder) -or $folder -eq $project.BaseName) {
-            $folder = $project.Directory.Name
-        }
-
-        [pscustomobject]@{
-            Project = $project.FullName
-            Scope = $scope
-            Folder = $folder
-        }
-    }
-
-    return $bundledPlugins |
-        Sort-Object Scope, Folder
-}
-
-function Publish-BundledPlugins {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$RepoRoot,
-        [Parameter(Mandatory = $true)]
-        [string]$OutputDirectory,
-        [Parameter(Mandatory = $true)]
-        [string]$RuntimeIdentifier,
-        [Parameter(Mandatory = $true)]
-        [string]$RootDirectoryName
-    )
-
-    $sharedRootFiles = @{}
-    foreach ($rootFile in Get-ChildItem $OutputDirectory -File) {
-        $sharedRootFiles[$rootFile.Name] = $true
-    }
-
-    $bundledPlugins = Get-BundledPluginProjects -RepoRoot $RepoRoot
-    foreach ($plugin in $bundledPlugins) {
-        $projectPath = $plugin.Project
-        $pluginOutputDirectory = Join-Path $OutputDirectory (Join-Path "$RootDirectoryName\\$($plugin.Scope)" $plugin.Folder)
-        New-Item -ItemType Directory -Path $pluginOutputDirectory -Force | Out-Null
-
-        Invoke-DotNet -Arguments @(
-            "restore",
-            $projectPath,
-            "-r", $RuntimeIdentifier
-        )
-
-        Invoke-DotNet -Arguments @(
-            "publish",
-            $projectPath,
-            "-c", $configuration,
-            "-r", $RuntimeIdentifier,
-            "--self-contained", "false",
-            "--no-restore",
-            "/nr:false",
-            "/m:1",
-            "-o", $pluginOutputDirectory
-        )
-
-        foreach ($pluginFile in Get-ChildItem $pluginOutputDirectory -File) {
-            if ($sharedRootFiles.ContainsKey($pluginFile.Name)) {
-                Remove-Item $pluginFile.FullName -Force
-            }
-        }
-    }
-}
-
 function Publish-PackagedExamples {
     param(
         [Parameter(Mandatory = $true)]
@@ -2427,14 +2336,6 @@ foreach ($runtimeIdentifier in $Platforms) {
     }
 
     Publish-PackagedExamples -RepoRoot $repoRoot -OutputDirectory $payloadDirectory
-
-    if ($IncludeLegacyClrPlugins) {
-        Publish-BundledPlugins `
-            -RepoRoot $repoRoot `
-            -OutputDirectory $payloadDirectory `
-            -RuntimeIdentifier $runtimeIdentifier `
-            -RootDirectoryName "LegacyPlugins"
-    }
 
     $packageFileManifestPath = Write-PackageFileManifest `
         -RootDirectory $stagingDirectory `

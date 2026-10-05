@@ -150,7 +150,7 @@ internal sealed partial class WeaponFireHandler
 
     public void FireScoutNailgun(PlayerEntity attacker, PrimaryWeaponDefinition weapon, float aimWorldX, float aimWorldY)
     {
-        RegisterSoundEvent(attacker, "MedichaingunSnd");
+        RegisterSoundEvent(attacker, "NailgunSnd");
         FireScoutNailgun(attacker, weapon, GetSourceWeaponOrigin(attacker), aimWorldX, aimWorldY);
     }
 

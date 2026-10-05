@@ -1543,12 +1543,14 @@ public partial class Game1
         int viewportHeight,
         out FlameCellBounds bounds)
     {
-        var worldViewport = GetGameplayWorldViewport(viewportWidth, viewportHeight);
+        // The world draw passes the view size in world pixels already (zoom applied);
+        // converting it again shrank the cull rectangle and clipped flames near the
+        // right and bottom edges when zoomed in.
         return FlameCellBounds.TryCreateForWorldRectangle(
             cameraPosition.X,
             cameraPosition.Y,
-            cameraPosition.X + worldViewport.X,
-            cameraPosition.Y + worldViewport.Y,
+            cameraPosition.X + viewportWidth,
+            cameraPosition.Y + viewportHeight,
             haloCells: 1,
             out bounds);
     }

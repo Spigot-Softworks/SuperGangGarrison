@@ -168,6 +168,33 @@ public partial class Game1
             opaque = frame.OpaqueBounds ?? new Rectangle(0, 0, frame.Width, frame.Height);
         }
 
+        if (ragdoll.IsBisectedHalf)
+        {
+            var halfFrame = new LoadedSpriteFrame(
+                frame.Texture,
+                SourceRectangle: ragdoll.BisectedSourceRectangle,
+                OwnsTexture: false,
+                OpaqueBounds: null,
+                PixelSource: null);
+            var halfScaleX = ragdoll.FacingLeft ? -1f : 1f;
+            var halfTint = (tintOverride ?? Color.White) * fadeAlpha;
+            var halfRoundedOrigin = GetRoundedPlayerSpriteOrigin(new Vector2(ragdoll.X, ragdoll.Y));
+            var halfRootPosition = new Vector2(halfRoundedOrigin.X - cameraPosition.X, halfRoundedOrigin.Y - cameraPosition.Y);
+            DrawSpriteFrameWithOptionalShadow(
+                halfFrame,
+                halfRootPosition,
+                halfTint,
+                ragdoll.RotationDegrees * (MathF.PI / 180f),
+                new Vector2(opaque.Width * 0.5f, opaque.Height * 0.5f),
+                new Vector2(halfScaleX, 1f));
+            if (ragdoll.IsUpperBisectedHalf)
+            {
+                DrawElkondoRagdollWeapon(ragdoll, halfRootPosition, ragdoll.RotationDegrees, halfScaleX, halfTint);
+            }
+
+            return true;
+        }
+
         var scaleX = ragdoll.FacingLeft ? -1f : 1f;
         var tint = (tintOverride ?? Color.White) * fadeAlpha;
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(new Vector2(ragdoll.X, ragdoll.Y));

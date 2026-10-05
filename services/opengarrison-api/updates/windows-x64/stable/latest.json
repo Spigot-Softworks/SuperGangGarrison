@@ -1,17 +1,17 @@
 {
   "schemaVersion": 2,
-  "version": "0.8.8",
-  "packageVersion": "0.8.8",
+  "version": "0.8.8.3",
+  "packageVersion": "0.8.8.3",
   "channel": "stable",
-  "url": "OpenGarrison-Windows-x64-0.8.8.zip",
-  "sha256": "872ad308185753cd7fcd6bbfdc026cbc6b1714979b60cf522621d56dfaac30b9",
-  "size": 93337146,
+  "url": "https://api.superganggarrison.com/updates/windows-x64/stable/OpenGarrison-Windows-x64-0.8.8.3.zip",
+  "sha256": "1682b120d0e8726aa9991930215c9f8a6a9ab8e0edfd2ee9a6520d96b301df58",
+  "size": 94877061,
   "minLauncherVersion": "0.1.0",
   "notesUrl": "",
   "fullPackage": {
-    "url": "OpenGarrison-Windows-x64-0.8.8.zip",
-    "sha256": "872ad308185753cd7fcd6bbfdc026cbc6b1714979b60cf522621d56dfaac30b9",
-    "size": 93337146
+    "url": "https://api.superganggarrison.com/updates/windows-x64/stable/OpenGarrison-Windows-x64-0.8.8.3.zip",
+    "sha256": "1682b120d0e8726aa9991930215c9f8a6a9ab8e0edfd2ee9a6520d96b301df58",
+    "size": 94877061
   },
   "deltas": []
 }

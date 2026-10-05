@@ -195,6 +195,7 @@ public partial class Game1
     {
         _spriteBatch.End();
         _gameplayWorldSpriteBatchActive = true;
+        _gameplayWorldRasterizerState = rasterizerState;
         BeginSubpixelWorldPass(rasterizerState);
         _spriteBatch.Begin(
             samplerState: SamplerState.PointClamp,

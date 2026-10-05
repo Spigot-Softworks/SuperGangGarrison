@@ -1293,7 +1293,7 @@ internal sealed partial class GameplayAbilitySystem
                 velocityY: 0f);
         }
 
-        _host.WorldEffects.RegisterWorldSoundEvent(ExperimentalDemoknightCatalog.ChargeStartSoundName, context.Player.X, context.Player.Y);
+        _host.WorldEffects.RegisterWorldSoundEvent("HeavyDashSnd", context.Player.X, context.Player.Y, context.Player.Id);
         return GameplayAbilityResult.HandledAndConsumed;
     }
 

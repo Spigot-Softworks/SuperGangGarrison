@@ -74,6 +74,7 @@ Tests/BrowserSmoke/node_modules/
 !/docs/README.md
 !/docs/CODEBASE_ORIENTATION.md
 !/docs/SERVER_MANAGEMENT.md
+!/docs/manual-performance-capture.md
 !/docs/server-registry/
 /docs/architecture/
 !/docs/design/

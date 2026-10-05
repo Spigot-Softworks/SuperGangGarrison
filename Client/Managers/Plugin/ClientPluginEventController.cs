@@ -275,6 +275,7 @@ public sealed class ClientPluginEventController
             }
 
             _context.TriggerLocalHudDamageVignette(damageEvent.Amount);
+            _context.ObserveLocalPainDamage(damageEvent.Amount, damageEvent.WasFatal, damageEvent.Flags);
         }
 
         private void TryTriggerLocalDamageVignette(SnapshotDamageEvent damageEvent)
@@ -289,6 +290,7 @@ public sealed class ClientPluginEventController
             }
 
             _context.TriggerLocalHudDamageVignette(damageEvent.Amount);
+            _context.ObserveLocalPainDamage(damageEvent.Amount, damageEvent.WasFatal, (OpenGarrison.Core.DamageEventFlags)damageEvent.Flags);
         }
 
         private void TryDispatchLocalDamageEvent(int localPlayerId, WorldDamageEvent damageEvent)

@@ -15,6 +15,8 @@ public partial class Game1
 {
     public const string ClientPerformanceLogEnvironmentVariable = "OG_CLIENT_PERF_LOG";
     public const string ClientPerformanceTestEnvironmentVariable = "OG_CLIENT_PERF_TEST";
+    public const string ClientPerformanceCaptureEnvironmentVariable = "OG_CLIENT_PERF_CAPTURE";
+    public const string ClientPerformanceCapturePathEnvironmentVariable = "OG_CLIENT_PERF_CAPTURE_PATH";
     public const string ClientPerformanceModeEnvironmentVariable = "OG_CLIENT_PERF_MODE";
     public const string ClientPerformanceMapEnvironmentVariable = "OG_CLIENT_PERF_MAP";
     private const string ClientPerformanceFriendlyBotsEnvironmentVariable = "OG_CLIENT_PERF_FRIENDLY_BOTS";
@@ -54,6 +56,7 @@ public partial class Game1
 
     private static readonly bool ClientPerformanceLoggingEnabled = GetClientPerformanceEnvironmentFlag(ClientPerformanceLogEnvironmentVariable);
     private static readonly bool ClientPerformanceTestEnabled = GetClientPerformanceEnvironmentFlag(ClientPerformanceTestEnvironmentVariable);
+    private static readonly bool ClientPerformanceCaptureEnabled = GetClientPerformanceEnvironmentFlag(ClientPerformanceCaptureEnvironmentVariable);
     // A combat soak should measure the live practice path, not the optional
     // formatted diagnostics overlay. Navigation behavior tests can opt back in
     // with OG_CLIENT_PERF_BOT_DIAGNOSTICS=1.
@@ -61,6 +64,17 @@ public partial class Game1
         GetClientPerformanceEnvironmentFlagOrDefault(ClientPerformanceBotDiagnosticsEnvironmentVariable, fallback: true);
     private readonly ClientPerformanceAccumulator _clientPerformance = new();
     private readonly ClientFrameTimingAccumulator _clientDrawFrameTiming = new();
+    private ClientFrameCaptureRecorder? _clientFrameCapture;
+    private ClientFrameCaptureStageAccumulator? _clientFrameCaptureStageTimings;
+    private string? _clientFrameCapturePath;
+    private long _clientFrameCaptureFrameIndex;
+    private long _clientFrameCaptureLastCompletedTimestamp;
+    private double _clientFrameCapturePreviousFrameworkEndDrawMilliseconds;
+    private long _clientFrameCaptureLastAllocatedBytes;
+    private int _clientFrameCaptureLastGc0;
+    private int _clientFrameCaptureLastGc1;
+    private int _clientFrameCaptureLastGc2;
+    private bool _clientFrameCaptureFlushed;
     private string? _clientPerformanceLogPath;
     private bool _clientPerformanceDiagnosticsInitialized;
     private double _clientPerformanceSummaryElapsedSeconds;
@@ -125,34 +139,58 @@ public partial class Game1
             && (ClientPerformanceLoggingEnabled || ClientPerformanceTestEnabled);
     }
 
+    private static bool IsClientPerformanceTimingCollectionEnabled()
+    {
+        return !OperatingSystem.IsBrowser()
+            && (ClientPerformanceLoggingEnabled || ClientPerformanceTestEnabled || ClientPerformanceCaptureEnabled);
+    }
+
+    private static bool ShouldWriteClientPerformanceDiagnostics()
+    {
+        return !OperatingSystem.IsBrowser()
+            && (ClientPerformanceLoggingEnabled || ClientPerformanceTestEnabled);
+    }
+
     private static bool ShouldMeasureClientPerformanceDurations()
     {
-        return OperatingSystem.IsBrowser() || IsClientPerformanceDiagnosticsEnabled();
+        return OperatingSystem.IsBrowser() || IsClientPerformanceTimingCollectionEnabled();
     }
 
     private void BeginClientPerformanceDiagnosticsFrame(GameTime gameTime)
     {
-        if (!IsClientPerformanceDiagnosticsEnabled())
+        if (!IsClientPerformanceTimingCollectionEnabled())
         {
             return;
         }
 
         _ = gameTime;
-        EnsureClientPerformanceDiagnosticsInitialized();
-        var frameTimestamp = Stopwatch.GetTimestamp();
-        if (_clientPerformanceLastFrameTimestamp > 0L)
+        if (ShouldWriteClientPerformanceDiagnostics())
         {
-            _clientPerformanceSummaryElapsedSeconds += Math.Max(
-                0d,
-                (frameTimestamp - _clientPerformanceLastFrameTimestamp) / (double)Stopwatch.Frequency);
+            EnsureClientPerformanceDiagnosticsInitialized();
+        }
+        else
+        {
+            _clientPerformanceDiagnosticsInitialized = true;
         }
 
-        _clientPerformanceLastFrameTimestamp = frameTimestamp;
+        EnsureClientFrameCaptureInitialized();
+        if (ShouldWriteClientPerformanceDiagnostics())
+        {
+            var frameTimestamp = Stopwatch.GetTimestamp();
+            if (_clientPerformanceLastFrameTimestamp > 0L)
+            {
+                _clientPerformanceSummaryElapsedSeconds += Math.Max(
+                    0d,
+                    (frameTimestamp - _clientPerformanceLastFrameTimestamp) / (double)Stopwatch.Frequency);
+            }
+
+            _clientPerformanceLastFrameTimestamp = frameTimestamp;
+        }
     }
 
     private void FinalizeClientPerformanceDiagnosticsFrame()
     {
-        if (!IsClientPerformanceDiagnosticsEnabled()
+        if (!ShouldWriteClientPerformanceDiagnostics()
             || _clientPerformanceSummaryElapsedSeconds < ClientPerformanceSummaryIntervalSeconds)
         {
             return;
@@ -163,12 +201,193 @@ public partial class Game1
 
     public void RecordClientPerformanceMetric(ClientPerformanceMetric metric, double milliseconds)
     {
-        if (!IsClientPerformanceDiagnosticsEnabled())
+        if (!IsClientPerformanceTimingCollectionEnabled())
         {
             return;
         }
 
-        _clientPerformance.Record(metric, milliseconds);
+        if (ShouldWriteClientPerformanceDiagnostics())
+        {
+            _clientPerformance.Record(metric, milliseconds);
+        }
+
+        if (_clientFrameCaptureStageTimings is { } stageTimings)
+        {
+            stageTimings.Record(metric, milliseconds);
+        }
+    }
+
+    private void EnsureClientFrameCaptureInitialized()
+    {
+        if (!ClientPerformanceCaptureEnabled || OperatingSystem.IsBrowser() || _clientFrameCapture is not null)
+        {
+            return;
+        }
+
+        var overridePath = Environment.GetEnvironmentVariable(ClientPerformanceCapturePathEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(overridePath) && Path.IsPathFullyQualified(overridePath))
+        {
+            _clientFrameCapturePath = Path.GetFullPath(overridePath);
+        }
+        else
+        {
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
+            _clientFrameCapturePath = RuntimePaths.GetLogPath($"client-perf-capture-{timestamp}.csv");
+            if (!string.IsNullOrWhiteSpace(overridePath))
+            {
+                Console.WriteLine($"Ignoring non-absolute {ClientPerformanceCapturePathEnvironmentVariable}; capture will use {_clientFrameCapturePath}");
+            }
+        }
+
+        _clientFrameCapture = new ClientFrameCaptureRecorder();
+        _clientFrameCaptureStageTimings = new ClientFrameCaptureStageAccumulator();
+        _clientFrameCaptureLastAllocatedBytes = GC.GetTotalAllocatedBytes(precise: false);
+        _clientFrameCaptureLastGc0 = GC.CollectionCount(0);
+        _clientFrameCaptureLastGc1 = GC.CollectionCount(1);
+        _clientFrameCaptureLastGc2 = GC.CollectionCount(2);
+        AddConsoleLine($"performance frame capture: {_clientFrameCapturePath}");
+    }
+
+    private bool ShouldCaptureClientFrameFrameworkEndDrawDuration()
+    {
+        return ClientPerformanceCaptureEnabled
+            && !OperatingSystem.IsBrowser()
+            && _clientFrameCapture is not null
+            && !_clientFrameCaptureFlushed;
+    }
+
+    private void RecordClientFrameCaptureFrameworkEndDrawDuration(long startTimestamp)
+    {
+        if (startTimestamp <= 0L || _clientFrameCapture is null || _clientFrameCaptureFlushed)
+        {
+            return;
+        }
+
+        var completedTimestamp = Stopwatch.GetTimestamp();
+        _clientFrameCapturePreviousFrameworkEndDrawMilliseconds =
+            (completedTimestamp - startTimestamp) * 1000d / Stopwatch.Frequency;
+    }
+
+    private void RecordClientFrameCaptureCompletedDraw(double drawCpuMilliseconds, long completedTimestamp)
+    {
+        if (_clientFrameCapture is not { } recorder || _clientFrameCaptureStageTimings is not { } stageTimings)
+        {
+            return;
+        }
+
+        var hasPreviousCompletedDraw = _clientFrameCaptureLastCompletedTimestamp > 0L
+            && completedTimestamp > _clientFrameCaptureLastCompletedTimestamp;
+        var drawIntervalMilliseconds = hasPreviousCompletedDraw
+            ? (completedTimestamp - _clientFrameCaptureLastCompletedTimestamp) * 1000d / Stopwatch.Frequency
+            : 0d;
+        var stageUpdateMilliseconds = stageTimings.GetMilliseconds(ClientPerformanceMetric.Update);
+        var intervalGapMilliseconds = hasPreviousCompletedDraw
+            ? drawIntervalMilliseconds - stageUpdateMilliseconds - drawCpuMilliseconds
+            : 0d;
+
+        var allocatedBytes = GC.GetTotalAllocatedBytes(precise: false);
+        var gc0 = GC.CollectionCount(0);
+        var gc1 = GC.CollectionCount(1);
+        var gc2 = GC.CollectionCount(2);
+        DesktopGLTextureUploadSync.TakeFrameCounters(out var textureUploads, out var glFinishMilliseconds);
+        DesktopGLTextureUploadSync.TakeReadbackCounters(out var gpuReadbacks, out var gpuReadbackMilliseconds);
+        var sample = new ClientFrameCaptureSample(
+            FrameIndex: ++_clientFrameCaptureFrameIndex,
+            CompletedUtcTicks: DateTime.UtcNow.Ticks,
+            CompletedStopwatchTicks: completedTimestamp,
+            DrawIntervalMilliseconds: drawIntervalMilliseconds,
+            DrawCpuMilliseconds: drawCpuMilliseconds,
+            IntervalGapMilliseconds: intervalGapMilliseconds,
+            SessionKind: GetClientFrameCaptureSessionKind(_gameplaySessionKind),
+            Map: _world.Level?.Name ?? string.Empty,
+            GameplayActive: IsClientFrameCaptureGameplayActive(),
+            Loading: _loadingOverlayState.Visible,
+            WindowActive: _windowInputActive,
+            LocalPlayerAwaitingJoin: _world.LocalPlayerAwaitingJoin,
+            PracticeBotCount: _practiceBotSlots.Count,
+            EntityCount: _world.Entities.Count,
+            ViewportWidth: ViewportWidth,
+            ViewportHeight: ViewportHeight,
+            VSync: _graphics.SynchronizeWithVerticalRetrace,
+            FrameRateLimit: _menuManager.DisplaySettings.FrameRateLimit,
+            AllocatedBytesDelta: allocatedBytes - _clientFrameCaptureLastAllocatedBytes,
+            Gc0Delta: gc0 - _clientFrameCaptureLastGc0,
+            Gc1Delta: gc1 - _clientFrameCaptureLastGc1,
+            Gc2Delta: gc2 - _clientFrameCaptureLastGc2,
+            StageUpdateMilliseconds: stageUpdateMilliseconds,
+            StageSimulationMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.Simulation),
+            StagePresentationMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.Presentation),
+            StageWorldDrawMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.WorldDraw),
+            StageHudDrawMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.HudDraw),
+            StageModalDrawMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.ModalDraw),
+            StagePluginFrameMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.PluginFrame),
+            StagePluginEventsMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.PluginEvents),
+            StageInterpolationMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.Interpolation),
+            StageRenderStatesMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.RenderStates),
+            StageMusicMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.Music),
+            StageBotBuildMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.BotBuild),
+            StageBotApplyMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.BotApply),
+            StageNetworkReceiveMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.NetworkReceive),
+            StageNetworkResolveMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.NetworkResolve),
+            StageNetworkApplyMilliseconds: stageTimings.GetMilliseconds(ClientPerformanceMetric.NetworkApply),
+            DroppedFrames: 0L,
+            PreviousFrameworkEndDrawMilliseconds: _clientFrameCapturePreviousFrameworkEndDrawMilliseconds,
+            TextureUploads: textureUploads,
+            GlFinishMilliseconds: glFinishMilliseconds,
+            GpuReadbacks: gpuReadbacks,
+            GpuReadbackMilliseconds: gpuReadbackMilliseconds);
+
+        recorder.Add(sample);
+        _clientFrameCaptureLastCompletedTimestamp = completedTimestamp;
+        _clientFrameCaptureLastAllocatedBytes = allocatedBytes;
+        _clientFrameCaptureLastGc0 = gc0;
+        _clientFrameCaptureLastGc1 = gc1;
+        _clientFrameCaptureLastGc2 = gc2;
+        stageTimings.Reset();
+    }
+
+    private static string GetClientFrameCaptureSessionKind(GameplaySessionKind sessionKind)
+    {
+        return sessionKind switch
+        {
+            GameplaySessionKind.None => "None",
+            GameplaySessionKind.Online => "Online",
+            GameplaySessionKind.Practice => "Practice",
+            GameplaySessionKind.LastToDie => "LastToDie",
+            GameplaySessionKind.Jump => "Jump",
+            _ => "Unknown",
+        };
+    }
+
+    private bool IsClientFrameCaptureGameplayActive()
+    {
+        return _gameplaySessionKind != GameplaySessionKind.None
+            && !_startupSplashOpen
+            && !_mainMenuOpen
+            && !_loadingOverlayState.Visible
+            && !_teamClassSelectionState.TeamSelectOpen
+            && !_teamClassSelectionState.ClassSelectOpen
+            && !_world.LocalPlayerAwaitingJoin
+            && !IsPracticeNavigationWarmupBlockingGameplay();
+    }
+
+    private void FlushClientFrameCapture()
+    {
+        if (_clientFrameCapture is not { } recorder || _clientFrameCaptureFlushed || string.IsNullOrWhiteSpace(_clientFrameCapturePath))
+        {
+            return;
+        }
+
+        try
+        {
+            recorder.WriteCsv(_clientFrameCapturePath);
+            _clientFrameCaptureFlushed = true;
+            AddConsoleLine($"performance frame capture saved: {_clientFrameCapturePath} frames={recorder.Count} dropped={recorder.DroppedFrames}");
+        }
+        catch (Exception exception)
+        {
+            Console.WriteLine($"Unable to save performance frame capture to {_clientFrameCapturePath}: {exception.Message}");
+        }
     }
 
     private void AdvanceClientPerformanceAutomation()

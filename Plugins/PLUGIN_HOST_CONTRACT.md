@@ -2,7 +2,7 @@
 
 This document defines the rules the OpenGarrison plugin hosts are expected to enforce.
 
-It is written for engine contributors who are adding new APIs, extending existing ones, or reviewing whether a plugin capability belongs in Lua, CLR, or the engine itself.
+It is written for engine contributors who are adding new APIs, extending existing ones, or reviewing whether a plugin capability belongs in Lua or in the engine itself.
 
 ## Goals
 
@@ -108,21 +108,23 @@ Callback responsibilities:
 
 ## Lua-Specific Rules
 
-- Lua is the default plugin language.
+- Lua is the only plugin language. The hosts do not load plugin assemblies.
 - Lua APIs should be bounded enough that plugin authors do not need engine-source knowledge just to use them safely.
-- Do not solve missing Lua capability by reflexively approving a CLR plugin.
+- Do not solve missing Lua capability by handing plugins raw engine objects.
 - If Lua needs a new power, prefer a reusable host API over direct raw exposure.
 
-## CLR Exception Path
+## When Lua Is Not Enough
 
-A CLR API or CLR-only plugin is justified only when one of the following is true:
+There is no C# plugin path. When a capability cannot be served by a bounded Lua
+API, it becomes engine code:
 
-- The capability depends on engine-private ownership that should not be surfaced to Lua.
-- The capability requires platform or native interop.
-- The capability is performance-critical in a way that a bounded Lua API cannot satisfy.
-- The capability would materially damage the clarity or safety of the Lua host if exposed there.
+- Engine-private ownership, native interop and performance-critical work are
+  built into the engine (for example as a built-in ability or weapon executor).
+- If plugins need to drive it, expose a validated Lua operation for it; do not
+  expose the engine object itself.
 
-"Lua cannot do it yet" is not enough by itself.
+"Lua cannot do it yet" is a reason to add a host API, not to add engine special
+cases for one plugin.
 
 ## Checklist For New APIs
 
@@ -142,7 +144,7 @@ Before merging a new API, confirm all of the following:
 
 The current Lua hosts are in-process hosts, not out-of-process sandboxes.
 
-The host can limit Lua execution, but it cannot interrupt native or CLR code
+The host can limit Lua execution, but it cannot interrupt engine or native code
 once a callback enters it. Host APIs must account for that limit.
 
 Pure Lua loops can yield through MoonSharp's coroutine budget, allowing the host

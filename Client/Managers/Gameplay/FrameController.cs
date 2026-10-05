@@ -259,6 +259,7 @@ public sealed class FrameController
                 return false;
             }
 
+            _context.PrepareGarrisonBuilderLightingPreview();
             _context.BeginLogicalFrame(new Color(24, 32, 48));
             _context.Menus.Menu.Draw();
             _context.DrawLoadingOverlay();

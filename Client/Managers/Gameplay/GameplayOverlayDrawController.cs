@@ -41,7 +41,10 @@ public sealed class GameplayOverlayDrawController
                         _context.DrawSoftwareMenuCursor(warmupMouse);
                     }
 
-                    _context.DrawVersionOverlay();
+                    if (!_context._gameplayHudMinimal)
+                    {
+                        _context.DrawVersionOverlay();
+                    }
                 }
 
                 _context.EndLogicalFrame();
@@ -52,7 +55,7 @@ public sealed class GameplayOverlayDrawController
             {
                 _context.BeginLogicalFrame(new Color(24, 32, 48));
                 _context.DrawLoadingOverlay();
-                if (!_context._gameplayHudHidden)
+                if (!_context._gameplayHudHidden && !_context._gameplayHudMinimal)
                 {
                     _context.DrawVersionOverlay();
                 }
@@ -75,6 +78,9 @@ public sealed class GameplayOverlayDrawController
             }
 
             _context.PrepareGameplayHudOpacityComposite(mouse, cameraPosition);
+            _context.PrepareGameplayLightmap(cameraPosition, worldViewport.X, worldViewport.Y);
+            // The builder can be open over gameplay; keep its preview current too.
+            _context.PrepareGarrisonBuilderLightingPreview();
 
             _context.BeginLogicalFrame(new Color(24, 32, 48));
             if (!_context.DrawLastToDieDeathFocusOverlay(viewportWidth, viewportHeight)
@@ -92,9 +98,12 @@ public sealed class GameplayOverlayDrawController
             _context.DrawGameplayHudLayersOrComposite(mouse, cameraPosition);
             _context.DrawVoiceParticipants();
             _context.DrawGameplayModalOverlays(mouse, cameraPosition);
-            _context.DrawVotePresentationOverlay();
+            if (!_context._gameplayHudMinimal)
+            {
+                _context.DrawVotePresentationOverlay();
+            }
             _context.DrawLoadingOverlay();
-            if (!_context._gameplayHudHidden)
+            if (!_context._gameplayHudHidden && !_context._gameplayHudMinimal)
             {
                 _context.DrawVersionOverlay();
             }

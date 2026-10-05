@@ -17,6 +17,7 @@ public sealed class GameplayResetController
 
         public void ResetGameplayRuntimeState()
         {
+            _context.StopLocalRapidFireWeaponAudio();
             // Stage/map presentation resets keep the membership for this connection.
             // EnsureVoiceChat resets it when the actual network connection changes.
             if (_context._networkClient.IsConnected) _context._voiceChat?.SuspendCapture();

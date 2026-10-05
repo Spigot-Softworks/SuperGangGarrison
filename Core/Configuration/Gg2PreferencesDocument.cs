@@ -77,6 +77,7 @@ public sealed class OpenGarrisonPreferencesDocument
     private const string ServerSection = "Server";
     private const string ConnectionSection = "Connection";
     private const string ServerAdvancedSection = "Server.Advanced";
+    private const string CrtSettingsUnlockedIniKey = "CRT Settings Unlocked";
     private const string CrtPresetIniKey = "CRT Preset";
     private const string CrtQualityIniKey = "CRT Quality";
     private const string CrtSignalModeIniKey = "CRT Signal";
@@ -110,6 +111,8 @@ public sealed class OpenGarrisonPreferencesDocument
     public WindowSizeKind WindowSize { get; set; } = DefaultWindowSize;
 
     public DisplayScaleModeKind DisplayScaleMode { get; set; } = DefaultDisplayScaleMode;
+
+    public bool CrtSettingsUnlocked { get; set; }
 
     private CrtPresetKind _crtPreset = DefaultCrtPreset;
 
@@ -350,6 +353,7 @@ public sealed class OpenGarrisonPreferencesDocument
             IngameResolution = ReadIngameResolution(ini),
             WindowSize = NormalizeWindowSize((WindowSizeKind)ini.GetInt(SettingsSection, "Window Size", (int)DefaultWindowSize)),
             DisplayScaleMode = NormalizeDisplayScaleMode((DisplayScaleModeKind)ini.GetInt(SettingsSection, "Display Scale", (int)DefaultDisplayScaleMode)),
+            CrtSettingsUnlocked = ini.GetBool(SettingsSection, CrtSettingsUnlockedIniKey, false),
             CrtPreset = NormalizeCrtPreset((CrtPresetKind)ini.GetInt(SettingsSection, CrtPresetIniKey, (int)DefaultCrtPreset)),
             CrtQuality = NormalizeCrtQuality((CrtQualityKind)ini.GetInt(SettingsSection, CrtQualityIniKey, (int)DefaultCrtQuality)),
             CrtSignalMode = NormalizeCrtSignalMode((CrtSignalModeKind)ini.GetInt(SettingsSection, CrtSignalModeIniKey, (int)DefaultCrtSignalMode)),
@@ -474,6 +478,7 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetInt(SettingsSection, "Resolution", (int)NormalizeIngameResolution(IngameResolution));
         ini.SetInt(SettingsSection, "Window Size", (int)NormalizeWindowSize(WindowSize));
         ini.SetInt(SettingsSection, "Display Scale", (int)NormalizeDisplayScaleMode(DisplayScaleMode));
+        ini.SetBool(SettingsSection, CrtSettingsUnlockedIniKey, CrtSettingsUnlocked);
         ini.SetInt(SettingsSection, CrtPresetIniKey, (int)NormalizeCrtPreset(CrtPreset));
         ini.SetInt(SettingsSection, CrtQualityIniKey, (int)NormalizeCrtQuality(CrtQuality));
         ini.SetInt(SettingsSection, CrtSignalModeIniKey, (int)NormalizeCrtSignalMode(CrtSignalMode));
@@ -1440,6 +1445,7 @@ public static class OpenGarrisonStockMapCatalog
         new("Kulay", "Kulay", "Kulay", GameModeKind.DoubleKingOfTheHill, 0, "kulay", "dkoth_kulay", "dkoth_kulay_v2"),
         new("cp_coldfront_js", "cp_coldfront_js", "Coldfront", GameModeKind.ControlPoint, 0, "coldfront", "coldfront_v7", "cp_coldfront_v7"),
         new("cp_gully", "cp_gully", "Gully", GameModeKind.ControlPoint, 0, "gully"),
+        new("cp_powerstrip", "cp_powerstrip", "Powerstrip", GameModeKind.ControlPoint, 0, "powerstrip"),
         new("koth_ravine", "koth_ravine", "Ravine", GameModeKind.KingOfTheHill, 0, "ravine"),
         new("koth_standoff", "koth_standoff", "Standoff", GameModeKind.KingOfTheHill, 0, "standoff"),
         new("koth_crab_v2", "koth_crab_v2", "Crab", GameModeKind.KingOfTheHill, 0, "crab"),

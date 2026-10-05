@@ -7,7 +7,7 @@ using System.Threading.Channels;
 
 namespace OpenGarrison.ClientShared;
 
-public sealed record PeerPracticeSettings(string Map = "Harvest", int MapArea = 1, int TickRate = 30,
+public sealed record PeerPracticeSettings(string Map = "cp_powerstrip", int MapArea = 1, int TickRate = 30,
     int TimeLimitMinutes = 15, int CaptureLimit = 5, int RespawnSeconds = 5, int RedBots = 0, int BlueBots = 1,
     bool SpecialAbilities = true, string Difficulty = "standard");
 public sealed record PeerRoomRequest(string ClientId, string ClientSecret, string FriendCode, string DisplayName,

@@ -233,6 +233,8 @@ public static class CustomMapPngImporter
         var gameplayMessages = new List<GameplayMessageMarker>();
         var gameplaySounds = new List<GameplaySoundMarker>();
         var spawnClassBehaviors = new List<SpawnClassBehaviorMarker>();
+        var indoorRegions = new List<IndoorRegionMarker>();
+        var mapLights = new List<MapLightMarker>();
         var areaTransitionMarkers = new List<AreaTransitionMarker>();
         var unsupportedEntities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -258,6 +260,8 @@ public static class CustomMapPngImporter
                 GameplayMessages = gameplayMessages,
                 GameplaySounds = gameplaySounds,
                 SpawnClassBehaviors = spawnClassBehaviors,
+                IndoorRegions = indoorRegions,
+                MapLights = mapLights,
                 UseCenterOrigin = useCenterOrigin,
                 Resources = decodedResources,
             };
@@ -367,6 +371,10 @@ public static class CustomMapPngImporter
             LogicScoreTriggers = logicScoreTriggers,
             SpritesheetPlaybackSet = spritesheetPlaybackSet,
             IsTopDown = MapMovementModeMetadata.IsTopDown(metadata),
+            Weather = MapWeatherMetadata.Parse(metadata),
+            IndoorRegions = indoorRegions.ToArray(),
+            MapLights = mapLights.ToArray(),
+            Lighting = MapLightingMetadata.Parse(metadata),
             ExplicitGameMode = MapGameModeMetadata.TryReadGameMode(metadata),
         };
     }

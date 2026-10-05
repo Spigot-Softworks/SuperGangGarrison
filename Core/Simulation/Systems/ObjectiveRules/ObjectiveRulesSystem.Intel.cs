@@ -19,6 +19,7 @@ internal sealed partial class ObjectiveRulesSystem
     {
         if (!_host.LocalPlayer.IsAlive
             || _host.LocalPlayer.IsCarryingIntel
+            || IsProtectedByInvulnerabilityUber(_host.LocalPlayer)
             || _host.LocalPlayer.IsLastToDieSpyAfterlifeActive
             || (_host.LocalPlayer.ClassId == PlayerClass.Spy && _host.LocalPlayer.IsSpyCloaked))
         {
@@ -64,6 +65,7 @@ internal sealed partial class ObjectiveRulesSystem
     {
         if (player.IsCarryingIntel
             || !player.IsAlive
+            || IsProtectedByInvulnerabilityUber(player)
             || player.IsLastToDieSpyAfterlifeActive
             || player.IntelPickupCooldownTicks > 0
             || player.IsInsideBlockingTeamGate(_host.Level, player.Team)
@@ -106,6 +108,9 @@ internal sealed partial class ObjectiveRulesSystem
         _host.WorldEffects.RegisterWorldSoundEvent("IntelGetSnd", player.X, player.Y);
         _host.KillFeed.RecordIntelPickedUpObjectiveLog(player);
     }
+
+    private static bool IsProtectedByInvulnerabilityUber(PlayerEntity player) =>
+        player.IsUbered || player.IsMedicInvulnerabilityUberDeliveryActive;
 
     internal static void HaltSpySuperjumpHorizontalMomentumOnIntelPickup(PlayerEntity player)
     {

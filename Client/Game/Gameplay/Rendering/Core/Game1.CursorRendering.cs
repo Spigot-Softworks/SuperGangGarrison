@@ -1,7 +1,9 @@
 #nullable enable
 
 using System;
+using System.IO;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using OpenGarrison.ClientShared;
 
@@ -11,7 +13,27 @@ public partial class Game1
 {
     public bool ShouldUseSoftwareMenuCursor()
     {
-        return IsScreenFillingDisplayMode(_menuManager.DisplaySettings.DisplayMode);
+        return _menuResources.CursorTexture is not null
+            || IsScreenFillingDisplayMode(_menuManager.DisplaySettings.DisplayMode);
+    }
+
+    public void LoadMenuCursorTexture()
+    {
+        _menuResources.CursorTexture?.Dispose();
+        _menuResources.CursorTexture = null;
+
+        using var resource = typeof(Game1).Assembly.GetManifestResourceStream("OpenGarrison.MenuCursor.png");
+        if (resource is null)
+        {
+            return;
+        }
+
+        using var buffer = new MemoryStream();
+        resource.CopyTo(buffer);
+        _menuResources.CursorTexture = TextureDecodeUtility.LoadSpriteFrame(
+            GraphicsDevice,
+            buffer.ToArray(),
+            applyLegacyChromaKey: false);
     }
 
     public bool ShouldDrawSoftwareMenuCursor()
@@ -28,9 +50,26 @@ public partial class Game1
 
     public void DrawSoftwareMenuCursor(MouseState mouse)
     {
+        var cursorSizePercent = ClientSettings.NormalizeCursorSizePercent(_hudManager.RuntimeSettings.CursorSizePercent);
+        if (_menuResources.CursorTexture is { } cursorTexture)
+        {
+            var cursorScale = ClientSettings.GetCursorScale(cursorSizePercent)
+                / ClientSettings.GetCursorScale(ClientSettings.DefaultCursorSizePercent);
+            _spriteBatch.Draw(
+                cursorTexture.Texture,
+                new Vector2(mouse.X, mouse.Y),
+                cursorTexture.SourceRectangle,
+                Color.White,
+                0f,
+                Vector2.Zero,
+                new Vector2(cursorScale, cursorScale),
+                SpriteEffects.None,
+                0f);
+            return;
+        }
+
         var x = mouse.X;
         var y = mouse.Y;
-        var cursorSizePercent = ClientSettings.NormalizeCursorSizePercent(_hudManager.RuntimeSettings.CursorSizePercent);
         var fillColor = new Color(92, 213, 255);
         var shadowColor = Color.Black;
 

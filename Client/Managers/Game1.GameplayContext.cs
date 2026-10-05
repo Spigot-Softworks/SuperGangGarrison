@@ -100,6 +100,8 @@ public partial class Game1 : IGameplayContext
 
     bool IGameplayContext._gameplayHudHidden { get => _gameplayHudHidden; set => _gameplayHudHidden = value; }
 
+    bool IGameplayContext._gameplayHudMinimal => _gameplayHudMinimal;
+
 
 
 
@@ -643,6 +645,8 @@ public partial class Game1 : IGameplayContext
     void IGameplayContext.LoadLastToDieMenuMusic() { LoadLastToDieMenuMusic(); }
 
     void IGameplayContext.LoadMenuBitmapFont() { LoadMenuBitmapFont(); }
+
+    void IGameplayContext.LoadMenuCursorTexture() { LoadMenuCursorTexture(); }
 
     void IGameplayContext.LoadMenuMusic() { LoadMenuMusic(); }
 

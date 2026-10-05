@@ -76,7 +76,7 @@ public sealed class GameplayRapidFireAudioController
 
             var player = _context.GetImmediatePrimaryPresentationPlayer();
             return !_context._world.LocalPlayerAwaitingJoin
-                && IsRapidFireWeaponSoundActive(player, weaponKind);
+                && IsRapidFireWeaponSoundActive(player, weaponKind, allowPendingImmediateFire: true);
         }
 
         public bool ShouldSuppressManagedRapidFireSound(WorldSoundEvent soundEvent)
@@ -91,16 +91,21 @@ public sealed class GameplayRapidFireAudioController
                 return false;
             }
 
-            var listenerPosition = _context.GetWorldSoundListenerPosition();
-            if (IsLocalRapidFireWeaponSoundActive(weaponKind)
-                && AudioDistanceSquared(soundEvent.X, soundEvent.Y, listenerPosition.X, listenerPosition.Y) <= ManagedRapidFireSoundSuppressionDistanceSquared)
+            var localPlayerId = _context.GetResolvedLocalPlayerId();
+            if (localPlayerId >= 0
+                && soundEvent.SourcePlayerId == localPlayerId
+                && IsLocalRapidFireWeaponSoundActive(weaponKind))
             {
                 return true;
             }
 
-            if (soundEvent.SourcePlayerId >= 0
-                && TryGetManagedRapidFireSoundName(weaponKind, out var soundName)
-                && _remoteRapidFireSoundInstances.ContainsKey(new RemoteRapidFireSoundKey(soundEvent.SourcePlayerId, soundName)))
+            if (soundEvent.SourcePlayerId < 0
+                || !TryGetManagedRapidFireSoundName(weaponKind, out var soundName))
+            {
+                return false;
+            }
+
+            if (_remoteRapidFireSoundInstances.ContainsKey(new RemoteRapidFireSoundKey(soundEvent.SourcePlayerId, soundName)))
             {
                 return true;
             }
@@ -108,15 +113,13 @@ public sealed class GameplayRapidFireAudioController
             for (var index = 0; index < _context._world.RemoteSnapshotPlayers.Count; index += 1)
             {
                 var player = _context._world.RemoteSnapshotPlayers[index];
-                if (!IsRapidFireWeaponSoundActive(player, weaponKind))
+                if (player.Id != soundEvent.SourcePlayerId
+                    || !IsRapidFireWeaponSoundActive(player, weaponKind))
                 {
                     continue;
                 }
 
-                if (AudioDistanceSquared(soundEvent.X, soundEvent.Y, player.X, player.Y) <= ManagedRapidFireSoundSuppressionDistanceSquared)
-                {
-                    return true;
-                }
+                return AudioDistanceSquared(soundEvent.X, soundEvent.Y, player.X, player.Y) <= ManagedRapidFireSoundSuppressionDistanceSquared;
             }
 
             return false;
@@ -153,11 +156,7 @@ public sealed class GameplayRapidFireAudioController
 
         public void StopRapidFireWeaponAudio()
         {
-            StopLocalRapidFireWeaponSound(ref _localChaingunSoundInstance);
-            StopLocalRapidFireWeaponSound(ref _localFlamethrowerSoundInstance);
-            StopLocalRapidFireWeaponSound(ref _localMedigunSoundInstance);
-            StopLocalRapidFireWeaponSound(ref _localUberIdleSoundInstance);
-            StopAndDisposeRemoteRapidFireWeaponAudio();
+            StopAndDisposeRapidFireWeaponAudio();
         }
 
         public void StopAndDisposeRapidFireWeaponAudio()
@@ -222,8 +221,12 @@ public sealed class GameplayRapidFireAudioController
                 var key = new RemoteRapidFireSoundKey(player.Id, soundName);
                 _activeRemoteRapidFireSoundKeys.Add(key);
                 _remoteRapidFireSoundInstances.TryGetValue(key, out var instance);
-                UpdateLoopedWorldSound(soundName, player.X, player.Y, ref instance, isLocalSource: false);
-                if (instance is not null)
+                UpdateLoopedWorldSound(soundName, player.X, player.Y, ref instance, isLocalSource: false, sourcePlayerId: player.Id);
+                if (instance is null)
+                {
+                    _remoteRapidFireSoundInstances.Remove(key);
+                }
+                else
                 {
                     _remoteRapidFireSoundInstances[key] = instance;
                 }
@@ -283,7 +286,10 @@ public sealed class GameplayRapidFireAudioController
             return TryGetActiveRapidFireSoundName(player, out soundName);
         }
 
-        private bool IsRapidFireWeaponSoundActive(PlayerEntity player, PrimaryWeaponKind weaponKind)
+        private bool IsRapidFireWeaponSoundActive(
+            PlayerEntity player,
+            PrimaryWeaponKind weaponKind,
+            bool allowPendingImmediateFire = false)
         {
             if (_context._mainMenuOpen
                 || !player.IsAlive
@@ -299,7 +305,7 @@ public sealed class GameplayRapidFireAudioController
                 return false;
             }
 
-            if (_context._pendingImmediateRapidFireWeaponKind == weaponKind)
+            if (allowPendingImmediateFire && _context._pendingImmediateRapidFireWeaponKind == weaponKind)
             {
                 return true;
             }
@@ -384,8 +390,16 @@ public sealed class GameplayRapidFireAudioController
             float worldX,
             float worldY,
             ref SoundEffectInstance? instance,
-            bool isLocalSource)
+            bool isLocalSource,
+            int sourcePlayerId = -1)
         {
+            var (volume, pan) = _context.GetLoopedWorldSoundMix(soundName, worldX, worldY, isLocalSource, sourcePlayerId);
+            if (volume <= 0f)
+            {
+                StopAndDisposeLocalRapidFireWeaponSound(ref instance);
+                return;
+            }
+
             if (instance is null)
             {
                 var sound = _context._runtimeAssets.GetSound(soundName);
@@ -407,13 +421,6 @@ public sealed class GameplayRapidFireAudioController
                 }
             }
 
-            var (volume, pan) = _context.GetLoopedWorldSoundMix(soundName, worldX, worldY, isLocalSource);
-            if (volume <= 0f)
-            {
-                StopLocalRapidFireWeaponSound(ref instance);
-                return;
-            }
-
             try
             {
                 instance.Volume = volume * _context.GetSoundEffectsVolumeScale();
@@ -432,16 +439,7 @@ public sealed class GameplayRapidFireAudioController
 
         private static void StopLocalRapidFireWeaponSound(ref SoundEffectInstance? instance)
         {
-            try
-            {
-                if (instance?.State == SoundState.Playing)
-                {
-                    instance.Stop();
-                }
-            }
-            catch
-            {
-            }
+            StopAndDisposeLocalRapidFireWeaponSound(ref instance);
         }
 
         private static void StopAndDisposeLocalRapidFireWeaponSound(ref SoundEffectInstance? instance)

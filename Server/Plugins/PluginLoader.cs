@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Runtime.Loader;
 using OpenGarrison.PluginHost;
 using OpenGarrison.Server.Plugins;
 
@@ -7,46 +6,20 @@ namespace OpenGarrison.Server;
 
 internal static class PluginLoader
 {
+    /// <summary>
+    /// Loads the Lua server plugins found under the search directories. Lua is the
+    /// only plugin runtime: a manifest that declares another runtime is skipped with
+    /// a log line, and plugin assemblies on disk are never loaded.
+    /// </summary>
     public static IReadOnlyList<LoadedPlugin> LoadFromSearchDirectories(
         IEnumerable<PluginSearchDirectory> searchDirectories,
         Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
         Action<string> log,
         Action<string>? initializationFailed = null)
     {
-        var loadedAssemblies = new List<LoadedAssembly>();
-        var seenAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var searchDirectory in searchDirectories)
-        {
-            Directory.CreateDirectory(searchDirectory.DirectoryPath);
-            foreach (var candidate in EnumerateAssemblyCandidates(searchDirectory, log))
-            {
-                if (!seenAssemblyPaths.Add(candidate.AssemblyPath))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    loadedAssemblies.Add(new LoadedAssembly(
-                        AssemblyLoadContext.Default.LoadFromAssemblyPath(candidate.AssemblyPath),
-                        candidate.PluginDirectory,
-                        candidate.Manifest));
-                }
-                catch (Exception ex)
-                {
-                    log($"[plugin] failed to load assembly \"{candidate.AssemblyPath}\": {ex.Message}");
-                }
-            }
-        }
-
-        var luaCandidates = EnumerateLuaPluginCandidates(searchDirectories, log).ToList();
-        var preferredLuaPluginIds = luaCandidates
-            .Select(candidate => candidate.Manifest.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var pluginCandidates = CreatePluginLoadCandidatesFromLoadedAssemblies(loadedAssemblies, preferredLuaPluginIds, log);
-        var candidatePluginIds = new HashSet<string>(pluginCandidates.Select(candidate => candidate.Manifest.Id), StringComparer.OrdinalIgnoreCase);
-        foreach (var luaCandidate in luaCandidates)
+        var pluginCandidates = new List<PluginLoadCandidate>();
+        var candidatePluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var luaCandidate in EnumerateLuaPluginCandidates(searchDirectories, log))
         {
             if (!candidatePluginIds.Add(luaCandidate.Manifest.Id))
             {
@@ -64,6 +37,10 @@ internal static class PluginLoader
         return LoadPlannedCandidates(pluginCandidates, contextFactory, log, initializationFailed);
     }
 
+    /// <summary>
+    /// Loads server plugins compiled into assemblies that are already loaded. Only the
+    /// host and its tests use this; it never reads plugin assemblies from disk.
+    /// </summary>
     public static IReadOnlyList<LoadedPlugin> LoadFromAssemblies(
         IEnumerable<Assembly> assemblies,
         Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
@@ -75,16 +52,12 @@ internal static class PluginLoader
                 assembly,
                 Path.GetDirectoryName(assembly.Location) ?? string.Empty,
                 Manifest: null));
-        var pluginCandidates = CreatePluginLoadCandidatesFromLoadedAssemblies(
-            loadedAssemblies,
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            log);
+        var pluginCandidates = CreatePluginLoadCandidatesFromLoadedAssemblies(loadedAssemblies, log);
         return LoadPlannedCandidates(pluginCandidates, contextFactory, log, initializationFailed);
     }
 
     private static List<PluginLoadCandidate> CreatePluginLoadCandidatesFromLoadedAssemblies(
         IEnumerable<LoadedAssembly> loadedAssemblies,
-        HashSet<string> preferredLuaPluginIds,
         Action<string> log)
     {
         var pluginCandidates = new List<PluginLoadCandidate>();
@@ -110,12 +83,6 @@ internal static class PluginLoader
 
                     if (!ValidateManifestAgainstPlugin(manifest, plugin.Id, plugin.DisplayName, plugin.Version, type.FullName, log))
                     {
-                        continue;
-                    }
-
-                    if (preferredLuaPluginIds.Contains(plugin.Id))
-                    {
-                        log($"[plugin] Lua plugin id \"{plugin.Id}\" overrides legacy CLR server plugin \"{loadedAssembly.Assembly.FullName}\".");
                         continue;
                     }
 
@@ -175,66 +142,6 @@ internal static class PluginLoader
         return loadedPlugins;
     }
 
-    private static IEnumerable<AssemblyCandidate> EnumerateAssemblyCandidates(PluginSearchDirectory searchDirectory, Action<string> log)
-    {
-        var coveredDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var manifestPath in Directory.EnumerateFiles(searchDirectory.DirectoryPath, OpenGarrisonPluginManifestLoader.DefaultManifestFileName, searchDirectory.SearchOption)
-                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-        {
-            var pluginDirectory = Path.GetDirectoryName(manifestPath) ?? string.Empty;
-            coveredDirectories.Add(Path.GetFullPath(pluginDirectory));
-
-            if (!OpenGarrisonPluginManifestLoader.TryLoadFromPath(manifestPath, out var manifest, out var error))
-            {
-                log($"[plugin] failed to read manifest \"{manifestPath}\": {error}");
-                continue;
-            }
-
-            if (manifest.Type != OpenGarrisonPluginType.Server)
-            {
-                log($"[plugin] skipped manifest \"{manifestPath}\" because it targets {manifest.Type} plugins.");
-                continue;
-            }
-
-            if (manifest.Runtime != OpenGarrisonPluginRuntimeKind.Clr)
-            {
-                continue;
-            }
-
-            if (!OpenGarrisonPluginManifestLoader.TryValidateHostApiCompatibility(manifest, OpenGarrisonPluginHostApi.CreateServerDefault(), out error))
-            {
-                log($"[plugin] incompatible manifest \"{manifestPath}\": {error}");
-                continue;
-            }
-
-            if (!OpenGarrisonPluginManifestLoader.TryResolveEntryPointPath(manifest, pluginDirectory, out var entryPointPath, out error))
-            {
-                log($"[plugin] invalid manifest \"{manifestPath}\": {error}");
-                continue;
-            }
-
-            if (!File.Exists(entryPointPath))
-            {
-                log($"[plugin] manifest entry point \"{entryPointPath}\" was not found.");
-                continue;
-            }
-
-            yield return new AssemblyCandidate(entryPointPath, pluginDirectory, manifest);
-        }
-
-        foreach (var pluginPath in Directory.EnumerateFiles(searchDirectory.DirectoryPath, "*.dll", searchDirectory.SearchOption)
-                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-        {
-            var pluginDirectory = Path.GetDirectoryName(pluginPath) ?? string.Empty;
-            if (IsCoveredByManifest(pluginDirectory, coveredDirectories))
-            {
-                continue;
-            }
-
-            yield return new AssemblyCandidate(Path.GetFullPath(pluginPath), pluginDirectory, Manifest: null);
-        }
-    }
-
     private static IEnumerable<LuaPluginCandidate> EnumerateLuaPluginCandidates(
         IEnumerable<PluginSearchDirectory> searchDirectories,
         Action<string> log)
@@ -259,8 +166,14 @@ internal static class PluginLoader
                     continue;
                 }
 
-                if (manifest.Type != OpenGarrisonPluginType.Server || manifest.Runtime != OpenGarrisonPluginRuntimeKind.Lua)
+                if (manifest.Type != OpenGarrisonPluginType.Server)
                 {
+                    continue;
+                }
+
+                if (manifest.Runtime != OpenGarrisonPluginRuntimeKind.Lua)
+                {
+                    log($"[plugin] skipped \"{fullManifestPath}\": only Lua plugins are supported (manifest runtime is {manifest.Runtime}).");
                     continue;
                 }
 
@@ -344,25 +257,12 @@ internal static class PluginLoader
         return true;
     }
 
-    private static bool IsCoveredByManifest(string pluginDirectory, HashSet<string> coveredDirectories)
-    {
-        var fullPluginDirectory = Path.GetFullPath(pluginDirectory);
-        return coveredDirectories.Any(coveredDirectory =>
-            string.Equals(coveredDirectory, fullPluginDirectory, StringComparison.OrdinalIgnoreCase)
-            || fullPluginDirectory.StartsWith(coveredDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
-    }
-
     internal sealed record PluginSearchDirectory(string DirectoryPath, SearchOption SearchOption);
 
     internal sealed record LoadedPlugin(
         IOpenGarrisonServerPlugin Plugin,
         IOpenGarrisonServerPluginContext Context,
         string PluginDirectory);
-
-    private sealed record AssemblyCandidate(
-        string AssemblyPath,
-        string PluginDirectory,
-        OpenGarrisonPluginManifest? Manifest);
 
     private sealed record LoadedAssembly(
         Assembly Assembly,

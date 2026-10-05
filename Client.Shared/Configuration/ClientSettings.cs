@@ -50,6 +50,8 @@ public sealed class ClientSettings
 
     public DisplayScaleModeKind DisplayScaleMode { get; set; } = OpenGarrisonPreferencesDocument.DefaultDisplayScaleMode;
 
+    public bool CrtSettingsUnlocked { get; set; }
+
     private CrtPresetKind _crtPreset = OpenGarrisonPreferencesDocument.DefaultCrtPreset;
 
     public CrtPresetKind CrtPreset
@@ -268,6 +270,7 @@ public sealed class ClientSettings
                     saved.DiscordApplicationId = string.Empty;
                     saved.LobbyHost = OpenGarrisonPreferencesDocument.DefaultLobbyHost;
                     saved.AlwaysRecordGames = false;
+                    saved.CrtSettingsUnlocked |= saved.CrtPreset != OpenGarrisonPreferencesDocument.DefaultCrtPreset;
                     if (saved.ApplyVersionedMigrations())
                     {
                         saved.Save();
@@ -377,6 +380,8 @@ public sealed class ClientSettings
             IngameResolution = document.IngameResolution,
             WindowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(document.WindowSize),
             DisplayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(document.DisplayScaleMode),
+            CrtSettingsUnlocked = document.CrtSettingsUnlocked
+                || document.CrtPreset != OpenGarrisonPreferencesDocument.DefaultCrtPreset,
             CrtPreset = OpenGarrisonPreferencesDocument.NormalizeCrtPreset(document.CrtPreset),
             CrtQuality = OpenGarrisonPreferencesDocument.NormalizeCrtQuality(document.CrtQuality),
             CrtSignalMode = OpenGarrisonPreferencesDocument.NormalizeCrtSignalMode(document.CrtSignalMode),
@@ -480,6 +485,8 @@ public sealed class ClientSettings
         preferences.IngameResolution = IngameResolution;
         preferences.WindowSize = OpenGarrisonPreferencesDocument.NormalizeWindowSize(WindowSize);
         preferences.DisplayScaleMode = OpenGarrisonPreferencesDocument.NormalizeDisplayScaleMode(DisplayScaleMode);
+        preferences.CrtSettingsUnlocked = CrtSettingsUnlocked
+            || CrtPreset != OpenGarrisonPreferencesDocument.DefaultCrtPreset;
         preferences.CrtPreset = OpenGarrisonPreferencesDocument.NormalizeCrtPreset(CrtPreset);
         preferences.CrtQuality = OpenGarrisonPreferencesDocument.NormalizeCrtQuality(CrtQuality);
         preferences.CrtSignalMode = OpenGarrisonPreferencesDocument.NormalizeCrtSignalMode(CrtSignalMode);

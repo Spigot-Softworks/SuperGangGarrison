@@ -44,6 +44,14 @@ public sealed record GameMakerRoomMetadata(
 
     public bool IsTopDown { get; init; }
 
+    public MapWeather Weather { get; init; }
+
+    public IReadOnlyList<IndoorRegionMarker> IndoorRegions { get; init; } = Array.Empty<IndoorRegionMarker>();
+
+    public IReadOnlyList<MapLightMarker> MapLights { get; init; } = Array.Empty<MapLightMarker>();
+
+    public MapLighting Lighting { get; init; } = MapLighting.None;
+
     public MapLogicScoreTriggerSet LogicScoreTriggers { get; init; } = MapLogicScoreTriggerSet.Empty;
 
     public SpritesheetPlaybackSet SpritesheetPlaybackSet { get; init; } = SpritesheetPlaybackSet.Empty;
