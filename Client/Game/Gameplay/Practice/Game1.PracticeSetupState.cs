@@ -32,6 +32,7 @@ public partial class Game1
             ("cp_coldfront_js", "Coldfront"),
             ("Kulay", "Kulay"),
             ("Harvest", "Harvest"),
+            ("koth_bloodmoon_reborn", "Bloodmoon Reborn"),
             ("cp_powerstrip", "Powerstrip"),
             ("Docking", "Docking"),
             ("Conflict", "Conflict"),

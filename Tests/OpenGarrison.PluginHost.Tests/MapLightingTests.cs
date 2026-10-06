@@ -186,6 +186,138 @@ public sealed class MapLightingTests : IDisposable
     }
 
     [Fact]
+    public void RimSourceSkyAmountAndUberRimRoundTrip()
+    {
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["lighting"] = "night",
+            ["lightRimSource"] = "both",
+            ["lightRimSky"] = "120",
+            ["lightUberRim"] = "on",
+        };
+
+        var lighting = MapLightingMetadata.Parse(metadata);
+        Assert.Equal(MapRimLightSource.Both, lighting.RimSource);
+        Assert.False(lighting.RimFromSky);
+        Assert.Equal(100, lighting.SkyRim);
+        Assert.True(lighting.UberRim);
+        Assert.True(lighting.HasCharacterLighting); // the uber rim alone turns it on
+
+        var written = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        MapLightingMetadata.Write(written, lighting);
+        Assert.Equal("both", written["lightRimSource"]);
+        Assert.Equal("on", written["lightUberRim"]);
+        Assert.Equal(lighting, MapLightingMetadata.Parse(written));
+
+        var plain = MapLightingMetadata.GetPresetDefaults(MapLightingPreset.Night);
+        Assert.Equal(MapRimLightSource.Lights, plain.RimSource);
+        Assert.False(plain.UberRim);
+        Assert.Equal(35, plain.SkyRim);
+        Assert.Equal(MapRimLightSource.Lights, MapLightingMetadata.ParseRimSource("lights"));
+        Assert.Equal(MapRimLightSource.Lights, MapLightingMetadata.ParseRimSource("nonsense"));
+        Assert.Equal(MapRimLightSource.Both, MapLightingMetadata.NextRimSource(MapRimLightSource.Lights));
+        Assert.Equal(MapRimLightSource.Sky, MapLightingMetadata.NextRimSource(MapRimLightSource.Both));
+        Assert.Equal(MapRimLightSource.Lights, MapLightingMetadata.NextRimSource(MapRimLightSource.Sky));
+
+        // Sky reach: off by default, stored, and capped so some fade always remains.
+        Assert.Equal(0, plain.SkyReach);
+        var reached = MapLightingMetadata.Parse(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["lighting"] = "night",
+            ["lightSkyReach"] = "100",
+        });
+        Assert.Equal(MapLightingMetadata.MaxSkyReach, reached.SkyReach);
+        var reachWritten = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        MapLightingMetadata.Write(reachWritten, reached with { SkyReach = 60 });
+        Assert.Equal("60", reachWritten["lightSkyReach"]);
+        Assert.Equal(60, MapLightingMetadata.Parse(reachWritten).SkyReach);
+    }
+
+    [Fact]
+    public void RimBlendAndOpacityRoundTrip()
+    {
+        var plain = MapLightingMetadata.GetPresetDefaults(MapLightingPreset.Night);
+        Assert.Equal(MapRimBlendMode.Normal, plain.RimBlend); // today's flat colour
+        Assert.Equal(100, plain.RimOpacity);
+
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["lighting"] = "night",
+            ["lightRimBlend"] = "Screen",
+            ["lightRimOpacity"] = "40",
+        };
+        var lighting = MapLightingMetadata.Parse(metadata);
+        Assert.Equal(MapRimBlendMode.Screen, lighting.RimBlend);
+        Assert.Equal(40, lighting.RimOpacity);
+
+        var written = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        MapLightingMetadata.Write(written, lighting);
+        Assert.Equal("screen", written["lightRimBlend"]);
+        Assert.Equal(lighting, MapLightingMetadata.Parse(written));
+
+        Assert.Equal(MapRimBlendMode.Normal, MapLightingMetadata.ParseRimBlend("nonsense"));
+        Assert.Equal(MapRimBlendMode.Add, MapLightingMetadata.NextRimBlend(MapRimBlendMode.Normal));
+        Assert.Equal(MapRimBlendMode.Normal, MapLightingMetadata.NextRimBlend(MapRimBlendMode.Overlay));
+    }
+
+    [Fact]
+    public void HalfRimWidthSavesAsPointFive()
+    {
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["lighting"] = "night",
+            ["lightRimWidth"] = "0.5",
+        };
+
+        var lighting = MapLightingMetadata.Parse(metadata);
+        Assert.Equal(MapLightingMetadata.HalfRimWidth, lighting.RimWidth);
+        var written = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        MapLightingMetadata.Write(written, lighting);
+        Assert.Equal("0.5", written["lightRimWidth"]);
+        Assert.Equal(lighting, MapLightingMetadata.Parse(written));
+
+        Assert.Equal("2", MapLightingMetadata.FormatRimWidth(2));
+        metadata["lightRimWidth"] = "2";
+        Assert.Equal(2, MapLightingMetadata.Parse(metadata).RimWidth);
+        metadata["lightRimWidth"] = "junk";
+        Assert.Equal(1, MapLightingMetadata.Parse(metadata).RimWidth); // preset default
+    }
+
+    [Fact]
+    public void RimFacingLimitsWidenWithWrap()
+    {
+        var (cardinal, diagonal) = Game1.GetRimFacingLimits(0.25f);
+        Assert.True(diagonal > cardinal); // diagonals are stricter
+        Assert.True(Game1.GetRimFacingLimits(0.4f).Cardinal < cardinal);
+        Assert.True(Game1.GetRimFacingLimits(0.8f).Cardinal < Game1.GetRimFacingLimits(0.4f).Cardinal);
+    }
+
+    [Fact]
+    public void ArtPixelScaleFollowsUpscaledSprites()
+    {
+        // A 6x4 image whose art pixels are 2x2 blocks (like the stock characters).
+        var red = new Microsoft.Xna.Framework.Color(200, 30, 30, 255);
+        var clear = new Microsoft.Xna.Framework.Color(0, 0, 0, 0);
+        var doubled = new Microsoft.Xna.Framework.Color[6 * 4];
+        for (var y = 0; y < 4; y += 1)
+        {
+            for (var x = 0; x < 6; x += 1)
+            {
+                doubled[(y * 6) + x] = ((x / 2) + (y / 2)) % 2 == 0 ? red : clear;
+            }
+        }
+
+        Assert.Equal(2, Game1.MeasureArtPixelScale(doubled, 6, 4));
+
+        // Break one block: native-resolution art.
+        doubled[1] = clear;
+        Assert.Equal(1, Game1.MeasureArtPixelScale(doubled, 6, 4));
+
+        // A blank frame tells nothing, so it stays at 1.
+        Assert.Equal(1, Game1.MeasureArtPixelScale(new Microsoft.Xna.Framework.Color[16], 4, 4));
+    }
+
+    [Fact]
     public void BodyShadeAndSaturationRoundTripAndTurnOnCharacterLighting()
     {
         var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

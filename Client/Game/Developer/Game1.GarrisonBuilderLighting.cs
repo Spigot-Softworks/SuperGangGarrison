@@ -22,7 +22,7 @@ public partial class Game1
     private static readonly string[] GarrisonBuilderLightingSliderLabels =
     [
         "Brightness", "Effect lights", "Player light", "Rim light", "Cast shadow", "  Distance", "Vignette",
-        "Body shade", "  Saturation",
+        "Body shade", "  Saturation", "  Sky amount", "Sky reach", "  Opacity",
     ];
 
     private static readonly RasterizerState GarrisonBuilderLightingScissorState = new()
@@ -50,6 +50,7 @@ public partial class Game1
         GroundRed,
         GroundGreen,
         GroundBlue,
+        SkyReach,
         Brightness,
         Glow,
         EffectLights,
@@ -65,7 +66,11 @@ public partial class Game1
         RimCustomRed,
         RimCustomGreen,
         RimCustomBlue,
+        RimBlend,
+        RimOpacity,
         RimSource,
+        SkyRim,
+        UberRim,
         BodyShade,
         BodySaturation,
         CastShadow,
@@ -79,14 +84,16 @@ public partial class Game1
     {
         Scene,
         Lights,
-        Characters,
+        Rim,
+        Body,
     }
 
     private static readonly (GarrisonBuilderLightingTab Tab, string Label)[] GarrisonBuilderLightingTabs =
     [
         (GarrisonBuilderLightingTab.Scene, "Scene"),
         (GarrisonBuilderLightingTab.Lights, "Lights"),
-        (GarrisonBuilderLightingTab.Characters, "Characters"),
+        (GarrisonBuilderLightingTab.Rim, "Rim"),
+        (GarrisonBuilderLightingTab.Body, "Body"),
     ];
 
     private static readonly GarrisonBuilderLightingRow[] GarrisonBuilderLightingSceneRows =
@@ -99,6 +106,7 @@ public partial class Game1
         GarrisonBuilderLightingRow.GroundRed,
         GarrisonBuilderLightingRow.GroundGreen,
         GarrisonBuilderLightingRow.GroundBlue,
+        GarrisonBuilderLightingRow.SkyReach,
         GarrisonBuilderLightingRow.Brightness,
         GarrisonBuilderLightingRow.Vignette,
         GarrisonBuilderLightingRow.Pulse,
@@ -114,7 +122,7 @@ public partial class Game1
         GarrisonBuilderLightingRow.PlayerRange,
     ];
 
-    private static readonly GarrisonBuilderLightingRow[] GarrisonBuilderLightingCharacterRows =
+    private static readonly GarrisonBuilderLightingRow[] GarrisonBuilderLightingRimRows =
     [
         GarrisonBuilderLightingRow.RimLight,
         GarrisonBuilderLightingRow.RimWidth,
@@ -123,17 +131,27 @@ public partial class Game1
         GarrisonBuilderLightingRow.RimCustomRed,
         GarrisonBuilderLightingRow.RimCustomGreen,
         GarrisonBuilderLightingRow.RimCustomBlue,
+        GarrisonBuilderLightingRow.RimBlend,
+        GarrisonBuilderLightingRow.RimOpacity,
         GarrisonBuilderLightingRow.RimSource,
+        GarrisonBuilderLightingRow.SkyRim,
+    ];
+
+    private static readonly GarrisonBuilderLightingRow[] GarrisonBuilderLightingBodyRows =
+    [
         GarrisonBuilderLightingRow.BodyShade,
         GarrisonBuilderLightingRow.BodySaturation,
         GarrisonBuilderLightingRow.CastShadow,
         GarrisonBuilderLightingRow.ShadowDistance,
+        GarrisonBuilderLightingRow.UberRim,
     ];
 
     /// <summary>Every tab gets the same height, so the dialog does not jump when switching.</summary>
     private static readonly int GarrisonBuilderLightingMaxTabRows = Math.Max(
         GarrisonBuilderLightingSceneRows.Length,
-        Math.Max(GarrisonBuilderLightingLightsRows.Length, GarrisonBuilderLightingCharacterRows.Length));
+        Math.Max(
+            GarrisonBuilderLightingLightsRows.Length,
+            Math.Max(GarrisonBuilderLightingRimRows.Length, GarrisonBuilderLightingBodyRows.Length)));
 
     /// <summary>Preset, tab bar, the tallest tab, preview, apply/cancel.</summary>
     private static int GarrisonBuilderLightingSlotCount => GarrisonBuilderLightingMaxTabRows + 4;
@@ -143,7 +161,8 @@ public partial class Game1
     private GarrisonBuilderLightingRow[] GetGarrisonBuilderLightingTabRows() => _builderLightingTab switch
     {
         GarrisonBuilderLightingTab.Lights => GarrisonBuilderLightingLightsRows,
-        GarrisonBuilderLightingTab.Characters => GarrisonBuilderLightingCharacterRows,
+        GarrisonBuilderLightingTab.Rim => GarrisonBuilderLightingRimRows,
+        GarrisonBuilderLightingTab.Body => GarrisonBuilderLightingBodyRows,
         _ => GarrisonBuilderLightingSceneRows,
     };
 
@@ -502,7 +521,15 @@ public partial class Game1
                     return;
                 case GarrisonBuilderLightingRow.RimSource:
                     EnsureGarrisonBuilderLightingDraftActive();
-                    _builderLightingDraft = _builderLightingDraft with { RimFromSky = !_builderLightingDraft.RimFromSky };
+                    _builderLightingDraft = _builderLightingDraft with { RimSource = MapLightingMetadata.NextRimSource(_builderLightingDraft.RimSource) };
+                    return;
+                case GarrisonBuilderLightingRow.RimBlend:
+                    EnsureGarrisonBuilderLightingDraftActive();
+                    _builderLightingDraft = _builderLightingDraft with { RimBlend = MapLightingMetadata.NextRimBlend(_builderLightingDraft.RimBlend) };
+                    return;
+                case GarrisonBuilderLightingRow.UberRim:
+                    EnsureGarrisonBuilderLightingDraftActive();
+                    _builderLightingDraft = _builderLightingDraft with { UberRim = !_builderLightingDraft.UberRim };
                     return;
                 case GarrisonBuilderLightingRow.Style:
                     EnsureGarrisonBuilderLightingDraftActive();
@@ -578,6 +605,7 @@ public partial class Game1
             GarrisonBuilderLightingRow.GroundRed => draft with { GroundTint = draft.GroundTint with { R = channel } },
             GarrisonBuilderLightingRow.GroundGreen => draft with { GroundTint = draft.GroundTint with { G = channel } },
             GarrisonBuilderLightingRow.GroundBlue => draft with { GroundTint = draft.GroundTint with { B = channel } },
+            GarrisonBuilderLightingRow.SkyReach => draft with { SkyReach = percent },
             GarrisonBuilderLightingRow.Brightness => draft with { Brightness = percent },
             GarrisonBuilderLightingRow.Glow => draft with { Glow = percent },
             GarrisonBuilderLightingRow.EffectLights => draft with { EffectLights = percent },
@@ -593,6 +621,9 @@ public partial class Game1
             GarrisonBuilderLightingRow.ShadowDistance => draft with { ShadowDistance = percent },
             GarrisonBuilderLightingRow.BodyShade => draft with { BodyShade = percent },
             GarrisonBuilderLightingRow.BodySaturation => draft with { BodySaturation = percent },
+            // Dragging the sky amount also switches the source to lights + sky.
+            GarrisonBuilderLightingRow.SkyRim => draft with { SkyRim = percent, RimSource = MapRimLightSource.Both },
+            GarrisonBuilderLightingRow.RimOpacity => draft with { RimOpacity = percent },
             // Dragging a custom channel also switches the rim to the custom colour.
             GarrisonBuilderLightingRow.RimCustomRed => draft with { RimColorMode = MapRimColorMode.Custom, RimCustomColor = draft.ResolvedRimCustomColor with { R = channel } },
             GarrisonBuilderLightingRow.RimCustomGreen => draft with { RimColorMode = MapRimColorMode.Custom, RimCustomColor = draft.ResolvedRimCustomColor with { G = channel } },
@@ -612,6 +643,7 @@ public partial class Game1
             => MapLightingMetadata.MaxScale,
         GarrisonBuilderLightingRow.RimWidth => MapLightingMetadata.MaxRimWidth,
         GarrisonBuilderLightingRow.ShadowDistance => MapLightingMetadata.MaxShadowDistance,
+        GarrisonBuilderLightingRow.SkyReach => MapLightingMetadata.MaxSkyReach,
         _ => 100,
     };
 
@@ -693,7 +725,13 @@ public partial class Game1
 
                     break;
                 case GarrisonBuilderLightingRow.RimSource:
-                    DrawBuilderMenuButton(bounds, $"Light from: {(draft.RimFromSky ? "Sky" : "Nearest light")}", hovered, enabled: active);
+                    DrawBuilderMenuButton(bounds, $"Light from: {MapLightingMetadata.GetRimSourceDisplayLabel(draft.RimSource)}", hovered, enabled: active);
+                    break;
+                case GarrisonBuilderLightingRow.RimBlend:
+                    DrawBuilderMenuButton(bounds, $"Rim blend: {draft.RimBlend}", hovered, enabled: active);
+                    break;
+                case GarrisonBuilderLightingRow.UberRim:
+                    DrawBuilderMenuButton(bounds, $"Uber rim (team colour): {(draft.UberRim ? "On" : "Off")}", hovered, enabled: active);
                     break;
                 case GarrisonBuilderLightingRow.Style:
                     DrawBuilderMenuButton(bounds, $"Falloff: {(draft.Banded ? "Retro bands" : "Smooth")}", hovered, enabled: active);
@@ -711,7 +749,16 @@ public partial class Game1
                 default:
                     // The custom colour sliders are dimmed (but still draggable) until Custom is picked.
                     var customRow = row is GarrisonBuilderLightingRow.RimCustomRed or GarrisonBuilderLightingRow.RimCustomGreen or GarrisonBuilderLightingRow.RimCustomBlue;
-                    DrawGarrisonBuilderLightingSlider(row, bounds, textY, textScale, active && (!customRow || draft.RimColorMode == MapRimColorMode.Custom));
+                    // Likewise the sky amount until "Lights + sky" is picked.
+                    var skyRow = row == GarrisonBuilderLightingRow.SkyRim;
+                    DrawGarrisonBuilderLightingSlider(
+                        row,
+                        bounds,
+                        textY,
+                        textScale,
+                        active
+                            && (!customRow || draft.RimColorMode == MapRimColorMode.Custom)
+                            && (!skyRow || draft.RimSource == MapRimLightSource.Both));
                     break;
             }
         }
@@ -728,6 +775,7 @@ public partial class Game1
             GarrisonBuilderLightingRow.GroundRed => ("  Red", (int)draft.GroundTint.R, new Color(210, 70, 60)),
             GarrisonBuilderLightingRow.GroundGreen => ("  Green", (int)draft.GroundTint.G, new Color(80, 190, 90)),
             GarrisonBuilderLightingRow.GroundBlue => ("  Blue", (int)draft.GroundTint.B, new Color(80, 120, 220)),
+            GarrisonBuilderLightingRow.SkyReach => ("Sky reach", draft.SkyReach, new Color(170, 200, 240)),
             GarrisonBuilderLightingRow.Brightness => ("Brightness", draft.Brightness, new Color(230, 210, 150)),
             GarrisonBuilderLightingRow.Glow => ("Glow", draft.Glow, new Color(255, 190, 110)),
             GarrisonBuilderLightingRow.EffectLights => ("Effect lights", draft.EffectLights, new Color(255, 140, 60)),
@@ -744,6 +792,8 @@ public partial class Game1
             GarrisonBuilderLightingRow.RimCustomBlue => ("  Blue", (int)draft.ResolvedRimCustomColor.B, new Color(80, 120, 220)),
             GarrisonBuilderLightingRow.CastShadow => ("Cast shadow", draft.CastShadow, new Color(110, 100, 120)),
             GarrisonBuilderLightingRow.ShadowDistance => ("  Distance", draft.ShadowDistance, new Color(140, 130, 150)),
+            GarrisonBuilderLightingRow.SkyRim => ("  Sky amount", draft.SkyRim, new Color(170, 190, 230)),
+            GarrisonBuilderLightingRow.RimOpacity => ("  Opacity", draft.RimOpacity, new Color(255, 215, 170)),
             GarrisonBuilderLightingRow.BodyShade => ("Body shade", draft.BodyShade, new Color(90, 80, 96)),
             GarrisonBuilderLightingRow.BodySaturation => ("  Saturation", draft.BodySaturation, new Color(200, 120, 170)),
             _ => (string.Empty, 0, Color.White),
@@ -766,7 +816,9 @@ public partial class Game1
         var markerX = track.X + (int)MathF.Round((track.Width - 1) * fraction);
         _spriteBatch.Draw(_pixel, new Rectangle(markerX - 1, track.Y - 3, 3, track.Height + 6), Color.White * dim);
         DrawBitmapFontText(
-            value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            row == GarrisonBuilderLightingRow.RimWidth
+                ? MapLightingMetadata.FormatRimWidth(value)
+                : value.ToString(System.Globalization.CultureInfo.InvariantCulture),
             new Vector2(track.Right + 6f, textY),
             Color.White * dim,
             textScale);

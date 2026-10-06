@@ -57,19 +57,24 @@ public readonly record struct MapLightingColor(byte R, byte G, byte B)
 /// <param name="PlayerLight">Strength of the soft light around every player so nobody is hidden in the dark.</param>
 /// <param name="Vignette">Darkening toward the screen edges.</param>
 /// <param name="Pulse">Slow breathing of the ambient light (eerie or toxic moods).</param>
+/// <param name="RimBlend">How the rim colour combines with the sprite pixel under it (Normal at 100% opacity paints it flat).</param>
+/// <param name="RimOpacity">Strength of the rim blend, 0-100.</param>
+/// <param name="SkyReach">How far down the map the sky light holds before fading into the ground tint, 0-100% of the map height (0 = a fade over the whole height).</param>
 /// <param name="Banded">Retro stepped light falloff instead of smooth gradients.</param>
 /// <param name="PlayerRange">Radius of the player light, as a percentage of its normal size.</param>
 /// <param name="EffectRange">Radius of gameplay effect lights, as a percentage of their normal size.</param>
 /// <param name="RimLight">Rim light on characters' light-facing edges (0 = off).</param>
-/// <param name="RimWidth">Rim thickness in sprite pixels (1-3).</param>
+/// <param name="RimWidth">Rim thickness in art pixels (1-3), or 0 for half a pixel (saved as "0.5"; sprites without finer texels draw it as 1).</param>
 /// <param name="RimWrap">How far the rim creeps around the silhouette away from the light.</param>
 /// <param name="RimColorMode">The rim's one flat colour: the light's colour, a brighter glow of it, the player's team colour, or a custom colour.</param>
-/// <param name="RimFromSky">Rim and shadow come from the sky (upper right) instead of the nearest light.</param>
+/// <param name="RimSource">Where the rim and shadow light comes from: the nearest light, the sky (from above), or both blended.</param>
 /// <param name="CastShadow">Opacity of the character's dark silhouette cast away from the light (0 = off).</param>
 /// <param name="ShadowDistance">How far, in world pixels, the cast shadow falls from the character (1-8).</param>
 /// <param name="BodyShade">How far the character's body (everything but the rim) is darkened toward black (0 = off).</param>
 /// <param name="BodySaturation">Colour saturation of the character's body, 0-200 (100 = unchanged, 0 = grey).</param>
 /// <param name="RimCustomColor">The rim colour when <paramref name="RimColorMode"/> is Custom; null uses a warm white.</param>
+/// <param name="SkyRim">With lights + sky: how strong the sky's dim rim is away from lights, 0-100.</param>
+/// <param name="UberRim">Übercharged players turn into a dark silhouette lit hard from below in their team colour, flashing as the charge runs out.</param>
 /// <summary>How the character rim light is coloured.</summary>
 public enum MapRimColorMode
 {
@@ -89,6 +94,38 @@ public enum MapRimColorMode
     Custom = 3,
 }
 
+/// <summary>How the rim colour combines with the sprite pixel under it, like layer modes in a paint program.</summary>
+public enum MapRimBlendMode
+{
+    /// <summary>The rim colour over the pixel; at 100% opacity a flat colour.</summary>
+    Normal,
+
+    /// <summary>Adds the rim colour: a glowing edge.</summary>
+    Add,
+
+    /// <summary>A softer brighten that never blows out to white.</summary>
+    Screen,
+
+    /// <summary>Tints and darkens the edge.</summary>
+    Multiply,
+
+    /// <summary>Boosts contrast and saturation toward the rim colour.</summary>
+    Overlay,
+}
+
+/// <summary>Where the character rim light and cast shadow take their light from.</summary>
+public enum MapRimLightSource
+{
+    /// <summary>The strongest nearby light; no rim away from lights.</summary>
+    Lights,
+
+    /// <summary>Always the sky, from above.</summary>
+    Sky,
+
+    /// <summary>A dim rim from the sky everywhere, turning toward and brightening with nearby lights.</summary>
+    Both,
+}
+
 public sealed record MapLighting(
     MapLightingPreset Preset,
     MapLightingColor SkyTint,
@@ -106,17 +143,25 @@ public sealed record MapLighting(
     int RimWidth = 1,
     int RimWrap = 25,
     MapRimColorMode RimColorMode = MapRimColorMode.Light,
-    bool RimFromSky = false,
+    MapRimLightSource RimSource = MapRimLightSource.Lights,
     int CastShadow = 0,
     int ShadowDistance = 3,
     int BodyShade = 0,
     int BodySaturation = 100,
-    MapLightingColor? RimCustomColor = null)
+    MapLightingColor? RimCustomColor = null,
+    int SkyRim = 35,
+    bool UberRim = false,
+    int SkyReach = 0,
+    MapRimBlendMode RimBlend = MapRimBlendMode.Normal,
+    int RimOpacity = 100)
 {
+    /// <summary>True when the rim always comes from the sky.</summary>
+    public bool RimFromSky => RimSource == MapRimLightSource.Sky;
+
     /// <summary>The custom rim colour, or the default warm white when none was set.</summary>
     public MapLightingColor ResolvedRimCustomColor => RimCustomColor ?? MapLightingMetadata.DefaultRimCustomColor;
 
-    public bool HasCharacterLighting => IsActive && (RimLight > 0 || CastShadow > 0 || HasBodyAdjustment);
+    public bool HasCharacterLighting => IsActive && (RimLight > 0 || CastShadow > 0 || HasBodyAdjustment || UberRim);
 
     /// <summary>True when the character's body is darkened or its saturation changed.</summary>
     public bool HasBodyAdjustment => BodyShade > 0 || BodySaturation != 100;
@@ -170,8 +215,22 @@ public static class MapLightingMetadata
     public const string RimAdditiveColorValue = "add";
     public const string RimLightsSourceValue = "lights";
     public const string RimSkySourceValue = "sky";
+    public const string RimBothSourceValue = "both";
+    public const string SkyRimKey = "lightRimSky";
+    public const string SkyReachKey = "lightSkyReach";
+    public const string RimBlendKey = "lightRimBlend";
+    public const string RimOpacityKey = "lightRimOpacity";
 
-    public const int MinRimWidth = 1;
+    /// <summary>Sky reach stops short of the bottom so there is always some fade to the ground tint.</summary>
+    public const int MaxSkyReach = 95;
+    public const string UberRimKey = "lightUberRim";
+    public const string OnValue = "on";
+    public const string OffValue = "off";
+
+    /// <summary>The half-pixel rim width (shown and saved as 0.5).</summary>
+    public const int HalfRimWidth = 0;
+    public const string HalfRimWidthValue = "0.5";
+    public const int MinRimWidth = HalfRimWidth;
     public const int MaxRimWidth = 3;
     public const int MinShadowDistance = 1;
     public const int MaxShadowDistance = 8;
@@ -195,12 +254,17 @@ public static class MapLightingMetadata
         PlayerLightKey,
         VignetteKey,
         PulseKey,
+        SkyReachKey,
+        RimBlendKey,
+        RimOpacityKey,
         StyleKey,
         RimKey,
         RimWidthKey,
         RimWrapKey,
         RimColorKey,
         RimSourceKey,
+        SkyRimKey,
+        UberRimKey,
         ShadowKey,
         ShadowDistanceKey,
         BodyShadeKey,
@@ -314,10 +378,12 @@ public static class MapLightingMetadata
             PlayerLight = ReadPercent(metadata, PlayerLightKey, lighting.PlayerLight),
             Vignette = ReadPercent(metadata, VignetteKey, lighting.Vignette),
             Pulse = ReadPercent(metadata, PulseKey, lighting.Pulse),
+            SkyReach = ReadValue(metadata, SkyReachKey, lighting.SkyReach, MaxSkyReach),
+            RimOpacity = ReadPercent(metadata, RimOpacityKey, lighting.RimOpacity),
             PlayerRange = ReadValue(metadata, PlayerRangeKey, lighting.PlayerRange, MaxScale),
             EffectRange = ReadValue(metadata, EffectRangeKey, lighting.EffectRange, MaxScale),
             RimLight = ReadPercent(metadata, RimKey, lighting.RimLight),
-            RimWidth = Math.Max(MinRimWidth, ReadValue(metadata, RimWidthKey, lighting.RimWidth, MaxRimWidth)),
+            RimWidth = ReadRimWidth(metadata, lighting.RimWidth),
             RimWrap = ReadPercent(metadata, RimWrapKey, lighting.RimWrap),
             CastShadow = ReadPercent(metadata, ShadowKey, lighting.CastShadow),
             ShadowDistance = Math.Max(MinShadowDistance, ReadValue(metadata, ShadowDistanceKey, lighting.ShadowDistance, MaxShadowDistance)),
@@ -337,7 +403,18 @@ public static class MapLightingMetadata
 
         if (metadata.TryGetValue(RimSourceKey, out var rimSource))
         {
-            lighting = lighting with { RimFromSky = rimSource.Trim().Equals(RimSkySourceValue, StringComparison.OrdinalIgnoreCase) };
+            lighting = lighting with { RimSource = ParseRimSource(rimSource) };
+        }
+
+        lighting = lighting with { SkyRim = ReadPercent(metadata, SkyRimKey, lighting.SkyRim) };
+        if (metadata.TryGetValue(UberRimKey, out var uberRim))
+        {
+            lighting = lighting with { UberRim = uberRim.Trim().Equals(OnValue, StringComparison.OrdinalIgnoreCase) };
+        }
+
+        if (metadata.TryGetValue(RimBlendKey, out var rimBlend))
+        {
+            lighting = lighting with { RimBlend = ParseRimBlend(rimBlend) };
         }
 
         if (metadata.TryGetValue(StyleKey, out var style))
@@ -373,14 +450,19 @@ public static class MapLightingMetadata
         metadata[PlayerLightKey] = Clamp(lighting.PlayerLight).ToString(CultureInfo.InvariantCulture);
         metadata[VignetteKey] = Clamp(lighting.Vignette).ToString(CultureInfo.InvariantCulture);
         metadata[PulseKey] = Clamp(lighting.Pulse).ToString(CultureInfo.InvariantCulture);
+        metadata[SkyReachKey] = Math.Clamp(lighting.SkyReach, 0, MaxSkyReach).ToString(CultureInfo.InvariantCulture);
+        metadata[RimBlendKey] = ToRimBlendValue(lighting.RimBlend);
+        metadata[RimOpacityKey] = Clamp(lighting.RimOpacity).ToString(CultureInfo.InvariantCulture);
         metadata[StyleKey] = lighting.Banded ? BandedStyleValue : SmoothStyleValue;
         metadata[PlayerRangeKey] = ClampScale(lighting.PlayerRange).ToString(CultureInfo.InvariantCulture);
         metadata[EffectRangeKey] = ClampScale(lighting.EffectRange).ToString(CultureInfo.InvariantCulture);
         metadata[RimKey] = Clamp(lighting.RimLight).ToString(CultureInfo.InvariantCulture);
-        metadata[RimWidthKey] = Math.Clamp(lighting.RimWidth, MinRimWidth, MaxRimWidth).ToString(CultureInfo.InvariantCulture);
+        metadata[RimWidthKey] = FormatRimWidth(lighting.RimWidth);
         metadata[RimWrapKey] = Clamp(lighting.RimWrap).ToString(CultureInfo.InvariantCulture);
         metadata[RimColorKey] = ToRimColorValue(lighting.RimColorMode);
-        metadata[RimSourceKey] = lighting.RimFromSky ? RimSkySourceValue : RimLightsSourceValue;
+        metadata[RimSourceKey] = ToRimSourceValue(lighting.RimSource);
+        metadata[SkyRimKey] = Clamp(lighting.SkyRim).ToString(CultureInfo.InvariantCulture);
+        metadata[UberRimKey] = lighting.UberRim ? OnValue : OffValue;
         metadata[ShadowKey] = Clamp(lighting.CastShadow).ToString(CultureInfo.InvariantCulture);
         metadata[ShadowDistanceKey] = Math.Clamp(lighting.ShadowDistance, MinShadowDistance, MaxShadowDistance).ToString(CultureInfo.InvariantCulture);
         metadata[BodyShadeKey] = Clamp(lighting.BodyShade).ToString(CultureInfo.InvariantCulture);
@@ -395,6 +477,84 @@ public static class MapLightingMetadata
 
     /// <summary>Clamp for brightness and the ranges, where 100 is normal and 200 is double.</summary>
     public static int ClampScale(int percent) => Math.Clamp(percent, 0, MaxScale);
+
+    /// <summary>Rim width as shown and saved: "0.5" for the half width, else the whole number.</summary>
+    public static string FormatRimWidth(int width)
+    {
+        var clamped = Math.Clamp(width, MinRimWidth, MaxRimWidth);
+        return clamped == HalfRimWidth ? HalfRimWidthValue : clamped.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static int ReadRimWidth(IReadOnlyDictionary<string, string> metadata, int fallback)
+    {
+        if (!metadata.TryGetValue(RimWidthKey, out var raw))
+        {
+            return fallback;
+        }
+
+        if (!float.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) || !float.IsFinite(value))
+        {
+            return fallback;
+        }
+
+        // Anything below 1 is the half width.
+        return value < 1f ? HalfRimWidth : Math.Clamp((int)MathF.Round(value), 1, MaxRimWidth);
+    }
+
+    public static MapRimBlendMode ParseRimBlend(string? value)
+    {
+        var text = value?.Trim() ?? string.Empty;
+        foreach (var mode in Enum.GetValues<MapRimBlendMode>())
+        {
+            if (mode.ToString().Equals(text, StringComparison.OrdinalIgnoreCase))
+            {
+                return mode;
+            }
+        }
+
+        return MapRimBlendMode.Normal;
+    }
+
+    public static string ToRimBlendValue(MapRimBlendMode mode) => mode.ToString().ToLowerInvariant();
+
+    /// <summary>Normal -> Add -> Screen -> Multiply -> Overlay -> Normal.</summary>
+    public static MapRimBlendMode NextRimBlend(MapRimBlendMode mode) =>
+        (MapRimBlendMode)(((int)mode + 1) % Enum.GetValues<MapRimBlendMode>().Length);
+
+    public static MapRimLightSource ParseRimSource(string? value)
+    {
+        var text = value?.Trim();
+        if (string.Equals(text, RimSkySourceValue, StringComparison.OrdinalIgnoreCase))
+        {
+            return MapRimLightSource.Sky;
+        }
+
+        return string.Equals(text, RimBothSourceValue, StringComparison.OrdinalIgnoreCase)
+            ? MapRimLightSource.Both
+            : MapRimLightSource.Lights;
+    }
+
+    public static string ToRimSourceValue(MapRimLightSource source) => source switch
+    {
+        MapRimLightSource.Sky => RimSkySourceValue,
+        MapRimLightSource.Both => RimBothSourceValue,
+        _ => RimLightsSourceValue,
+    };
+
+    /// <summary>Nearest light -> Lights + sky -> Sky -> Nearest light.</summary>
+    public static MapRimLightSource NextRimSource(MapRimLightSource source) => source switch
+    {
+        MapRimLightSource.Lights => MapRimLightSource.Both,
+        MapRimLightSource.Both => MapRimLightSource.Sky,
+        _ => MapRimLightSource.Lights,
+    };
+
+    public static string GetRimSourceDisplayLabel(MapRimLightSource source) => source switch
+    {
+        MapRimLightSource.Sky => "Sky",
+        MapRimLightSource.Both => "Lights + sky",
+        _ => "Nearest light",
+    };
 
     public static MapRimColorMode ParseRimColorMode(string? value)
     {

@@ -7,7 +7,7 @@ namespace OpenGarrison.Client;
 public partial class Game1
 {
     private static readonly HashSet<string> SuperGangGarrisonMapDisplayNames = new(
-        ["Coldfront", "Kulay", "Harvest", "Docking", "Conflict", "Powerstrip"],
+        ["Coldfront", "Kulay", "Harvest", "Docking", "Conflict", "Powerstrip", "Bloodmoon Reborn"],
         StringComparer.OrdinalIgnoreCase);
 
     internal static bool IsSuperGangGarrisonMap(string levelName, string displayName)

@@ -32,6 +32,19 @@ public partial class Game1
     private static readonly Color RimTeamRed = new(232, 72, 56);
     private static readonly Color RimTeamBlue = new(84, 146, 236);
 
+    /// <summary>Uber rim light shines up from below.</summary>
+    private static readonly Vector2 UberCharacterLightDirection = new(0f, 1f);
+
+    /// <summary>How dark an übercharged body gets (at least), 0-100.</summary>
+    private const int UberBodyShade = 88;
+
+    /// <summary>Uber rim reaches at least round the sides.</summary>
+    private const float UberRimWrap = 0.4f;
+
+    /// <summary>Charge fraction below which the uber rim starts flashing, and its rate.</summary>
+    private const float UberFlashBelowCharge = 0.25f;
+    private const float UberFlashHz = 3f;
+
     /// <summary>Shadow buffers per drawn character: (group, id), so corpses never share a player's buffer.</summary>
     private readonly Dictionary<(int Group, int Id), CharacterShadowBuffers> _characterShadowBuffers = new();
 
@@ -41,6 +54,7 @@ public partial class Game1
     internal const int CharacterLightingNetworkCorpseGroup = 2;
     internal const int CharacterLightingWorldCorpseGroup = 3;
     internal const int CharacterLightingGibGroup = 4;
+    private readonly Dictionary<(Texture2D Texture, Rectangle Rect), int> _spriteArtPixelScales = new();
     private Effect? _rimLightEffect;
     private bool _rimLightEffectLoadAttempted;
     private bool _characterLightingActive;
@@ -48,6 +62,11 @@ public partial class Game1
     private Color _characterLightColor;
     private float _characterLightStrength;
     private PlayerTeam _characterLightTeam;
+    private bool _characterUberRim;
+    private float _characterUberFlash = 1f;
+    private float _characterBodyShade;
+    private float _characterBodySaturation = 1f;
+    private bool _characterBodyAdjust;
     private Vector2 _characterSpriteAnchor;
     private CharacterShadowBuffers? _characterShadowRecording;
     private long _characterLightingFrame;
@@ -104,19 +123,26 @@ public partial class Game1
     /// before the character's weapon backdrop / body / weapon draws.
     /// </summary>
     internal void BeginCharacterLighting(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha) =>
-        BeginCharacterLighting((CharacterLightingPlayerGroup, player.Id), player.Team, renderPosition, cameraPosition, visibilityAlpha);
+        BeginCharacterLighting((CharacterLightingPlayerGroup, player.Id), player.Team, renderPosition, cameraPosition, visibilityAlpha, player);
 
     /// <summary>
     /// Opens the lighting bracket for a corpse or ragdoll, so remains get the same rim, body
     /// shade and cast shadow as the living. Close it with <see cref="EndCharacterLighting"/>.
     /// </summary>
     internal void BeginCorpseLighting(int group, int id, PlayerTeam team, Vector2 worldPosition, Vector2 cameraPosition) =>
-        BeginCharacterLighting((group, id), team, worldPosition, cameraPosition, 1f);
+        BeginCharacterLighting((group, id), team, worldPosition, cameraPosition, 1f, null);
 
-    private void BeginCharacterLighting((int Group, int Id) key, PlayerTeam team, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha)
+    private void BeginCharacterLighting(
+        (int Group, int Id) key,
+        PlayerTeam team,
+        Vector2 renderPosition,
+        Vector2 cameraPosition,
+        float visibilityAlpha,
+        PlayerEntity? player)
     {
         _characterLightingActive = false;
         _characterShadowRecording = null;
+        _characterUberRim = false;
         var lighting = _world.Level.Lighting;
         if (!lighting.HasCharacterLighting
             || !IsGameplayLightingPassActive
@@ -127,18 +153,21 @@ public partial class Game1
             return;
         }
 
-        if (lighting.RimFromSky)
+        _characterBodyShade = MapLightingMetadata.Clamp(lighting.BodyShade) / 100f;
+        _characterBodySaturation = MapLightingMetadata.ClampScale(lighting.BodySaturation) / 100f;
+        _characterBodyAdjust = lighting.HasBodyAdjustment;
+        if (player is not null && lighting.UberRim && player.IsUbered && !IsKritzUberWeaponOnlyVisual(player))
         {
-            _characterLightToLight = SkyCharacterLightDirection;
-            _characterLightColor = new Color(lighting.SkyTint.R, lighting.SkyTint.G, lighting.SkyTint.B);
+            // Uber: a dark silhouette lit hard from below in the team colour.
+            _characterUberRim = true;
+            _characterUberFlash = GetUberRimFlash(player);
+            _characterLightToLight = UberCharacterLightDirection;
+            _characterLightColor = player.Team == PlayerTeam.Blue ? RimTeamBlue : RimTeamRed;
             _characterLightStrength = 1f;
+            _characterBodyShade = MathF.Max(_characterBodyShade, UberBodyShade / 100f);
+            _characterBodyAdjust = true;
         }
-        else if (!_gameplayLightmap.TryGetDominantLight(
-                     renderPosition.X,
-                     renderPosition.Y,
-                     out _characterLightToLight,
-                     out _characterLightColor,
-                     out _characterLightStrength))
+        else if (!TryResolveCharacterLight(lighting, renderPosition))
         {
             if (!lighting.HasBodyAdjustment)
             {
@@ -168,7 +197,8 @@ public partial class Game1
         buffers.CurrentFrame = _characterLightingFrame;
         _characterShadowRecording = buffers;
 
-        if (lighting.CastShadow > 0 && previousFrame >= _characterLightingFrame - 2)
+        // The uber light comes from below, so it casts no shadow on the ground.
+        if (lighting.CastShadow > 0 && !_characterUberRim && previousFrame >= _characterLightingFrame - 2)
         {
             DrawCharacterCastShadow(buffers.Previous, lighting, visibilityAlpha);
         }
@@ -178,6 +208,85 @@ public partial class Game1
     {
         _characterLightingActive = false;
         _characterShadowRecording = null;
+        _characterUberRim = false;
+    }
+
+    /// <summary>
+    /// Picks the rim / shadow light for a character from the map's light source setting.
+    /// Returns false when there is no light to use (nearest-light mode, nothing nearby).
+    /// </summary>
+    private bool TryResolveCharacterLight(MapLighting lighting, Vector2 renderPosition)
+    {
+        var skyColor = new Color(lighting.SkyTint.R, lighting.SkyTint.G, lighting.SkyTint.B);
+        if (lighting.RimSource == MapRimLightSource.Sky)
+        {
+            _characterLightToLight = SkyCharacterLightDirection;
+            _characterLightColor = skyColor;
+            _characterLightStrength = 1f;
+            return true;
+        }
+
+        var found = _gameplayLightmap.TryGetDominantLight(
+            renderPosition.X,
+            renderPosition.Y,
+            out var toLight,
+            out var lightColor,
+            out var lightStrength);
+        if (lighting.RimSource != MapRimLightSource.Both)
+        {
+            _characterLightToLight = toLight;
+            _characterLightColor = lightColor;
+            _characterLightStrength = lightStrength;
+            return found;
+        }
+
+        // Lights + sky: a dim rim from the sky everywhere. The closer (stronger) a light is,
+        // the more its direction, colour and brightness take over, so walking away from a
+        // lamp swings the rim back toward the top.
+        var sky = MapLightingMetadata.Clamp(lighting.SkyRim) / 100f;
+        var weight = found ? Math.Clamp(lightStrength, 0f, 1f) : 0f;
+        var blended = Vector2.Lerp(SkyCharacterLightDirection, found ? toLight : SkyCharacterLightDirection, weight);
+        _characterLightToLight = blended.LengthSquared() > 1e-4f
+            ? Vector2.Normalize(blended)
+            : (weight >= 0.5f ? toLight : SkyCharacterLightDirection);
+        _characterLightColor = Color.Lerp(skyColor, found ? lightColor : skyColor, weight);
+        _characterLightStrength = MathF.Max(sky, (sky * (1f - weight)) + (Math.Clamp(lightStrength, 0f, 1f) * weight));
+        return _characterLightStrength > 0.01f;
+    }
+
+    /// <summary>
+    /// 1 while the uber has charge to spare; as it runs low the rim pulses between dark and
+    /// bright, like TF2's flashing. The charge is the ubering medic's (the player's own, or
+    /// the medic healing them).
+    /// </summary>
+    private float GetUberRimFlash(PlayerEntity player)
+    {
+        PlayerEntity? medic = player.IsMedicUbering ? player : null;
+        if (medic is null)
+        {
+            foreach (var candidate in EnumerateRenderablePlayers())
+            {
+                if (candidate.IsMedicUbering && candidate.MedicHealTargetId == player.Id)
+                {
+                    medic = candidate;
+                    break;
+                }
+            }
+        }
+
+        if (medic is null)
+        {
+            return 1f;
+        }
+
+        var charge = GetPlayerMedicUberCharge(medic) / PlayerEntity.MedicUberMaxCharge;
+        if (charge >= UberFlashBelowCharge)
+        {
+            return 1f;
+        }
+
+        var wave = MathF.Sin((float)(_weatherClock.Elapsed.TotalSeconds * MathF.Tau * UberFlashHz));
+        return 0.6f + (0.4f * wave);
     }
 
     private void DrawCharacterCastShadow(List<CharacterShadowSprite> sprites, MapLighting lighting, float visibilityAlpha)
@@ -240,7 +349,7 @@ public partial class Game1
             tint.A / 255f));
 
         var lighting = _world.Level.Lighting;
-        if ((lighting.RimLight > 0 && _characterLightStrength > 0.01f) || lighting.HasBodyAdjustment)
+        if (_characterUberRim || (lighting.RimLight > 0 && _characterLightStrength > 0.01f) || _characterBodyAdjust)
         {
             DrawCharacterRim(texture, source, position, tint, rotation, origin, scale, effects);
         }
@@ -300,15 +409,27 @@ public partial class Game1
 
         toLight.Normalize();
         effect.Parameters["LightDirection"]?.SetValue(toLight);
-        effect.Parameters["TexelSize"]?.SetValue(new Vector2(1f / width, 1f / height));
+        // Snap to the art's pixel grid; the half width uses a grid half that size (1x sprites
+        // have nothing finer than a texel, so they stay at a whole pixel).
+        var artScale = GetSpriteArtPixelScale(texture, rect);
+        var rimWidth = Math.Clamp(lighting.RimWidth, MapLightingMetadata.MinRimWidth, MapLightingMetadata.MaxRimWidth);
+        var grid = rimWidth == MapLightingMetadata.HalfRimWidth ? Math.Max(1, artScale / 2) : artScale;
+        effect.Parameters["TexelSize"]?.SetValue(new Vector2(grid / width, grid / height));
         effect.Parameters["RectMin"]?.SetValue(new Vector2(rect.X / width, rect.Y / height));
         effect.Parameters["RectMax"]?.SetValue(new Vector2(rect.Right / width, rect.Bottom / height));
         effect.Parameters["RimColor"]?.SetValue(GetCharacterRimColor(lighting));
-        effect.Parameters["RimWidth"]?.SetValue((float)Math.Clamp(lighting.RimWidth, MapLightingMetadata.MinRimWidth, MapLightingMetadata.MaxRimWidth));
-        effect.Parameters["RimWrap"]?.SetValue(lighting.RimWrap / 100f);
-        effect.Parameters["BodyShade"]?.SetValue(MapLightingMetadata.Clamp(lighting.BodyShade) / 100f);
-        effect.Parameters["BodySaturation"]?.SetValue(MapLightingMetadata.ClampScale(lighting.BodySaturation) / 100f);
-        effect.Parameters["BodyAdjust"]?.SetValue(lighting.HasBodyAdjustment ? 1f : 0f);
+        effect.Parameters["RimWidth"]?.SetValue((float)Math.Max(1, rimWidth));
+        var wrap = _characterUberRim ? MathF.Max(lighting.RimWrap / 100f, UberRimWrap) : lighting.RimWrap / 100f;
+        var (cardinalLimit, diagonalLimit) = GetRimFacingLimits(wrap);
+        effect.Parameters["CardinalLimit"]?.SetValue(cardinalLimit);
+        effect.Parameters["DiagonalLimit"]?.SetValue(diagonalLimit);
+        effect.Parameters["GrazeBand"]?.SetValue(RimGrazeBand);
+        // The uber look is always a flat, full-strength rim.
+        effect.Parameters["BlendMode"]?.SetValue(_characterUberRim ? 0f : (float)lighting.RimBlend);
+        effect.Parameters["RimOpacity"]?.SetValue(_characterUberRim ? 1f : MapLightingMetadata.Clamp(lighting.RimOpacity) / 100f);
+        effect.Parameters["BodyShade"]?.SetValue(_characterBodyShade);
+        effect.Parameters["BodySaturation"]?.SetValue(_characterBodySaturation);
+        effect.Parameters["BodyAdjust"]?.SetValue(_characterBodyAdjust ? 1f : 0f);
 
         var transform = GetActiveGameplayWorldSpriteBatchTransform();
         _spriteBatch.End();
@@ -326,6 +447,14 @@ public partial class Game1
     /// </summary>
     private Vector3 GetCharacterRimColor(MapLighting lighting)
     {
+        if (_characterUberRim)
+        {
+            // Super bright team colour, whatever the rim settings; it pulses when the charge is low.
+            var team = _characterLightColor.ToVector3();
+            var hot = Vector3.Lerp(team, Vector3.One, 0.35f) * 1.15f;
+            return Vector3.Clamp(hot * _characterUberFlash, new Vector3(0.004f), Vector3.One);
+        }
+
         var strength = lighting.RimLight / 100f * _characterLightStrength;
         if (strength <= 0.01f)
         {
@@ -348,8 +477,112 @@ public partial class Game1
             _ => light,
         };
 
-        // Kept just above black so the shader still treats it as a rim.
-        return Vector3.Max(color * MathF.Sqrt(MathF.Min(strength, 1f)), new Vector3(0.004f));
+        // A weak light fades the rim toward the blend's "no change" colour: black for
+        // normal / add / screen, white for multiply, mid grey for overlay. Kept just above
+        // black so the shader still treats it as a rim.
+        var amount = MathF.Sqrt(MathF.Min(strength, 1f));
+        var neutral = lighting.RimBlend switch
+        {
+            MapRimBlendMode.Multiply => Vector3.One,
+            MapRimBlendMode.Overlay => new Vector3(0.5f),
+            _ => Vector3.Zero,
+        };
+        return Vector3.Max(Vector3.Lerp(neutral, color, amount), new Vector3(0.004f));
+    }
+
+    /// <summary>
+    /// How many texels make one pixel of the art in a sprite frame: 1 for native art, 2 when
+    /// the image stores each art pixel as a 2x2 block (as the stock characters do), and so on
+    /// up to 4. The rim snaps to this grid so it is exactly as chunky as the character.
+    /// Measured once per frame image (one small texture read) and cached.
+    /// </summary>
+    private int GetSpriteArtPixelScale(Texture2D texture, Rectangle rect)
+    {
+        var key = (texture, rect);
+        if (_spriteArtPixelScales.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        var scale = 1;
+        if (rect.Width > 0 && rect.Height > 0 && rect.Width * rect.Height <= 512 * 512)
+        {
+            try
+            {
+                var pixels = new Color[rect.Width * rect.Height];
+                texture.GetData(0, rect, pixels, 0, pixels.Length);
+                scale = MeasureArtPixelScale(pixels, rect.Width, rect.Height);
+            }
+            catch
+            {
+                scale = 1; // unreadable texture: fall back to the texture's own grid
+            }
+        }
+
+        if (_spriteArtPixelScales.Count > 4096)
+        {
+            _spriteArtPixelScales.Clear(); // e.g. after many texture reloads
+        }
+
+        _spriteArtPixelScales[key] = scale;
+        return scale;
+    }
+
+    /// <summary>Largest scale (4, 3, then 2) at which every aligned block holds one colour; else 1.</summary>
+    internal static int MeasureArtPixelScale(Color[] pixels, int width, int height)
+    {
+        for (var scale = 4; scale >= 2; scale -= 1)
+        {
+            if (width < scale || height < scale || !IsUniformInBlocks(pixels, width, height, scale))
+            {
+                continue;
+            }
+
+            return scale;
+        }
+
+        return 1;
+    }
+
+    private static bool IsUniformInBlocks(Color[] pixels, int width, int height, int scale)
+    {
+        var anySolid = false;
+        for (var y = 0; y < height; y += 1)
+        {
+            var blockTop = y - (y % scale);
+            for (var x = 0; x < width; x += 1)
+            {
+                var pixel = pixels[(y * width) + x];
+                if (pixel != pixels[(blockTop * width) + x - (x % scale)])
+                {
+                    return false;
+                }
+
+                anySolid |= pixel.A > 0;
+            }
+        }
+
+        // A blank frame says nothing about the art.
+        return anySolid;
+    }
+
+    /// <summary>How far the facing limits relax toward the light-facing end (see RimLight.fx).</summary>
+    private const float RimGrazeBand = 0.3f;
+
+    /// <summary>
+    /// Cosine limits for which grid neighbours catch the light. A straight side counts within
+    /// 67.5 degrees of the light, a diagonal within 22.5 (so a flat edge does not light up
+    /// from the side through its corners). Wrap widens both by 45 degrees from 1/3, and by
+    /// 90 from 2/3.
+    /// </summary>
+    internal static (float Cardinal, float Diagonal) GetRimFacingLimits(float wrap)
+    {
+        if (wrap >= 0.666f)
+        {
+            return (-0.924f, -0.383f);
+        }
+
+        return wrap >= 0.333f ? (-0.383f, 0.383f) : (0.383f, 0.924f);
     }
 
     private Effect? GetRimLightEffect()

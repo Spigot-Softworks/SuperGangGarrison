@@ -1428,6 +1428,7 @@ public static class OpenGarrisonStockMapCatalog
         new("koth_valley", "Valley", "Valley", GameModeKind.KingOfTheHill, 5, "valley"),
         new("koth_corinth", "Corinth", "Corinth", GameModeKind.KingOfTheHill, 12, "corinth"),
         new("koth_harvest", "Harvest", "Harvest", GameModeKind.KingOfTheHill, 1, "harvest"),
+        new("koth_bloodmoon_reborn", "koth_bloodmoon_reborn", "Bloodmoon Reborn", GameModeKind.KingOfTheHill, 0, "bloodmoon_reborn"),
         new("tdm_mantic", "Mantic", "Mantic", GameModeKind.TeamDeathmatch, 0, "mantic"),
         new("koth_gallery", "Gallery", "Gallery", GameModeKind.KingOfTheHill, 2, "gallery"),
         new("ctf_eiger", "Eiger", "Eiger", GameModeKind.CaptureTheFlag, 6, "eiger"),

@@ -244,7 +244,8 @@ internal sealed class LightmapRenderer : IDisposable
         device.SetRenderTarget(_target);
         device.Clear(Color.Black);
 
-        // Ambient: horizontal rows lerping sky -> ground over the map's height.
+        // Ambient: horizontal rows lerping sky -> ground over the map's height. Sky reach keeps
+        // the top part at the full sky light and fades over what is left below it.
         batch.Begin(SpriteSortMode.Deferred, BlendState.Opaque, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
         var pulse = GetPulseFactor();
         var sky = ToVector(_lighting.SkyTint);
@@ -256,10 +257,11 @@ internal sealed class LightmapRenderer : IDisposable
         var normalize = peak > (1f / 255f) ? 1f / peak : 1f;
         var level = ((_lighting.Brightness / 100f * pulse) + (_ambientBoost * 0.6f)) * normalize;
         const int RowStep = 2;
+        var reach = Math.Clamp(_lighting.SkyReach, 0, MapLightingMetadata.MaxSkyReach) / 100f;
         for (var row = 0; row < CellsHigh; row += RowStep)
         {
             var worldY = Origin.Y + ((row + (RowStep * 0.5f)) * _cellSize);
-            var t = Math.Clamp(worldY / _worldHeight, 0f, 1f);
+            var t = Math.Clamp(((worldY / _worldHeight) - reach) / (1f - reach), 0f, 1f);
             if (_lighting.Banded)
             {
                 t = MathF.Round(t * 8f) / 8f;
