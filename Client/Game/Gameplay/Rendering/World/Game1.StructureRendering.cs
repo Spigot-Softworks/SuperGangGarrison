@@ -104,16 +104,19 @@ public partial class Game1
 
         var frameIndex = Math.Clamp(gib.FrameIndex, 0, sprite.Frames.Count - 1);
         var renderScale = GetPlayerGibRenderScale(gib);
-        DrawLoadedSpriteFrame(
-            sprite.Frames[frameIndex],
-            new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
-            null,
-            gibTint * gib.Alpha,
-            GetPlayerGibRenderRotationDegrees(gib) * (MathF.PI / 180f),
-            sprite.Origin.ToVector2(),
-            new Vector2(gib.FlipHorizontally ? -renderScale : renderScale, renderScale),
-            SpriteEffects.None,
-            0f);
+        var frame = sprite.Frames[frameIndex];
+        var position = new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y);
+        var tint = gibTint * gib.Alpha;
+        var rotation = GetPlayerGibRenderRotationDegrees(gib) * (MathF.PI / 180f);
+        var origin = sprite.Origin.ToVector2();
+        var scale = new Vector2(gib.FlipHorizontally ? -renderScale : renderScale, renderScale);
+
+        // Gibs get the same rim, body shade and cast shadow as characters. They carry no
+        // team, so a Team-coloured rim falls back to the light's colour on them.
+        BeginCorpseLighting(CharacterLightingGibGroup, gib.Id, PlayerTeam.Neutral, renderPosition, cameraPosition);
+        DrawLoadedSpriteFrame(frame, position, null, tint, rotation, origin, scale, SpriteEffects.None, 0f);
+        ObserveCharacterSpriteDraw(frame.Texture, frame.SourceRectangle, position, tint, rotation, origin, scale, SpriteEffects.None);
+        EndCharacterLighting();
     }
 
     /// <summary>

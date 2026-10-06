@@ -172,6 +172,7 @@ internal sealed class RetroWeatherField
     private Layer[] _layers = [];
     private MapWeatherKind _kind;
     private MapWeatherIntensity _intensity;
+    private Color? _rainColor;
     private int _rectanglesThisFrame;
     private IReadOnlyList<IndoorRegionMarker>? _hiddenRegions;
 
@@ -192,6 +193,12 @@ internal sealed class RetroWeatherField
     }
 
     /// <summary>Rebuilds the drop tables when the weather kind or intensity changes.</summary>
+    /// <summary>
+    /// Recolours the rain: the nearest layer takes this colour and farther layers a dimmer
+    /// version of it, as with the default pale blue. Null restores the default colours.
+    /// </summary>
+    public void SetRainColor(Color? color) => _rainColor = color;
+
     public void Configure(MapWeatherKind kind, MapWeatherIntensity intensity)
     {
         if (kind == _kind && intensity == _intensity && (_layers.Length > 0 || kind == MapWeatherKind.None))
@@ -402,6 +409,15 @@ internal sealed class RetroWeatherField
         var gustOffset = (float)GustOffset(time) * gustScale;
         var gustVelocity = (float)GustVelocity(time) * gustScale;
         var splashDistanceMax = spec.FallSpeed * 1.2f * RainSplashSeconds;
+        var layerColor = spec.Color;
+        if (_rainColor is { } rainColor)
+        {
+            // Keep the layer's depth dimming relative to the nearest layer.
+            var front = RainLayers[0].Color;
+            var dim = (spec.Color.R + spec.Color.G + spec.Color.B) / (float)Math.Max(1, front.R + front.G + front.B);
+            layerColor = new Color(rainColor.ToVector3() * dim);
+        }
+
         var horizontalMargin = 4f + MathF.Abs(baseSlant) * (spec.LengthMax + splashDistanceMax) + 3f;
         var scanLeft = clip.Left - horizontalMargin;
         var scanRight = clip.Right + horizontalMargin;
@@ -423,7 +439,7 @@ internal sealed class RetroWeatherField
             var yContinuous = layer.BaseY[index] + (speed * time);
             var firstX = scanLeft + PositiveModulo(xContinuous - scanLeft, tileWidth);
             var firstY = scanTop + PositiveModulo(yContinuous - scanTop, tileHeight);
-            var color = spec.Color * alpha;
+            var color = layerColor * alpha;
 
             for (var headX = firstX; headX <= scanRight; headX += tileWidth)
             {

@@ -111,6 +111,8 @@ public interface IRenderContext : IGameplayContext
     bool TryDrawWeaponSprite(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, Game1.PlayerBodySpriteSelection bodySelection);
     bool TryDrawWeaponSpriteAtPosition(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, Color tint, float visibilityAlpha, Game1.PlayerBodySpriteSelection bodySelection);
     bool TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, Game1.PlayerBodySpriteSelection bodySelection);
+    void BeginCharacterLighting(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha);
+    void EndCharacterLighting();
     bool TryGetLastToDieHaxtonSpriteName(PlayerEntity player, out string spriteName);
     bool TryGetLocalPlayerAimDirection(PlayerEntity player, out float aimDirectionDegrees);
     bool TryGetPlayerSkinBody(PlayerEntity player, out Game1.PlayerBodySpriteSelection selection);

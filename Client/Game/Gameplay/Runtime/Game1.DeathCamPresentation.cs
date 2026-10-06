@@ -151,6 +151,8 @@ public partial class Game1
 
         EnsureDeathCamCaptureTarget(viewportWidth, viewportHeight);
         var focusCameraPosition = GetDeathCamFocusCameraTopLeft(viewportWidth, viewportHeight);
+        // Map lighting for the death cam's own view (built before the capture target is bound).
+        BeginGameplayLightingCapture(focusCameraPosition, viewportWidth, viewportHeight);
         WriteGameplayRenderTrace("deathcam prepare setrendertarget");
         GraphicsDevice.SetRenderTarget(_renderTargetResources.DeathCamCaptureTarget);
         GraphicsDevice.Clear(new Color(24, 32, 48));
@@ -162,6 +164,7 @@ public partial class Game1
         _spriteBatch.End();
         WriteGameplayRenderTrace("deathcam prepare setrendertarget-null");
         GraphicsDevice.SetRenderTarget(null);
+        EndGameplayLightingCapture();
         _renderTargetResources.DeathCamCaptureValid = true;
     }
 

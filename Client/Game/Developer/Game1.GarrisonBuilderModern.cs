@@ -1743,11 +1743,17 @@ public partial class Game1
             return "None";
         }
 
+        if (weather.Kind == MapWeatherKind.Fireflies)
+        {
+            // Fireflies have density instead of an intensity.
+            return $"Fireflies ({weather.FireflyDensity}%)";
+        }
+
         return $"{MapWeatherMetadata.GetKindDisplayLabel(MapWeatherMetadata.ToPropertyValue(weather.Kind))}"
             + $" ({MapWeatherMetadata.GetIntensityDisplayLabel(MapWeatherMetadata.ToPropertyValue(weather.Intensity)).ToLowerInvariant()})";
     }
 
-    /// <summary>Quick None -> Rain -> Snow -> Leaves cycle; intensity and wind live in Map properties.</summary>
+    /// <summary>Quick None -> Rain -> Snow -> Leaves -> Fireflies cycle; the details live in Map properties.</summary>
     private void CycleGarrisonBuilderWeather()
     {
         RecordGarrisonBuilderHistory();
@@ -1759,7 +1765,7 @@ public partial class Game1
         MapWeatherMetadata.Normalize(metadata);
         _builderDocument = (_builderDocument with { Metadata = metadata }).NormalizeForEditing();
         _builderDirty = true;
-        _builderStatus = $"weather: {DescribeGarrisonBuilderWeather().ToLowerInvariant()} (intensity and wind in Map properties)";
+        _builderStatus = $"weather: {DescribeGarrisonBuilderWeather().ToLowerInvariant()} (details in Edit > Map properties)";
     }
 
     private void ToggleGarrisonBuilderShowBackground()

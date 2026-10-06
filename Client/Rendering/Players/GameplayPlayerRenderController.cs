@@ -43,6 +43,7 @@ public sealed class GameplayPlayerRenderController
             {
                 spriteTint *= 0.72f;
             }
+            _game.BeginCharacterLighting(player, renderPosition, cameraPosition, visibilityAlpha);
             _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
 
             var shouldDrawWeapon = !_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting
@@ -64,6 +65,8 @@ public sealed class GameplayPlayerRenderController
             {
                 _game.TryDrawWeaponSprite(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
             }
+
+            _game.EndCharacterLighting();
 
             _game.DrawHealingCrossParticles(player, renderPosition, cameraPosition, visibilityAlpha);
             _game.GameplayWeaponRenderer.DrawCivvieUmbrellaShieldBlockVisuals(player, cameraPosition, visibilityAlpha, bodySelection);

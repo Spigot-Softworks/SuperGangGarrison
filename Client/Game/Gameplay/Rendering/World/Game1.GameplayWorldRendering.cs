@@ -418,6 +418,7 @@ public partial class Game1
                 case RemainsDrawKind.RetainedDeadBody:
                 {
                     var deadBody = _retainedDeadBodies[entry.Index];
+                    BeginCorpseLighting(CharacterLightingRetainedCorpseGroup, deadBody.Id, deadBody.Team, new Vector2(deadBody.X, deadBody.Y), cameraPosition);
                     DrawDeadBodyVisual(
                         deadBody.Id,
                         deadBody.SourcePlayerId,
@@ -432,6 +433,7 @@ public partial class Game1
                         deadBody.TicksRemaining,
                         cameraPosition,
                         deadBody.GameplayClassId);
+                    EndCharacterLighting();
                     break;
                 }
                 case RemainsDrawKind.ImmediateNetworkDeadBody:
@@ -441,6 +443,7 @@ public partial class Game1
                         break;
                     }
 
+                    BeginCorpseLighting(CharacterLightingNetworkCorpseGroup, deadBody.SourcePlayerId, deadBody.Team, new Vector2(deadBody.X, deadBody.Y), cameraPosition);
                     DrawDeadBodyVisual(
                         id: -Math.Abs(deadBody.SourcePlayerId),
                         deadBody.SourcePlayerId,
@@ -455,14 +458,20 @@ public partial class Game1
                         deadBody.TicksRemaining,
                         cameraPosition,
                         deadBody.GameplayClassId);
+                    EndCharacterLighting();
                     break;
                 }
                 case RemainsDrawKind.PlayerGib:
                     DrawPlayerGib(_world.PlayerGibs[entry.Index], cameraPosition);
                     break;
                 case RemainsDrawKind.WorldDeadBody:
-                    DrawDeadBody(_world.DeadBodies[entry.Index], cameraPosition);
+                {
+                    var deadBody = _world.DeadBodies[entry.Index];
+                    BeginCorpseLighting(CharacterLightingWorldCorpseGroup, deadBody.Id, deadBody.Team, new Vector2(deadBody.X, deadBody.Y), cameraPosition);
+                    DrawDeadBody(deadBody, cameraPosition);
+                    EndCharacterLighting();
                     break;
+                }
             }
         }
 
@@ -581,6 +590,7 @@ public partial class Game1
         var renderPosition = GetRenderPosition(_world.LocalPlayer);
         DrawExperimentalDemoknightChargeBlur(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         DrawCapturedPointHealingGhosting(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);
+        BeginCharacterLighting(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);
         TryDrawWeaponSpriteBackdrop(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
 
         var shouldDrawWeapon = !GetPlayerIsHeavyEating(_world.LocalPlayer)
@@ -605,6 +615,7 @@ public partial class Game1
             TryDrawWeaponSprite(_world.LocalPlayer, cameraPosition, playerSpriteTint, visibilityAlpha, bodySelection);
         }
 
+        EndCharacterLighting();
         DrawHealingCrossParticles(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);
         _gameplayWeaponRenderController.DrawCivvieUmbrellaShieldBlockVisuals(_world.LocalPlayer, cameraPosition, visibilityAlpha, bodySelection);
         DrawExperimentalCryoOverlays(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);

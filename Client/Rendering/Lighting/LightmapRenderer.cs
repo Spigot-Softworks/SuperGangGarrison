@@ -33,6 +33,12 @@ internal sealed class LightmapRenderer : IDisposable
     private const int MaxTargetCells = 1800;
     private const int LightTextureSize = 64;
 
+    /// <summary>Cone textures are larger so the angled edges stay clean on big lights.</summary>
+    private const int ConeTextureSize = 128;
+
+    /// <summary>Spotlight spreads are rounded to this step so a handful of cone textures covers them.</summary>
+    private const int ConeSpreadStepDegrees = 10;
+
     /// <summary>result = 2 x light x world: 0.5 in the light map leaves the world unchanged.</summary>
     public static readonly BlendState Multiply2x = new()
     {
@@ -63,13 +69,28 @@ internal sealed class LightmapRenderer : IDisposable
     private Texture2D? _bandedLight;
     private Texture2D? _vignette;
     private Texture2D? _white;
+    private readonly Dictionary<int, Texture2D> _coneTextures = new();
+    private GraphicsDevice? _device;
+    private BasicEffect? _fanEffect;
+    private VertexPositionColorTexture[] _fanVertices = new VertexPositionColorTexture[65];
+    private short[] _fanIndices = new short[64 * 3];
     private MapLighting _lighting = MapLighting.None;
     private float _worldHeight = 1f;
     private float _ambientBoost;
     private double _time;
     private int _cellSize = CellSize;
 
-    private readonly record struct LightSample(float X, float Y, float Radius, Color Color, float Intensity, bool Glows);
+    private readonly record struct LightSample(
+        float X,
+        float Y,
+        float Radius,
+        Color Color,
+        float Intensity,
+        bool Glows,
+        MapLightFalloff Falloff,
+        float DirectionDegrees,
+        float SpreadDegrees,
+        float[]? Reach);
 
     /// <summary>World position of the light map's top-left texel.</summary>
     public Vector2 Origin { get; private set; }
@@ -114,7 +135,24 @@ internal sealed class LightmapRenderer : IDisposable
     }
 
     /// <summary>Queues a light in world coordinates; intensity 1 lights its area to full colour.</summary>
-    public void AddLight(float x, float y, float radius, Color color, float intensity, bool glows = true)
+    /// <param name="falloff">Edge fade for this light; <see cref="MapLightFalloff.Map"/> follows the map style.</param>
+    /// <param name="directionDegrees">Spotlight aim: 0 = right, 90 = up, 180 = left, 270 = down.</param>
+    /// <param name="spreadDegrees">Spotlight cone width; 360 is an ordinary round light.</param>
+    /// <param name="reach">
+    /// Optional per-ray reach from <see cref="LightOcclusionField.ComputeVisibility"/>: walls
+    /// cut the light off where its rays stop. Null lights the full circle.
+    /// </param>
+    public void AddLight(
+        float x,
+        float y,
+        float radius,
+        Color color,
+        float intensity,
+        bool glows = true,
+        MapLightFalloff falloff = MapLightFalloff.Map,
+        float directionDegrees = 0f,
+        float spreadDegrees = MapLightMetadata.FullSpread,
+        float[]? reach = null)
     {
         if (_lights.Count >= MaxLights || radius <= 0.5f || intensity <= 0.004f)
         {
@@ -130,7 +168,64 @@ internal sealed class LightmapRenderer : IDisposable
             return;
         }
 
-        _lights.Add(new LightSample(x, y, radius, color, intensity, glows));
+        _lights.Add(new LightSample(x, y, radius, color, intensity, glows, falloff, directionDegrees, spreadDegrees, reach));
+    }
+
+    /// <summary>
+    /// The light that reaches a point most strongly this frame (for character rim light
+    /// and cast shadows). Player lights (non-glowing) and lights sitting on the point
+    /// itself are ignored, and walls block lights that carry ray reach.
+    /// </summary>
+    /// <param name="toLight">Unit vector from the point toward the light (screen space, y down).</param>
+    /// <param name="strength">0..1 by intensity, distance and spotlight cone.</param>
+    public bool TryGetDominantLight(float x, float y, out Vector2 toLight, out Color color, out float strength)
+    {
+        toLight = Vector2.Zero;
+        color = Color.White;
+        strength = 0f;
+        foreach (var light in _lights)
+        {
+            if (!light.Glows)
+            {
+                continue;
+            }
+
+            var deltaX = light.X - x;
+            var deltaY = light.Y - y;
+            var distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+            if (distance < 10f || distance >= light.Radius)
+            {
+                continue;
+            }
+
+            var contribution = light.Intensity * (1f - (distance / light.Radius));
+            if (MapLightMetadata.IsDirectional(light.SpreadDegrees))
+            {
+                // Outside the cone the light does not reach.
+                var aim = MapLightMetadata.GetDirectionVector(light.DirectionDegrees);
+                var cosine = ((-deltaX * aim.X) + (-deltaY * aim.Y)) / distance;
+                var halfSpread = light.SpreadDegrees * (MathF.PI / 360f);
+                if (cosine < MathF.Cos(halfSpread))
+                {
+                    continue;
+                }
+            }
+
+            if (light.Reach is { } reach && !LightOcclusionField.Reaches(reach, light.X, light.Y, x, y))
+            {
+                continue;
+            }
+
+            var candidate = Math.Clamp(contribution * 1.6f, 0f, 1f);
+            if (candidate > strength)
+            {
+                strength = candidate;
+                toLight = new Vector2(deltaX / distance, deltaY / distance);
+                color = light.Color;
+            }
+        }
+
+        return strength > 0.01f;
     }
 
     /// <summary>
@@ -176,11 +271,19 @@ internal sealed class LightmapRenderer : IDisposable
 
         batch.End();
 
-        // Lights add on top.
+        // Lights add on top. Lights with ray reach are drawn afterwards as clipped fans.
         batch.Begin(SpriteSortMode.Deferred, AddOne, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone);
-        var lightTexture = _lighting.Banded ? _bandedLight! : _smoothLight!;
+        var anyBlockedLights = false;
         foreach (var light in _lights)
         {
+            if (light.Reach is not null)
+            {
+                anyBlockedLights = true;
+                continue;
+            }
+
+            var banded = MapLightMetadata.UsesRetroBands(light.Falloff, _lighting.Banded);
+            var lightTexture = GetLightTexture(light, banded, out var rotation);
             var size = light.Radius * 2f / _cellSize;
             var center = new Vector2((light.X - Origin.X) / _cellSize, (light.Y - Origin.Y) / _cellSize);
             batch.Draw(
@@ -188,14 +291,18 @@ internal sealed class LightmapRenderer : IDisposable
                 center,
                 null,
                 light.Color * (light.Intensity * 0.5f),
-                0f,
-                new Vector2(LightTextureSize * 0.5f),
-                size / LightTextureSize,
+                rotation,
+                new Vector2(lightTexture.Width * 0.5f),
+                size / lightTexture.Width,
                 SpriteEffects.None,
                 0f);
         }
 
         batch.End();
+        if (anyBlockedLights)
+        {
+            DrawBlockedLights(device);
+        }
 
         if (_lighting.Vignette > 0)
         {
@@ -250,15 +357,28 @@ internal sealed class LightmapRenderer : IDisposable
                 continue;
             }
 
+            // Halos follow the light's shape (a spotlight blooms along its beam), always smooth.
+            var glowTexture = GetLightTexture(light, banded: false, out var rotation);
             var radius = light.Radius * 0.45f;
+            if (light.Reach is { Length: > 0 } reach)
+            {
+                // Keep a blocked light's halo from shining through the walls around it.
+                var total = 0f;
+                foreach (var distance in reach)
+                {
+                    total += distance;
+                }
+
+                radius = MathF.Min(radius, total / reach.Length * 0.5f);
+            }
             batch.Draw(
-                _smoothLight,
+                glowTexture,
                 (new Vector2(light.X, light.Y) * scale) + offset,
                 null,
                 light.Color * (light.Intensity * glow * 0.22f),
-                0f,
-                new Vector2(LightTextureSize * 0.5f),
-                radius * 2f * scale / LightTextureSize,
+                rotation,
+                new Vector2(glowTexture.Width * 0.5f),
+                radius * 2f * scale / glowTexture.Width,
                 SpriteEffects.None,
                 0f);
         }
@@ -278,6 +398,15 @@ internal sealed class LightmapRenderer : IDisposable
     public void Dispose()
     {
         _target?.Dispose();
+        foreach (var cone in _coneTextures.Values)
+        {
+            cone.Dispose();
+        }
+
+        _coneTextures.Clear();
+        _fanEffect?.Dispose();
+        _fanEffect = null;
+        _device = null;
         _smoothLight?.Dispose();
         _bandedLight?.Dispose();
         _vignette?.Dispose();
@@ -350,10 +479,165 @@ internal sealed class LightmapRenderer : IDisposable
                 RenderTargetUsage.PreserveContents);
         }
 
+        _device = device;
         _white ??= CreateSolid(device);
         _smoothLight ??= CreateLightTexture(device, banded: false);
         _bandedLight ??= CreateLightTexture(device, banded: true);
         _vignette ??= CreateVignette(device);
+    }
+
+    /// <summary>
+    /// Wall-blocked lights: a triangle fan out to where each ray stops, textured with the
+    /// same falloff (round or cone) so it matches an unblocked light exactly where it is
+    /// not cut off. Uses the stock BasicEffect, no custom shader.
+    /// </summary>
+    private void DrawBlockedLights(GraphicsDevice device)
+    {
+        if (_target is null)
+        {
+            return;
+        }
+
+        _fanEffect ??= new BasicEffect(device)
+        {
+            TextureEnabled = true,
+            VertexColorEnabled = true,
+            LightingEnabled = false,
+        };
+        _fanEffect.World = Matrix.Identity;
+        _fanEffect.View = Matrix.Identity;
+        _fanEffect.Projection = Matrix.CreateOrthographicOffCenter(0f, _target.Width, _target.Height, 0f, 0f, 1f);
+
+        foreach (var light in _lights)
+        {
+            if (light.Reach is not { Length: > 2 } reach)
+            {
+                continue;
+            }
+
+            var banded = MapLightMetadata.UsesRetroBands(light.Falloff, _lighting.Banded);
+            var texture = GetLightTexture(light, banded, out var rotation);
+            var rays = reach.Length;
+            EnsureFanCapacity(rays);
+            var color = light.Color * (light.Intensity * 0.5f);
+            var center = new Vector2((light.X - Origin.X) / _cellSize, (light.Y - Origin.Y) / _cellSize);
+
+            // Texture space is the sprite's space before its rotation: undo it for UVs.
+            var cos = MathF.Cos(-rotation);
+            var sin = MathF.Sin(-rotation);
+            var uvScale = 0.5f / light.Radius;
+            _fanVertices[0] = new VertexPositionColorTexture(new Vector3(center, 0f), color, new Vector2(0.5f, 0.5f));
+            for (var index = 0; index < rays; index += 1)
+            {
+                var angle = index * MathF.Tau / rays;
+                var offsetX = MathF.Cos(angle) * reach[index];
+                var offsetY = MathF.Sin(angle) * reach[index];
+                var textureX = (offsetX * cos) - (offsetY * sin);
+                var textureY = (offsetX * sin) + (offsetY * cos);
+                _fanVertices[index + 1] = new VertexPositionColorTexture(
+                    new Vector3(center.X + (offsetX / _cellSize), center.Y + (offsetY / _cellSize), 0f),
+                    color,
+                    new Vector2(0.5f + (textureX * uvScale), 0.5f + (textureY * uvScale)));
+                _fanIndices[(index * 3) + 0] = 0;
+                _fanIndices[(index * 3) + 1] = (short)(index + 1);
+                _fanIndices[(index * 3) + 2] = (short)(((index + 1) % rays) + 1);
+            }
+
+            _fanEffect.Texture = texture;
+            _fanEffect.CurrentTechnique.Passes[0].Apply();
+            device.BlendState = AddOne;
+            device.DepthStencilState = DepthStencilState.None;
+            device.RasterizerState = RasterizerState.CullNone;
+            device.SamplerStates[0] = SamplerState.LinearClamp;
+            device.DrawUserIndexedPrimitives(PrimitiveType.TriangleList, _fanVertices, 0, rays + 1, _fanIndices, 0, rays);
+        }
+    }
+
+    private void EnsureFanCapacity(int rays)
+    {
+        if (_fanVertices.Length < rays + 1)
+        {
+            _fanVertices = new VertexPositionColorTexture[rays + 1];
+        }
+
+        if (_fanIndices.Length < rays * 3)
+        {
+            _fanIndices = new short[rays * 3];
+        }
+    }
+
+    /// <summary>Round texture for ordinary lights; a rotated cone texture for spotlights.</summary>
+    private Texture2D GetLightTexture(in LightSample light, bool banded, out float rotation)
+    {
+        rotation = 0f;
+        if (!MapLightMetadata.IsDirectional(light.SpreadDegrees) || _device is null)
+        {
+            return banded ? _bandedLight! : _smoothLight!;
+        }
+
+        // Cones point right in the texture; SpriteBatch rotates clockwise on screen, and
+        // map directions count counter-clockwise (90 = up), hence the minus sign.
+        rotation = -light.DirectionDegrees * (MathF.PI / 180f);
+        var step = Math.Clamp(
+            (int)MathF.Round(light.SpreadDegrees / ConeSpreadStepDegrees),
+            1,
+            (360 / ConeSpreadStepDegrees) - 1);
+        var key = (step * 2) + (banded ? 1 : 0);
+        if (!_coneTextures.TryGetValue(key, out var texture))
+        {
+            // Built once per spread/style and cached (a few textures per map at most).
+            texture = CreateConeTexture(_device, step * ConeSpreadStepDegrees, banded);
+            _coneTextures[key] = texture;
+        }
+
+        return texture;
+    }
+
+    /// <summary>
+    /// A spotlight: the round falloff masked to a cone pointing right, with a soft angular
+    /// edge (hard for retro bands) and a small glow at the lamp so the fixture is not dark.
+    /// </summary>
+    private static Texture2D CreateConeTexture(GraphicsDevice device, float spreadDegrees, bool banded)
+    {
+        var pixels = new Color[ConeTextureSize * ConeTextureSize];
+        var half = ConeTextureSize * 0.5f;
+        var halfAngle = spreadDegrees * (MathF.PI / 360f);
+        var softEdge = MathF.Min(12f * (MathF.PI / 180f), halfAngle * 0.35f);
+        for (var y = 0; y < ConeTextureSize; y += 1)
+        {
+            for (var x = 0; x < ConeTextureSize; x += 1)
+            {
+                var dx = (x + 0.5f - half) / half;
+                var dy = (y + 0.5f - half) / half;
+                var distance = MathF.Sqrt((dx * dx) + (dy * dy));
+                var radial = MathF.Pow(MathF.Max(0f, 1f - distance), 1.6f);
+                var angle = MathF.Abs(MathF.Atan2(dy, dx));
+                float angular;
+                if (banded)
+                {
+                    angular = angle <= halfAngle - (softEdge * 0.5f) ? 1f : 0f;
+                }
+                else
+                {
+                    var t = Math.Clamp((halfAngle - angle) / softEdge, 0f, 1f);
+                    angular = t * t * (3f - (2f * t));
+                }
+
+                var lamp = 0.35f * MathF.Pow(MathF.Max(0f, 1f - (distance * 6f)), 1.6f);
+                var value = MathF.Max(radial * angular, lamp);
+                if (banded)
+                {
+                    value = distance < 1f ? MathF.Ceiling(value * 5f) / 5f : 0f;
+                }
+
+                var channel = (byte)Math.Clamp((int)MathF.Round(value * 255f), 0, 255);
+                pixels[(y * ConeTextureSize) + x] = new Color(channel, channel, channel, channel);
+            }
+        }
+
+        var texture = new Texture2D(device, ConeTextureSize, ConeTextureSize);
+        texture.SetData(pixels);
+        return texture;
     }
 
     private static Texture2D CreateSolid(GraphicsDevice device)

@@ -715,7 +715,8 @@ public partial class Game1
         if (!UseReducedBrowserEffects
             && !_world.Level.IsTopDown
             && _gameplayManager.RuntimeSettings.SpriteDropShadowEnabled
-            && tint.A > 0)
+            && tint.A > 0
+            && !ShouldReplaceSpriteDropShadow)
         {
             var shadowAlpha = ((tint.A / 255f) * 0.32f);
             var shadowTint = new Color(0, 0, 0) * shadowAlpha;
@@ -741,6 +742,7 @@ public partial class Game1
             scale,
             effects,
             0f);
+        ObserveCharacterSpriteDraw(frame.Texture, frame.SourceRectangle, position, tint, rotation, origin, scale, effects);
     }
 
     public void DrawSpriteFrame(
@@ -762,6 +764,7 @@ public partial class Game1
             scale,
             effects,
             0f);
+        ObserveCharacterSpriteDraw(frame.Texture, frame.SourceRectangle, position, tint, rotation, origin, scale, effects);
     }
 
     private void DrawSpriteFrameShadow(
@@ -776,7 +779,8 @@ public partial class Game1
         if (!UseReducedBrowserEffects
             && !_world.Level.IsTopDown
             && _gameplayManager.RuntimeSettings.SpriteDropShadowEnabled
-            && tint.A > 0)
+            && tint.A > 0
+            && !ShouldReplaceSpriteDropShadow)
         {
             var shadowAlpha = ((tint.A / 255f) * 0.32f);
             var shadowTint = new Color(0, 0, 0) * shadowAlpha;

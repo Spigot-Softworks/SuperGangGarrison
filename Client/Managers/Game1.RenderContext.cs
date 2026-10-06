@@ -219,6 +219,10 @@ public partial class Game1 : IRenderContext
 
     bool IRenderContext.TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, Game1.PlayerBodySpriteSelection bodySelection) => TryDrawWeaponSpriteBackdrop(player, cameraPosition, tint, visibilityAlpha, bodySelection);
 
+    void IRenderContext.BeginCharacterLighting(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha) => BeginCharacterLighting(player, renderPosition, cameraPosition, visibilityAlpha);
+
+    void IRenderContext.EndCharacterLighting() => EndCharacterLighting();
+
     bool IRenderContext.TryGetLastToDieHaxtonSpriteName(PlayerEntity player, out string spriteName) => TryGetLastToDieHaxtonSpriteName(player, out spriteName);
 
     bool IRenderContext.TryGetLocalPlayerAimDirection(PlayerEntity player, out float aimDirectionDegrees) => TryGetLocalPlayerAimDirection(player, out aimDirectionDegrees);

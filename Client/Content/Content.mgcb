@@ -43,3 +43,8 @@
 /processor:EffectProcessor
 /build:CrtHigh.fx
 
+#begin RimLight.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/build:RimLight.fx
+

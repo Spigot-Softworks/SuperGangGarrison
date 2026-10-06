@@ -51,6 +51,11 @@ public partial class Game1
         MapWeatherMetadata.WeatherPropertyKey,
         MapWeatherMetadata.IntensityPropertyKey,
         MapWeatherMetadata.WindPropertyKey,
+        MapWeatherMetadata.RainColorPropertyKey,
+        MapWeatherMetadata.FireflyStylePropertyKey,
+        MapWeatherMetadata.FireflyColorPropertyKey,
+        MapWeatherMetadata.FireflyDensityPropertyKey,
+        MapWeatherMetadata.FireflyGlowPropertyKey,
         ScrMapSettingsMetadata.ShowControlPointsPropertyKey,
         ScrMapSettingsMetadata.ScoreToWinPropertyKey,
         ScrMapSettingsMetadata.WinWhenScorePropertyKey,
@@ -2619,6 +2624,18 @@ public partial class Game1
                 MapWeatherMetadata.Parse(normalized.Metadata).Intensity),
             [MapWeatherMetadata.WindPropertyKey] = MapWeatherMetadata.ToPropertyValue(
                 MapWeatherMetadata.Parse(normalized.Metadata).Wind),
+            [MapWeatherMetadata.RainColorPropertyKey] = MapWeatherMetadata.ParseRainColor(
+                normalized.Metadata.TryGetValue(MapWeatherMetadata.RainColorPropertyKey, out var rainColor) ? rainColor : null).ToHex(),
+            // Firefly rows always carry a value so switching the weather to fireflies has defaults.
+            [MapWeatherMetadata.FireflyStylePropertyKey] = MapWeatherMetadata.ToFireflyStyleValue(
+                MapWeatherMetadata.Parse(normalized.Metadata).FireflyStyle),
+            [MapWeatherMetadata.FireflyColorPropertyKey] = MapWeatherMetadata.Parse(normalized.Metadata).ResolvedFireflyColor.ToHex(),
+            [MapWeatherMetadata.FireflyDensityPropertyKey] = MapWeatherMetadata.ParsePercent(
+                normalized.Metadata.TryGetValue(MapWeatherMetadata.FireflyDensityPropertyKey, out var fireflyDensity) ? fireflyDensity : null,
+                MapWeatherMetadata.DefaultFireflyDensity).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            [MapWeatherMetadata.FireflyGlowPropertyKey] = MapWeatherMetadata.ParsePercent(
+                normalized.Metadata.TryGetValue(MapWeatherMetadata.FireflyGlowPropertyKey, out var fireflyGlow) ? fireflyGlow : null,
+                MapWeatherMetadata.DefaultFireflyGlow).ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["background"] = normalized.Metadata.TryGetValue("background", out var background)
                 ? background
                 : CustomMapBuilderDocument.DefaultBackgroundColor,
@@ -2662,7 +2679,7 @@ public partial class Game1
         if (MapWeatherMetadata.IsWeatherDetailKey(key))
         {
             _builderPropertyEditorValues.TryGetValue(MapWeatherMetadata.WeatherPropertyKey, out var weatherKind);
-            return MapWeatherMetadata.ParseKind(weatherKind) != MapWeatherKind.None;
+            return MapWeatherMetadata.IsDetailKeyRelevant(key, MapWeatherMetadata.ParseKind(weatherKind));
         }
 
         return true;
@@ -2742,12 +2759,7 @@ public partial class Game1
             MapMovementModeMetadata.IsTopDown(_builderPropertyEditorValues)
                 ? MapMovementModeMetadata.TopDownPropertyValue
                 : MapMovementModeMetadata.PlatformerPropertyValue;
-        foreach (var weatherKey in new[]
-        {
-            MapWeatherMetadata.WeatherPropertyKey,
-            MapWeatherMetadata.IntensityPropertyKey,
-            MapWeatherMetadata.WindPropertyKey,
-        })
+        foreach (var weatherKey in MapWeatherMetadata.EditorKeys)
         {
             if (_builderPropertyEditorValues.TryGetValue(weatherKey, out var weatherValue))
             {
@@ -5674,6 +5686,17 @@ public partial class Game1
             && MapLightMetadata.IsLightEntityType(lightEntityType))
         {
             _builderPropertyEditorValues[key] = MapLightMetadata.CycleFlickerValue(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+            return true;
+        }
+
+        if (_builderPropertyTarget != GarrisonBuilderPropertyTarget.MapProperties
+            && key.Equals(MapLightMetadata.FalloffKey, StringComparison.OrdinalIgnoreCase)
+            && TryGetGarrisonBuilderEditedEntityType(out var falloffEntityType)
+            && MapLightMetadata.IsLightEntityType(falloffEntityType))
+        {
+            _builderPropertyEditorValues[key] = MapLightMetadata.CycleFalloffValue(value);
             ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
             return true;

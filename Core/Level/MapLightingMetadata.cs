@@ -60,6 +60,35 @@ public readonly record struct MapLightingColor(byte R, byte G, byte B)
 /// <param name="Banded">Retro stepped light falloff instead of smooth gradients.</param>
 /// <param name="PlayerRange">Radius of the player light, as a percentage of its normal size.</param>
 /// <param name="EffectRange">Radius of gameplay effect lights, as a percentage of their normal size.</param>
+/// <param name="RimLight">Rim light on characters' light-facing edges (0 = off).</param>
+/// <param name="RimWidth">Rim thickness in sprite pixels (1-3).</param>
+/// <param name="RimWrap">How far the rim creeps around the silhouette away from the light.</param>
+/// <param name="RimColorMode">The rim's one flat colour: the light's colour, a brighter glow of it, the player's team colour, or a custom colour.</param>
+/// <param name="RimFromSky">Rim and shadow come from the sky (upper right) instead of the nearest light.</param>
+/// <param name="CastShadow">Opacity of the character's dark silhouette cast away from the light (0 = off).</param>
+/// <param name="ShadowDistance">How far, in world pixels, the cast shadow falls from the character (1-8).</param>
+/// <param name="BodyShade">How far the character's body (everything but the rim) is darkened toward black (0 = off).</param>
+/// <param name="BodySaturation">Colour saturation of the character's body, 0-200 (100 = unchanged, 0 = grey).</param>
+/// <param name="RimCustomColor">The rim colour when <paramref name="RimColorMode"/> is Custom; null uses a warm white.</param>
+/// <summary>How the character rim light is coloured.</summary>
+public enum MapRimColorMode
+{
+    // Every mode paints the whole rim in one flat colour, so edge pixels never mix with the
+    // sprite's own colours. The numeric values are kept stable for saved maps.
+
+    /// <summary>The player's team colour (red or blue). Saved as "team"; old maps' "sprite" reads as this.</summary>
+    Team = 0,
+
+    /// <summary>The light's colour.</summary>
+    Light = 1,
+
+    /// <summary>A brighter, whiter version of the light's colour, so the edge glows. Saved as "add".</summary>
+    Additive = 2,
+
+    /// <summary>A colour the map author picks (<see cref="MapLighting.RimCustomColor"/>).</summary>
+    Custom = 3,
+}
+
 public sealed record MapLighting(
     MapLightingPreset Preset,
     MapLightingColor SkyTint,
@@ -72,8 +101,26 @@ public sealed record MapLighting(
     int Pulse,
     bool Banded,
     int PlayerRange = 100,
-    int EffectRange = 100)
+    int EffectRange = 100,
+    int RimLight = 0,
+    int RimWidth = 1,
+    int RimWrap = 25,
+    MapRimColorMode RimColorMode = MapRimColorMode.Light,
+    bool RimFromSky = false,
+    int CastShadow = 0,
+    int ShadowDistance = 3,
+    int BodyShade = 0,
+    int BodySaturation = 100,
+    MapLightingColor? RimCustomColor = null)
 {
+    /// <summary>The custom rim colour, or the default warm white when none was set.</summary>
+    public MapLightingColor ResolvedRimCustomColor => RimCustomColor ?? MapLightingMetadata.DefaultRimCustomColor;
+
+    public bool HasCharacterLighting => IsActive && (RimLight > 0 || CastShadow > 0 || HasBodyAdjustment);
+
+    /// <summary>True when the character's body is darkened or its saturation changed.</summary>
+    public bool HasBodyAdjustment => BodyShade > 0 || BodySaturation != 100;
+
     public static MapLighting None { get; } = new(
         MapLightingPreset.None,
         MapLightingColor.White,
@@ -102,6 +149,32 @@ public static class MapLightingMetadata
     public const string VignetteKey = "lightVignette";
     public const string PulseKey = "lightPulse";
     public const string StyleKey = "lightStyle";
+    public const string RimKey = "lightRim";
+    public const string RimWidthKey = "lightRimWidth";
+    public const string RimWrapKey = "lightRimWrap";
+    public const string RimColorKey = "lightRimColor";
+    public const string RimSourceKey = "lightRimSource";
+    public const string ShadowKey = "lightShadow";
+    public const string ShadowDistanceKey = "lightShadowDistance";
+    public const string BodyShadeKey = "lightBodyShade";
+    public const string BodySaturationKey = "lightBodySaturation";
+    public const string RimCustomColorKey = "lightRimCustomColor";
+    public const string RimCustomColorValue = "custom";
+
+    /// <summary>Starting colour for a custom rim: a warm white.</summary>
+    public static MapLightingColor DefaultRimCustomColor => new(255, 236, 200);
+
+    public const string RimTeamColorValue = "team";
+    public const string RimSpriteColorValue = "sprite";
+    public const string RimLightColorValue = "light";
+    public const string RimAdditiveColorValue = "add";
+    public const string RimLightsSourceValue = "lights";
+    public const string RimSkySourceValue = "sky";
+
+    public const int MinRimWidth = 1;
+    public const int MaxRimWidth = 3;
+    public const int MinShadowDistance = 1;
+    public const int MaxShadowDistance = 8;
     public const string PlayerRangeKey = "lightPlayerRange";
     public const string EffectRangeKey = "lightEffectRange";
 
@@ -123,6 +196,16 @@ public static class MapLightingMetadata
         VignetteKey,
         PulseKey,
         StyleKey,
+        RimKey,
+        RimWidthKey,
+        RimWrapKey,
+        RimColorKey,
+        RimSourceKey,
+        ShadowKey,
+        ShadowDistanceKey,
+        BodyShadeKey,
+        BodySaturationKey,
+        RimCustomColorKey,
         PlayerRangeKey,
         EffectRangeKey,
     ];
@@ -233,7 +316,29 @@ public static class MapLightingMetadata
             Pulse = ReadPercent(metadata, PulseKey, lighting.Pulse),
             PlayerRange = ReadValue(metadata, PlayerRangeKey, lighting.PlayerRange, MaxScale),
             EffectRange = ReadValue(metadata, EffectRangeKey, lighting.EffectRange, MaxScale),
+            RimLight = ReadPercent(metadata, RimKey, lighting.RimLight),
+            RimWidth = Math.Max(MinRimWidth, ReadValue(metadata, RimWidthKey, lighting.RimWidth, MaxRimWidth)),
+            RimWrap = ReadPercent(metadata, RimWrapKey, lighting.RimWrap),
+            CastShadow = ReadPercent(metadata, ShadowKey, lighting.CastShadow),
+            ShadowDistance = Math.Max(MinShadowDistance, ReadValue(metadata, ShadowDistanceKey, lighting.ShadowDistance, MaxShadowDistance)),
+            BodyShade = ReadPercent(metadata, BodyShadeKey, lighting.BodyShade),
+            BodySaturation = ReadValue(metadata, BodySaturationKey, lighting.BodySaturation, MaxScale),
         };
+
+        if (metadata.TryGetValue(RimColorKey, out var rimColor))
+        {
+            lighting = lighting with { RimColorMode = ParseRimColorMode(rimColor) };
+        }
+
+        if (metadata.TryGetValue(RimCustomColorKey, out var rimCustom) && MapLightingColor.TryParse(rimCustom, out var rimCustomColor))
+        {
+            lighting = lighting with { RimCustomColor = rimCustomColor };
+        }
+
+        if (metadata.TryGetValue(RimSourceKey, out var rimSource))
+        {
+            lighting = lighting with { RimFromSky = rimSource.Trim().Equals(RimSkySourceValue, StringComparison.OrdinalIgnoreCase) };
+        }
 
         if (metadata.TryGetValue(StyleKey, out var style))
         {
@@ -271,12 +376,74 @@ public static class MapLightingMetadata
         metadata[StyleKey] = lighting.Banded ? BandedStyleValue : SmoothStyleValue;
         metadata[PlayerRangeKey] = ClampScale(lighting.PlayerRange).ToString(CultureInfo.InvariantCulture);
         metadata[EffectRangeKey] = ClampScale(lighting.EffectRange).ToString(CultureInfo.InvariantCulture);
+        metadata[RimKey] = Clamp(lighting.RimLight).ToString(CultureInfo.InvariantCulture);
+        metadata[RimWidthKey] = Math.Clamp(lighting.RimWidth, MinRimWidth, MaxRimWidth).ToString(CultureInfo.InvariantCulture);
+        metadata[RimWrapKey] = Clamp(lighting.RimWrap).ToString(CultureInfo.InvariantCulture);
+        metadata[RimColorKey] = ToRimColorValue(lighting.RimColorMode);
+        metadata[RimSourceKey] = lighting.RimFromSky ? RimSkySourceValue : RimLightsSourceValue;
+        metadata[ShadowKey] = Clamp(lighting.CastShadow).ToString(CultureInfo.InvariantCulture);
+        metadata[ShadowDistanceKey] = Math.Clamp(lighting.ShadowDistance, MinShadowDistance, MaxShadowDistance).ToString(CultureInfo.InvariantCulture);
+        metadata[BodyShadeKey] = Clamp(lighting.BodyShade).ToString(CultureInfo.InvariantCulture);
+        metadata[BodySaturationKey] = ClampScale(lighting.BodySaturation).ToString(CultureInfo.InvariantCulture);
+        if (lighting.RimCustomColor is { } rimCustomColor)
+        {
+            metadata[RimCustomColorKey] = rimCustomColor.ToHex();
+        }
     }
 
     public static int Clamp(int percent) => Math.Clamp(percent, 0, 100);
 
     /// <summary>Clamp for brightness and the ranges, where 100 is normal and 200 is double.</summary>
     public static int ClampScale(int percent) => Math.Clamp(percent, 0, MaxScale);
+
+    public static MapRimColorMode ParseRimColorMode(string? value)
+    {
+        var text = value?.Trim();
+        if (string.Equals(text, RimTeamColorValue, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(text, RimSpriteColorValue, StringComparison.OrdinalIgnoreCase))
+        {
+            return MapRimColorMode.Team;
+        }
+
+        if (string.Equals(text, RimAdditiveColorValue, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(text, "additive", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(text, "glow", StringComparison.OrdinalIgnoreCase))
+        {
+            return MapRimColorMode.Additive;
+        }
+
+        if (string.Equals(text, RimCustomColorValue, StringComparison.OrdinalIgnoreCase))
+        {
+            return MapRimColorMode.Custom;
+        }
+
+        return MapRimColorMode.Light;
+    }
+
+    public static string ToRimColorValue(MapRimColorMode mode) => mode switch
+    {
+        MapRimColorMode.Team => RimTeamColorValue,
+        MapRimColorMode.Additive => RimAdditiveColorValue,
+        MapRimColorMode.Custom => RimCustomColorValue,
+        _ => RimLightColorValue,
+    };
+
+    /// <summary>Light -> Glow -> Team -> Custom -> Light.</summary>
+    public static MapRimColorMode NextRimColorMode(MapRimColorMode mode) => mode switch
+    {
+        MapRimColorMode.Light => MapRimColorMode.Additive,
+        MapRimColorMode.Additive => MapRimColorMode.Team,
+        MapRimColorMode.Team => MapRimColorMode.Custom,
+        _ => MapRimColorMode.Light,
+    };
+
+    public static string GetRimColorDisplayLabel(MapRimColorMode mode) => mode switch
+    {
+        MapRimColorMode.Team => "Team colour",
+        MapRimColorMode.Additive => "Light (glow)",
+        MapRimColorMode.Custom => "Custom",
+        _ => "Light colour",
+    };
 
     private static int ReadPercent(IReadOnlyDictionary<string, string> metadata, string key, int fallback) =>
         ReadValue(metadata, key, fallback, 100);

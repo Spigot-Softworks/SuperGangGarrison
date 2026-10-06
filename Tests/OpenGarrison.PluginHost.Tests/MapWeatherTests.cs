@@ -30,12 +30,115 @@ public sealed class MapWeatherTests : IDisposable
     }
 
     [Fact]
+    public void FirefliesParseNormalizeAndOnlyShowTheirOwnRows()
+    {
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["weather"] = "Fireflies",
+            ["weatherFireflyColor"] = "#88ccff",
+            ["weatherFireflyDensity"] = "250",
+            ["weatherFireflyGlow"] = "nope",
+        };
+
+        var weather = MapWeatherMetadata.Parse(metadata);
+        Assert.Equal(MapWeatherKind.Fireflies, weather.Kind);
+        Assert.Equal(new MapLightingColor(0x88, 0xcc, 0xff), weather.ResolvedFireflyColor);
+        Assert.Equal(100, weather.FireflyDensity);
+        Assert.Equal(MapWeatherMetadata.DefaultFireflyGlow, weather.FireflyGlow);
+
+        MapWeatherMetadata.Normalize(metadata);
+        Assert.Equal("88ccff", metadata["weatherFireflyColor"]);
+        Assert.Equal("100", metadata["weatherFireflyDensity"]);
+        Assert.Equal(weather, MapWeatherMetadata.Parse(metadata));
+
+        // Switching to other weather drops the firefly keys.
+        metadata["weather"] = "rain";
+        MapWeatherMetadata.Normalize(metadata);
+        Assert.False(metadata.ContainsKey("weatherFireflyColor"));
+        Assert.Equal(new MapWeather(MapWeatherKind.Rain), MapWeatherMetadata.Parse(metadata));
+
+        Assert.True(MapWeatherMetadata.IsDetailKeyRelevant("weatherFireflyGlow", MapWeatherKind.Fireflies));
+        Assert.False(MapWeatherMetadata.IsDetailKeyRelevant("weatherFireflyGlow", MapWeatherKind.Snow));
+        Assert.False(MapWeatherMetadata.IsDetailKeyRelevant("weatherIntensity", MapWeatherKind.Fireflies));
+        Assert.True(MapWeatherMetadata.IsDetailKeyRelevant("weatherWind", MapWeatherKind.Fireflies));
+        Assert.True(ControlPointMapSettingsMetadata.IsEditableMapMetadataKey("weatherFireflyDensity"));
+        Assert.Equal(MapWeatherMetadata.DefaultFireflyColor, new MapWeather(MapWeatherKind.Fireflies).ResolvedFireflyColor);
+    }
+
+    [Fact]
+    public void FirefliesHoverInOpenAirAndScaleWithDensity()
+    {
+        // Floor at y = 300 across a 1000 x 400 map, with a solid block over x 400..600.
+        var mask = WeatherSkyMask.Build(
+            [new LevelSolid(0f, 300f, 1000f, 100f), new LevelSolid(400f, 0f, 200f, 300f)],
+            new WorldBounds(1000f, 400f),
+            null);
+        var fireflies = new List<FireflyInstance>();
+        var counts = new List<int>();
+        foreach (var density in new[] { 0, 25, 100 })
+        {
+            var total = 0;
+            for (var frame = 0; frame < 30; frame += 1)
+            {
+                FireflyField.Collect(fireflies, mask, 0f, 0f, 1000f, 400f, 1000f, 400f, 100d + (frame * 0.5d), MapWeatherWind.Calm, density, 1f, null);
+                foreach (var firefly in fireflies)
+                {
+                    Assert.InRange(firefly.Brightness, 0f, 1f);
+                    Assert.True(firefly.Y < 300f, "above the floor");
+                    Assert.False(firefly.X > 401f && firefly.X < 599f, "never inside the block");
+                }
+
+                total += fireflies.Count;
+            }
+
+            counts.Add(total);
+        }
+
+        Assert.Equal(0, counts[0]);
+        Assert.True(counts[2] > counts[1] && counts[1] > 0);
+    }
+
+    [Fact]
+    public void SubtleMotesDriftSteadilyWithoutBlinking()
+    {
+        var mask = WeatherSkyMask.Build([new LevelSolid(0f, 300f, 1000f, 100f)], new WorldBounds(1000f, 400f), null);
+        var before = new List<FireflyInstance>();
+        var after = new List<FireflyInstance>();
+        FireflyField.Collect(before, mask, 0f, 0f, 1000f, 400f, 1000f, 400f, 200d, MapWeatherWind.Calm, 60, 1f, null, MapFireflyStyle.Subtle);
+        FireflyField.Collect(after, mask, 0f, 0f, 1000f, 400f, 1000f, 400f, 200.1d, MapWeatherWind.Calm, 60, 1f, null, MapFireflyStyle.Subtle);
+
+        // Over a tenth of a second nothing appears or vanishes and nobody darts or flickers.
+        Assert.NotEmpty(before);
+        Assert.InRange(after.Count, before.Count - 2, before.Count + 2);
+        var steady = 0;
+        foreach (var mote in before)
+        {
+            Assert.True(mote.Y < 300f, "above the floor");
+            foreach (var later in after)
+            {
+                if (MathF.Abs(later.X - mote.X) < 3f && MathF.Abs(later.Y - mote.Y) < 3f)
+                {
+                    Assert.InRange(later.Brightness, mote.Brightness - 0.05f, mote.Brightness + 0.05f);
+                    steady += 1;
+                    break;
+                }
+            }
+        }
+
+        Assert.True(steady >= before.Count - 2);
+        Assert.Equal(MapFireflyStyle.Subtle, MapWeatherMetadata.ParseFireflyStyle("Subtle"));
+        Assert.True(MapWeatherMetadata.TryCyclePropertyValue("weatherFireflyStyle", "fireflies", out var next));
+        Assert.Equal("subtle", next);
+    }
+
+    [Fact]
     public void CyclesVisitEveryValueAndWrap()
     {
         Assert.Equal("rain", MapWeatherMetadata.CycleKindPropertyValue(null));
         Assert.Equal("snow", MapWeatherMetadata.CycleKindPropertyValue("rain"));
         Assert.Equal("leaves", MapWeatherMetadata.CycleKindPropertyValue("SNOW"));
-        Assert.Equal("none", MapWeatherMetadata.CycleKindPropertyValue("leaves"));
+        Assert.Equal("fireflies", MapWeatherMetadata.CycleKindPropertyValue("leaves"));
+        Assert.Equal("none", MapWeatherMetadata.CycleKindPropertyValue("fireflies"));
         Assert.Equal("heavy", MapWeatherMetadata.CycleIntensityPropertyValue("medium"));
         Assert.Equal("storm", MapWeatherMetadata.CycleIntensityPropertyValue("heavy"));
         Assert.Equal("light", MapWeatherMetadata.CycleIntensityPropertyValue("storm"));
@@ -63,6 +166,65 @@ public sealed class MapWeatherTests : IDisposable
         Assert.Equal("snow", metadata["weather"]);
         Assert.Equal("medium", metadata["weatherIntensity"]);
         Assert.Equal("calm", metadata["weatherWind"]);
+    }
+
+    [Fact]
+    public void RainColorParsesNormalizesAndOnlyShowsForRain()
+    {
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["weather"] = "rain",
+            ["weatherRainColor"] = "#C0302A",
+        };
+
+        var weather = MapWeatherMetadata.Parse(metadata);
+        Assert.Equal(new MapLightingColor(0xC0, 0x30, 0x2A), weather.RainColor);
+        Assert.Equal(weather.RainColor, weather.ResolvedRainColor);
+        MapWeatherMetadata.Normalize(metadata);
+        Assert.Equal("c0302a", metadata["weatherRainColor"]);
+
+        // The default colour (or junk) is not stored, so plain rain stays plain.
+        metadata["weatherRainColor"] = MapWeatherMetadata.DefaultRainColor.ToHex();
+        Assert.Equal(new MapWeather(MapWeatherKind.Rain), MapWeatherMetadata.Parse(metadata));
+        MapWeatherMetadata.Normalize(metadata);
+        Assert.False(metadata.ContainsKey("weatherRainColor"));
+        metadata["weatherRainColor"] = "purple";
+        Assert.Equal(MapWeatherMetadata.DefaultRainColor, MapWeatherMetadata.Parse(metadata).ResolvedRainColor);
+
+        // Other weather drops the key and ignores it.
+        metadata["weather"] = "snow";
+        metadata["weatherRainColor"] = "ff0000";
+        Assert.Equal(new MapWeather(MapWeatherKind.Snow), MapWeatherMetadata.Parse(metadata));
+        MapWeatherMetadata.Normalize(metadata);
+        Assert.False(metadata.ContainsKey("weatherRainColor"));
+
+        Assert.True(MapWeatherMetadata.IsDetailKeyRelevant("weatherRainColor", MapWeatherKind.Rain));
+        Assert.False(MapWeatherMetadata.IsDetailKeyRelevant("weatherRainColor", MapWeatherKind.Snow));
+        Assert.False(MapWeatherMetadata.IsDetailKeyRelevant("weatherRainColor", MapWeatherKind.Fireflies));
+        Assert.True(ControlPointMapSettingsMetadata.IsEditableMapMetadataKey("weatherRainColor"));
+        Assert.Equal("Rain colour (hex): c0302a", MapWeatherMetadata.TryFormatRowLabel("weatherRainColor", "c0302a"));
+    }
+
+    [Fact]
+    public void CustomRainColorTintsEveryDrop()
+    {
+        var mask = WeatherSkyMask.Build([new LevelSolid(0f, 380f, 1000f, 20f)], new WorldBounds(1000f, 400f));
+        var field = new RetroWeatherField();
+        field.Configure(MapWeatherKind.Rain, MapWeatherIntensity.Heavy);
+        field.SetRainColor(new XnaColor(200, 20, 20));
+        var sink = new ColorSink(new List<XnaColor>());
+        for (var frame = 0; frame < 30; frame += 1)
+        {
+            field.Emit(ref sink, mask, 0f, 0f, 1000f, 400f, 1000f, 400f, frame / 30d, MapWeatherWind.Calm, 1f);
+        }
+
+        Assert.NotEmpty(sink.Colors);
+        Assert.All(sink.Colors, color => Assert.True(color.R >= color.G * 4 && color.R >= color.B * 4, $"{color} is not red"));
+
+        field.SetRainColor(null);
+        sink.Colors.Clear();
+        field.Emit(ref sink, mask, 0f, 0f, 1000f, 400f, 1000f, 400f, 1d, MapWeatherWind.Calm, 1f);
+        Assert.All(sink.Colors, color => Assert.True(color.B >= color.R, $"{color} is not the default blue"));
     }
 
     [Fact]
@@ -236,6 +398,21 @@ public sealed class MapWeatherTests : IDisposable
 
         // Ten minutes at 60 fps: some flashes, but well under 2% of frames.
         Assert.InRange(flashingSamples, 1, 60 * 600 / 50);
+    }
+
+    private readonly struct ColorSink : IWeatherPixelSink
+    {
+        public ColorSink(List<XnaColor> colors)
+        {
+            Colors = colors;
+        }
+
+        public List<XnaColor> Colors { get; }
+
+        public void Fill(int x, int y, int width, int height, XnaColor color)
+        {
+            Colors.Add(color);
+        }
     }
 
     public void Dispose()

@@ -11,6 +11,15 @@ public enum MapLightFlicker
     Pulse,
 }
 
+/// <summary>How a placed light fades toward its edge.</summary>
+public enum MapLightFalloff
+{
+    /// <summary>Follow the map's lighting falloff (smooth or retro).</summary>
+    Map,
+    Smooth,
+    Retro,
+}
+
 /// <summary>A placed point light. Presentation only; only visible when the map has lighting on.</summary>
 public readonly record struct MapLightMarker(
     float X,
@@ -18,7 +27,10 @@ public readonly record struct MapLightMarker(
     MapLightingColor Color,
     float Radius,
     int Intensity,
-    MapLightFlicker Flicker)
+    MapLightFlicker Flicker,
+    MapLightFalloff Falloff = MapLightFalloff.Map,
+    float Direction = 0f,
+    float Spread = MapLightMetadata.FullSpread)
 {
     public MapLightMarker Scale(float scale) => this with { X = X * scale, Y = Y * scale, Radius = Radius * scale };
 }
@@ -30,6 +42,13 @@ public static class MapLightMetadata
     public const string RadiusKey = "radius";
     public const string IntensityKey = "intensity";
     public const string FlickerKey = "flicker";
+    public const string FalloffKey = "falloff";
+    public const string DirectionKey = "direction";
+    public const string SpreadKey = "spread";
+
+    /// <summary>A spread this wide (or wider) is an ordinary round light.</summary>
+    public const float FullSpread = 360f;
+    public const float MinSpread = 10f;
 
     public const float DefaultRadius = 160f;
     public const float MinRadius = 8f;
@@ -68,6 +87,44 @@ public static class MapLightMetadata
     public static string CycleFlickerValue(string? current) =>
         ToFlickerValue((MapLightFlicker)(((int)ParseFlicker(current) + 1) % 3));
 
+    public static MapLightFalloff ParseFalloff(string? value)
+    {
+        var text = value?.Trim();
+        if (string.Equals(text, "smooth", StringComparison.OrdinalIgnoreCase))
+        {
+            return MapLightFalloff.Smooth;
+        }
+
+        if (string.Equals(text, "retro", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(text, "bands", StringComparison.OrdinalIgnoreCase))
+        {
+            return MapLightFalloff.Retro;
+        }
+
+        return MapLightFalloff.Map;
+    }
+
+    public static string ToFalloffValue(MapLightFalloff falloff) => falloff switch
+    {
+        MapLightFalloff.Smooth => "smooth",
+        MapLightFalloff.Retro => "retro",
+        _ => "map",
+    };
+
+    /// <summary>Map -> Smooth -> Retro -> Map.</summary>
+    public static string CycleFalloffValue(string? current) =>
+        ToFalloffValue((MapLightFalloff)(((int)ParseFalloff(current) + 1) % 3));
+
+    /// <summary>
+    /// Whether this light draws with retro bands, given the map's own falloff style.
+    /// </summary>
+    public static bool UsesRetroBands(MapLightFalloff falloff, bool mapBanded) => falloff switch
+    {
+        MapLightFalloff.Smooth => false,
+        MapLightFalloff.Retro => true,
+        _ => mapBanded,
+    };
+
     public static MapLightMarker FromProperties(float x, float y, IReadOnlyDictionary<string, string> properties)
     {
         var color = properties.TryGetValue(ColorKey, out var rawColor) && MapLightingColor.TryParse(rawColor, out var parsedColor)
@@ -83,7 +140,35 @@ public static class MapLightMetadata
                 ? Math.Clamp(parsedIntensity, 0, 200)
                 : DefaultIntensity;
         properties.TryGetValue(FlickerKey, out var flicker);
-        return new MapLightMarker(x, y, color, radius, intensity, ParseFlicker(flicker));
+        properties.TryGetValue(FalloffKey, out var falloff);
+        var direction = properties.TryGetValue(DirectionKey, out var rawDirection)
+            && float.TryParse(rawDirection.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedDirection)
+            && float.IsFinite(parsedDirection)
+                ? NormalizeDirection(parsedDirection)
+                : 0f;
+        var spread = properties.TryGetValue(SpreadKey, out var rawSpread)
+            && float.TryParse(rawSpread.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedSpread)
+            && float.IsFinite(parsedSpread)
+                ? Math.Clamp(parsedSpread, MinSpread, FullSpread)
+                : FullSpread;
+        return new MapLightMarker(x, y, color, radius, intensity, ParseFlicker(flicker), ParseFalloff(falloff), direction, spread);
+    }
+
+    /// <summary>Degrees in [0, 360): 0 = right, 90 = up, 180 = left, 270 = down.</summary>
+    public static float NormalizeDirection(float degrees)
+    {
+        var result = degrees % 360f;
+        return result < 0f ? result + 360f : result;
+    }
+
+    /// <summary>True for a spotlight (a cone narrower than a full circle).</summary>
+    public static bool IsDirectional(float spread) => spread < FullSpread - 5f;
+
+    /// <summary>World-space unit vector for a direction (screen y points down).</summary>
+    public static (float X, float Y) GetDirectionVector(float degrees)
+    {
+        var radians = degrees * (MathF.PI / 180f);
+        return (MathF.Cos(radians), -MathF.Sin(radians));
     }
 }
 

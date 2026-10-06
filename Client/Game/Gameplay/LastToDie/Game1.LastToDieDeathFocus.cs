@@ -323,6 +323,8 @@ public partial class Game1
 
         EnsureLastToDieDeathFocusTarget(viewportWidth, viewportHeight);
         var focusCameraPosition = GetLastToDieDeathFocusCameraTopLeft(viewportWidth, viewportHeight);
+        // Map lighting for the focus view (built before the capture target is bound).
+        BeginGameplayLightingCapture(focusCameraPosition, viewportWidth, viewportHeight);
         WriteGameplayRenderTrace("lasttodie focus setrendertarget");
         GraphicsDevice.SetRenderTarget(_lastToDieDeathFocusTarget);
         GraphicsDevice.Clear(new Color(24, 32, 48));
@@ -340,6 +342,7 @@ public partial class Game1
         _spriteBatch.End();
         WriteGameplayRenderTrace("lasttodie focus setrendertarget-null");
         GraphicsDevice.SetRenderTarget(null);
+        EndGameplayLightingCapture();
 
         PrepareLastToDieFailureCorpseOverlayIfNeeded(viewportWidth, viewportHeight);
     }
