@@ -27,7 +27,7 @@ float3 RimColor;         // the rim's final flat colour (strength already applie
 float RimWidth;          // 1..3 texels
 float CardinalLimit;     // a straight (up/down/left/right) neighbour counts when cos(angle to light) >= this
 float DiagonalLimit;     // likewise for a diagonal neighbour (stricter, so flat edges do not catch side light)
-float BlendMode;         // 0 normal, 1 add, 2 screen, 3 multiply, 4 overlay
+float BlendMode;         // 0 normal, 1 add, 2 screen, 3 color dodge, 4 overlay
 float RimOpacity;        // 0..1, how strongly the blended rim replaces the pixel
 float GrazeBand;         // how far the limits relax toward the light-facing end of the sprite
 float BodyShade;         // 0..1, darkens the body toward black
@@ -107,7 +107,7 @@ float4 RimPixel(float4 position : SV_Position, float4 color : COLOR0, float2 tex
         (RimColor * (1.0 - saturate(abs(BlendMode))))
         + (saturate(under + RimColor) * (1.0 - saturate(abs(BlendMode - 1.0))))
         + ((1.0 - ((1.0 - under) * (1.0 - RimColor))) * (1.0 - saturate(abs(BlendMode - 2.0))))
-        + ((under * RimColor) * (1.0 - saturate(abs(BlendMode - 3.0))))
+        + (saturate(under / max(1.0 - RimColor, 0.004)) * (1.0 - saturate(abs(BlendMode - 3.0))))
         + (lerp(overlayLow, overlayHigh, step(0.5, under)) * (1.0 - saturate(abs(BlendMode - 4.0))));
     float3 rimRgb = lerp(under, blended, RimOpacity);
 

@@ -256,6 +256,9 @@ public sealed class MapLightingTests : IDisposable
         Assert.Equal(lighting, MapLightingMetadata.Parse(written));
 
         Assert.Equal(MapRimBlendMode.Normal, MapLightingMetadata.ParseRimBlend("nonsense"));
+        Assert.Equal(MapRimBlendMode.ColorDodge, MapLightingMetadata.ParseRimBlend("color dodge"));
+        Assert.Equal("colordodge", MapLightingMetadata.ToRimBlendValue(MapRimBlendMode.ColorDodge));
+        Assert.Equal(MapRimBlendMode.ColorDodge, MapLightingMetadata.NextRimBlend(MapRimBlendMode.Screen));
         Assert.Equal(MapRimBlendMode.Add, MapLightingMetadata.NextRimBlend(MapRimBlendMode.Normal));
         Assert.Equal(MapRimBlendMode.Normal, MapLightingMetadata.NextRimBlend(MapRimBlendMode.Overlay));
     }

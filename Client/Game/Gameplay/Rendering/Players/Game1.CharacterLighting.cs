@@ -478,12 +478,11 @@ public partial class Game1
         };
 
         // A weak light fades the rim toward the blend's "no change" colour: black for
-        // normal / add / screen, white for multiply, mid grey for overlay. Kept just above
+        // normal / add / screen / color dodge, mid grey for overlay. Kept just above
         // black so the shader still treats it as a rim.
         var amount = MathF.Sqrt(MathF.Min(strength, 1f));
         var neutral = lighting.RimBlend switch
         {
-            MapRimBlendMode.Multiply => Vector3.One,
             MapRimBlendMode.Overlay => new Vector3(0.5f),
             _ => Vector3.Zero,
         };

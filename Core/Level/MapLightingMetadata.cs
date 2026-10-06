@@ -106,8 +106,8 @@ public enum MapRimBlendMode
     /// <summary>A softer brighten that never blows out to white.</summary>
     Screen,
 
-    /// <summary>Tints and darkens the edge.</summary>
-    Multiply,
+    /// <summary>Brightens hard and saturates, keeping the art's darks: a hot, burning edge.</summary>
+    ColorDodge,
 
     /// <summary>Boosts contrast and saturation toward the rim colour.</summary>
     Overlay,
@@ -501,9 +501,12 @@ public static class MapLightingMetadata
         return value < 1f ? HalfRimWidth : Math.Clamp((int)MathF.Round(value), 1, MaxRimWidth);
     }
 
+    public static string GetRimBlendDisplayLabel(MapRimBlendMode mode) =>
+        mode == MapRimBlendMode.ColorDodge ? "Color dodge" : mode.ToString();
+
     public static MapRimBlendMode ParseRimBlend(string? value)
     {
-        var text = value?.Trim() ?? string.Empty;
+        var text = value?.Trim().Replace(" ", string.Empty, StringComparison.Ordinal).Replace("-", string.Empty, StringComparison.Ordinal) ?? string.Empty;
         foreach (var mode in Enum.GetValues<MapRimBlendMode>())
         {
             if (mode.ToString().Equals(text, StringComparison.OrdinalIgnoreCase))
@@ -517,7 +520,7 @@ public static class MapLightingMetadata
 
     public static string ToRimBlendValue(MapRimBlendMode mode) => mode.ToString().ToLowerInvariant();
 
-    /// <summary>Normal -> Add -> Screen -> Multiply -> Overlay -> Normal.</summary>
+    /// <summary>Normal -> Add -> Screen -> Color dodge -> Overlay -> Normal.</summary>
     public static MapRimBlendMode NextRimBlend(MapRimBlendMode mode) =>
         (MapRimBlendMode)(((int)mode + 1) % Enum.GetValues<MapRimBlendMode>().Length);
 

@@ -728,7 +728,7 @@ public partial class Game1
                     DrawBuilderMenuButton(bounds, $"Light from: {MapLightingMetadata.GetRimSourceDisplayLabel(draft.RimSource)}", hovered, enabled: active);
                     break;
                 case GarrisonBuilderLightingRow.RimBlend:
-                    DrawBuilderMenuButton(bounds, $"Rim blend: {draft.RimBlend}", hovered, enabled: active);
+                    DrawBuilderMenuButton(bounds, $"Rim blend: {MapLightingMetadata.GetRimBlendDisplayLabel(draft.RimBlend)}", hovered, enabled: active);
                     break;
                 case GarrisonBuilderLightingRow.UberRim:
                     DrawBuilderMenuButton(bounds, $"Uber rim (team colour): {(draft.UberRim ? "On" : "Off")}", hovered, enabled: active);
