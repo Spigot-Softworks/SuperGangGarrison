@@ -147,7 +147,7 @@ public partial class Game1
             SurfaceFormat.Color,
             DepthFormat.None,
             preferredMultiSampleCount: 0,
-            RenderTargetUsage.DiscardContents);
+            RenderTargetUsage.PreserveContents);
     }
 
     public void BeginLogicalFrame(Color clearColor)
@@ -448,7 +448,10 @@ public partial class Game1
 
     private bool ShouldRenderDirectlyToBackBuffer()
     {
-        if (ShouldUseCrtPresentation)
+        // Painted emission needs a preserved target while actors/foreground are lit
+        // separately. Use the logical canvas on maps that require that extra layer.
+        if (ShouldUseCrtPresentation || _gameplayLightmap.HasPaintedMaskEmission
+            || _builderLightmap.HasPaintedMaskEmission || _builderLightMaskCanvas is not null)
         {
             return false;
         }

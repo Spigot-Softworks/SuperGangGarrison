@@ -249,7 +249,7 @@ public partial class Game1
     private bool IsCameraPanningEligible()
     {
         return _gameplayManager.RuntimeSettings.CameraPanningEnabled
-            && !_networkClient.IsLegacyGg2Connection
+            && _networkClient.Profile.AllowsCameraPanningAndSmoothing
             && !OpenGarrison.ClientShared.ClientDistribution.IsGg2Only
             && _world.LocalPlayer.IsAlive
             && !IsDeathCamPresentationActive()
@@ -666,7 +666,7 @@ public partial class Game1
 
     private bool ShouldSmoothCamera()
     {
-        if (_networkClient.IsLegacyGg2Connection)
+        if (!_networkClient.Profile.AllowsCameraPanningAndSmoothing)
         {
             return false;
         }

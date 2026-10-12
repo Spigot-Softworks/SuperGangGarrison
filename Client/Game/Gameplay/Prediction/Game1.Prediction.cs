@@ -76,7 +76,9 @@ public partial class Game1
             && _networkClient.IsConnected
             && !_networkClient.IsAwaitingWelcome
             && !_networkClient.IsReplayConnection
-            && !_networkClient.IsLegacyGg2Connection
+            // GG2 servers never acknowledge inputs; the transport estimates acks from
+            // the server's key-state echo, and the player can turn GG2 prediction off.
+            && (!_networkClient.Profile.PredictionIsPlayerOption || _gameplayManager.RuntimeSettings.Gg2PredictionEnabled)
             && !_networkClient.IsSpectator
             && _localPlayerSnapshotEntityId.HasValue
             && _world.LocalPlayer.IsAlive

@@ -1250,6 +1250,7 @@ public partial class Game1
         return key.Equals(MapLogicMetadata.LogicInputPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.LogicInput1PropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.LogicInput2PropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.LogicInput3PropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.LogicResetPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.StartWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(MapLogicMetadata.EndWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
@@ -1259,7 +1260,11 @@ public partial class Game1
             || key.Equals(GameplayMessageMetadata.OnEndTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(BotSpawnMetadata.DeathTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DamageableMetadata.HealWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
-            || SpritesheetMetadata.IsLogicInputPropertyKey(key);
+            || key.Equals(DamageableMetadata.OnDestroyedPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(DamageableMetadata.OnRedDestroyedPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(DamageableMetadata.OnBlueDestroyedPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || SpritesheetMetadata.IsLogicInputPropertyKey(key)
+            || MapLightMetadata.IsLogicInputKey(key);
     }
 
     private string GetGarrisonBuilderPropertyEditorValue(string key)
@@ -1322,6 +1327,10 @@ public partial class Game1
                 DamageableMetadata.DisableWhenDestroyedPropertyKey,
                 DamageableMetadata.SentryTargetPropertyKey,
                 DamageableMetadata.StabbablePropertyKey,
+                DamageableMetadata.RespawnPropertyKey,
+                DamageableMetadata.OnDestroyedPropertyKey,
+                DamageableMetadata.OnRedDestroyedPropertyKey,
+                DamageableMetadata.OnBlueDestroyedPropertyKey,
             ]
             : entityType.Equals(DamageTriggerMetadata.DamageTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             ?
@@ -1336,6 +1345,12 @@ public partial class Game1
                 DamageTriggerMetadata.TriggerOnHealPropertyKey,
                 DamageTriggerMetadata.TriggerWhenDestroyedPropertyKey,
                 DamageTriggerMetadata.AffectedByTeamPropertyKey,
+                DestructiblePropMetadata.DestructionKey,
+                DestructiblePropMetadata.MinimumOpacityKey,
+                DestructiblePropMetadata.TransitionKey,
+                DestructiblePropMetadata.RespawnKey,
+                DestructiblePropMetadata.DestructionSoundKey,
+                DestructiblePropMetadata.RespawnSoundKey,
                 MapLogicMetadata.NodePriorityPropertyKey,
             ]
             : entityType.Equals(MapLogicMetadata.RisingEdgeEntityType, StringComparison.OrdinalIgnoreCase)
@@ -1366,6 +1381,7 @@ public partial class Game1
                     MapLogicMetadata.GateTypePropertyKey,
                     MapLogicMetadata.LogicInput1PropertyKey,
                     MapLogicMetadata.LogicInput2PropertyKey,
+                    MapLogicMetadata.LogicInput3PropertyKey,
                     MapLogicMetadata.NodePriorityPropertyKey,
                 ]
                 : entityType.Equals(MapLogicMetadata.ActivatorEntityType, StringComparison.OrdinalIgnoreCase)
@@ -2168,8 +2184,15 @@ public partial class Game1
 
             if (entity.Type.Equals(MapLogicMetadata.GateEntityType, StringComparison.OrdinalIgnoreCase))
             {
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput1PropertyKey, 0, 2);
-                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput2PropertyKey, 1, 2);
+                MapLogicMetadata.TryParseGateType(
+                    GetEntityProperty(entity.Properties, MapLogicMetadata.GateTypePropertyKey, "and"), out var gateType);
+                var inputCount = gateType == MapLogicGateType.And ? 3 : 2;
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput1PropertyKey, 0, inputCount);
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput2PropertyKey, 1, inputCount);
+                if (inputCount == 3)
+                {
+                    DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInput3PropertyKey, 2, inputCount);
+                }
                 continue;
             }
 
@@ -2221,6 +2244,14 @@ public partial class Game1
             if (SpritesheetMetadata.IsSpritesheetEntityType(entity.Type))
             {
                 DrawGarrisonBuilderSpritesheetInputLinks(entity);
+                DrawGarrisonBuilderDamageTriggerEntityLink(entity);
+                continue;
+            }
+
+            if (MapLightMetadata.IsLightEntityType(entity.Type))
+            {
+                DrawGarrisonBuilderLightInputLinks(entity);
+                DrawGarrisonBuilderDamageTriggerEntityLink(entity);
                 continue;
             }
 
@@ -2229,6 +2260,9 @@ public partial class Game1
                 DrawGarrisonBuilderLogicConsumerLink(
                     entity,
                     GetEntityProperty(entity.Properties, DamageableMetadata.HealWhenPropertyKey, string.Empty));
+                foreach (var key in new[] { DamageableMetadata.OnDestroyedPropertyKey, DamageableMetadata.OnRedDestroyedPropertyKey, DamageableMetadata.OnBlueDestroyedPropertyKey })
+                    if (TryFindGarrisonBuilderLogicSource(GetEntityProperty(entity.Properties, key, ""), out var target, out _))
+                        DrawGarrisonBuilderLogicLink(entity, target);
                 continue;
             }
 
@@ -2236,6 +2270,9 @@ public partial class Game1
             {
                 DrawGarrisonBuilderDamageTriggerEntityLink(entity);
             }
+            else if (CustomMapCustomSpriteMetadata.IsCustomSpriteEntityType(entity.Type)
+                || ForegroundSpriteMetadata.IsForegroundSpriteEntityType(entity.Type))
+                DrawGarrisonBuilderDamageTriggerEntityLink(entity);
         }
 
         for (var entityIndex = 0; entityIndex < _builderEntities.Count; entityIndex += 1)
@@ -2464,6 +2501,12 @@ public partial class Game1
             && TryGetGarrisonBuilderEditedEntityType(out var signalEntity)
             && MapLogicSignalMetadata.SupportsSignalProperty(signalEntity))
         {
+            if (signalEntity.Equals(MapLogicMetadata.CpTriggerEntityType, StringComparison.OrdinalIgnoreCase))
+            {
+                return MapLogicSignalMetadata.ParseSignalMode(value) == MapLogicSignalMode.Impulse
+                    ? "Signal: Capture event (pulse)"
+                    : "Signal: Ownership (held)";
+            }
             return $"Signal: {MapLogicSignalMetadata.GetSignalDisplayLabel(value)}";
         }
 
@@ -2655,11 +2698,19 @@ public partial class Game1
                 _ when key.Equals(MapLogicMetadata.LogicInputPropertyKey, StringComparison.OrdinalIgnoreCase) => "Input",
                 _ when key.Equals(MapLogicMetadata.LogicInput1PropertyKey, StringComparison.OrdinalIgnoreCase) => "Input1",
                 _ when key.Equals(MapLogicMetadata.LogicInput2PropertyKey, StringComparison.OrdinalIgnoreCase) => "Input2",
+                _ when key.Equals(MapLogicMetadata.LogicInput3PropertyKey, StringComparison.OrdinalIgnoreCase) => "Input3 (optional)",
                 _ when key.Equals(MapLogicMetadata.LogicResetPropertyKey, StringComparison.OrdinalIgnoreCase) => "Reset",
                 _ when key.Equals(MapLogicMetadata.LogicSignalPropertyKey, StringComparison.OrdinalIgnoreCase) => "Logic signal",
                 _ when key.Equals(MapLogicMetadata.LockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase) => "Lock when",
                 _ when key.Equals(MapLogicMetadata.UnlockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase) => "Unlock when",
                 _ when key.Equals(DamageableMetadata.HealWhenPropertyKey, StringComparison.OrdinalIgnoreCase) => "Heal when",
+                _ when GetDestructionPropertyLabel(key) is { } label => label,
+                _ when key.Equals(MapLightMetadata.FollowInputKey, StringComparison.OrdinalIgnoreCase) => "Power input",
+                _ when key.Equals(MapLightMetadata.OnInputKey, StringComparison.OrdinalIgnoreCase) => "On trigger",
+                _ when key.Equals(MapLightMetadata.OffInputKey, StringComparison.OrdinalIgnoreCase) => "Off trigger",
+                _ when key.Equals(MapLightMetadata.ToggleInputKey, StringComparison.OrdinalIgnoreCase) => "Toggle trigger",
+                _ when key.Equals(MapLightMetadata.ColorInputKey, StringComparison.OrdinalIgnoreCase) => "Secondary colour signal",
+                _ when key.Equals(MapLightMetadata.TertiaryColorInputKey, StringComparison.OrdinalIgnoreCase) => "Tertiary colour signal",
                 _ => key,
             };
             return $"{prefix}: {GetGarrisonBuilderLogicPropertyDisplayValue(key, value)}";

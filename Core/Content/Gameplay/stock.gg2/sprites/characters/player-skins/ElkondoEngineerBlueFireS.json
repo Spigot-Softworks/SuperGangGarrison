@@ -1,0 +1,14 @@
+{
+  "id": "ElkondoEngineerBlueFireS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoEngineerBlueFireS/0.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueFireS/1.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueFireS/2.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueFireS/3.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueFireS/4.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueFireS/5.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueFireS/6.png"
+  ],
+  "originX": 28,
+  "originY": 42
+}

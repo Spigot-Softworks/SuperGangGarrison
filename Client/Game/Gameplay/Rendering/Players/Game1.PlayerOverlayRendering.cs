@@ -104,8 +104,10 @@ public partial class Game1
 
     private void DrawOverheadChatMessage(PlayerEntity player, Vector2 cameraPosition)
     {
+        // GG2 shows chat in the chat box only (overhead names stay).
         if (IsPlayerMutedByScoreboardSlot(player)
             || !_hudManager.RuntimeSettings.OverheadChatEnabled
+            || UsesGg2Presentation
             || !TryGetOverheadChatMessageForPlayer(player, out var message))
         {
             return;
@@ -402,6 +404,36 @@ public partial class Game1
 
         var fillRectangle = new Rectangle(backRectangle.X, backRectangle.Y, fillWidth, backRectangle.Height);
         _spriteBatch.Draw(_pixel, fillRectangle, fillColor);
+    }
+
+    /// <summary>
+    /// GG2's bar over a teammate: draw_healthbar(x-10, y-30, x+10, y-25), black back and
+    /// border, red-to-green fill.
+    /// </summary>
+    internal void DrawGg2OverheadHealthBar(PlayerEntity player, Vector2 cameraPosition)
+    {
+        if (player.MaxHealth <= 0 || GetPlayerVisibilityAlpha(player) <= 0f)
+        {
+            return;
+        }
+
+        var anchor = GetPlayerSpriteScreenOrigin(GetRenderPosition(player), cameraPosition);
+        var x = (int)MathF.Round(anchor.X);
+        var y = (int)MathF.Round(anchor.Y);
+        var outer = new Rectangle(x - 10, y - 30, 21, 6);
+        _spriteBatch.Draw(_pixel, outer, Color.Black);
+        var fraction = Math.Clamp(player.Health / (float)player.MaxHealth, 0f, 1f);
+        var fillWidth = (int)MathF.Round(19f * fraction);
+        if (fillWidth > 0)
+        {
+            _spriteBatch.Draw(_pixel, new Rectangle(outer.X + 1, outer.Y + 1, fillWidth, 4), GetGg2HealthBarColor(fraction));
+        }
+    }
+
+    /// <summary>GML draw_healthbar's fill: merge_color(c_red, c_green, amount).</summary>
+    internal static Color GetGg2HealthBarColor(float fraction)
+    {
+        return Color.Lerp(new Color(255, 0, 0), new Color(0, 128, 0), Math.Clamp(fraction, 0f, 1f));
     }
 
     internal static int GetPlayerMeterBarY(Rectangle playerBounds, bool placeBelow)

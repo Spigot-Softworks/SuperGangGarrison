@@ -67,6 +67,7 @@ public sealed class GameplayPlayerRenderController
             }
 
             _game.EndCharacterLighting();
+            _game.DrawPlayerHealGlow(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection, shouldDrawWeapon);
 
             _game.DrawHealingCrossParticles(player, renderPosition, cameraPosition, visibilityAlpha);
             _game.GameplayWeaponRenderer.DrawCivvieUmbrellaShieldBlockVisuals(player, cameraPosition, visibilityAlpha, bodySelection);

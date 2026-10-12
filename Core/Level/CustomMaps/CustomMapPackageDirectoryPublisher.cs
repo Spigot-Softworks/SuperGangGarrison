@@ -29,17 +29,14 @@ public static class CustomMapPackageDirectoryPublisher
         if (!string.IsNullOrWhiteSpace(sourceMapsDirectory) && Directory.Exists(sourceMapsDirectory))
         {
             CopyDirectoryContents(sourceMapsDirectory, destinationMapsDirectory);
-            copiedTopLevelLegacyPngCount = Directory
-                .EnumerateFiles(sourceMapsDirectory, "*.png", SearchOption.TopDirectoryOnly)
-                .Count();
+            copiedTopLevelLegacyPngCount = CustomMapDirectoryLayout.EnumerateLegacyPngMaps(sourceMapsDirectory).Count();
         }
 
         var convertedLegacyPngCount = 0;
         var keptLegacyPngCount = 0;
         var droppedLegacyPngCount = 0;
-        foreach (var legacyPngPath in Directory
-            .EnumerateFiles(destinationMapsDirectory, "*.png", SearchOption.TopDirectoryOnly)
-            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+        // Legacy PNGs anywhere in the category/mode folders convert in place.
+        foreach (var legacyPngPath in CustomMapDirectoryLayout.EnumerateLegacyPngMaps(destinationMapsDirectory).ToArray())
         {
             if (CustomMapLegacyPackageAutoConverter.TryConvertLegacyPng(legacyPngPath, out var manifestPath, out _)
                 && File.Exists(manifestPath))
@@ -83,7 +80,17 @@ public static class CustomMapPackageDirectoryPublisher
                     continue;
                 }
 
-                var destinationPackageDirectory = Path.Combine(destinationMapsDirectory, packageName);
+                if (CustomMapDirectoryLayout.TryFindPackageManifest(destinationMapsDirectory, packageName, out _))
+                {
+                    continue;
+                }
+
+                // Stock package templates are SGG maps: Maps/Super Gang Garrison/<mode>/<name>.
+                var destinationPackageDirectory = Path.Combine(
+                    destinationMapsDirectory,
+                    CustomMapDirectoryLayout.SuperGangGarrisonCategory,
+                    CustomMapDirectoryLayout.ResolveModeFolderName(packageName, manifestPath),
+                    packageName);
                 if (Directory.Exists(destinationPackageDirectory))
                 {
                     continue;

@@ -292,7 +292,7 @@ public partial class Game1
 
     public Vector2 GetRenderPosition(PlayerEntity player, bool allowInterpolation = true)
     {
-        if (_networkClient.IsLegacyGg2Connection
+        if (_networkClient.Profile.SendsRestingPositionsDirectly
             && player.IsAlive
             && MathF.Abs(player.HorizontalSpeed) < 1f
             && MathF.Abs(player.VerticalSpeed) < 1f)

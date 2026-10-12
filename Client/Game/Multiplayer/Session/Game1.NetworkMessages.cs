@@ -226,7 +226,7 @@ public partial class Game1
 
     private void ApplyHostedLastToDiePredictionProfiles()
     {
-        if (_networkClient.IsLegacyGg2Connection)
+        if (_networkClient.Profile.ServerOwnsPlayerScale)
         {
             // GG2 owns the player's size and position. Clearing an unrelated
             // Last to Die profile resets scale and shifts both coordinates

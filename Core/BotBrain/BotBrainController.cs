@@ -1596,7 +1596,8 @@ public sealed class BotBrainController
         if (world.MatchRules.Mode is not (GameModeKind.Arena
             or GameModeKind.ControlPoint
             or GameModeKind.KingOfTheHill
-            or GameModeKind.DoubleKingOfTheHill)
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest)
             || world.ControlPoints.Count == 0)
         {
             return evaluatedGoal;
@@ -2280,7 +2281,8 @@ public sealed class BotBrainController
         var isControlPointMode = world.MatchRules.Mode is GameModeKind.Arena
             or GameModeKind.ControlPoint
             or GameModeKind.KingOfTheHill
-            or GameModeKind.DoubleKingOfTheHill;
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest;
         if (isControlPointMode)
         {
             foreach (var point in world.ControlPoints)
@@ -2367,7 +2369,8 @@ public sealed class BotBrainController
         return _lastLevel?.Mode is GameModeKind.ControlPoint
             or GameModeKind.Arena
             or GameModeKind.KingOfTheHill
-            or GameModeKind.DoubleKingOfTheHill;
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest;
     }
 
     private static bool ShouldReplaceStalePathFromCurrentPosition(
@@ -2494,7 +2497,8 @@ public sealed class BotBrainController
         if (world.MatchRules.Mode is not (GameModeKind.Arena
             or GameModeKind.ControlPoint
             or GameModeKind.KingOfTheHill
-            or GameModeKind.DoubleKingOfTheHill))
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest))
         {
             return 1;
         }
@@ -3788,7 +3792,8 @@ public sealed class BotBrainController
         if (world.MatchRules.Mode is not (GameModeKind.Arena
             or GameModeKind.ControlPoint
             or GameModeKind.KingOfTheHill
-            or GameModeKind.DoubleKingOfTheHill)
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest)
             || world.ControlPoints.Count == 0
             || IsAtAlphaObjectiveArrival(world, self))
         {
@@ -4914,7 +4919,7 @@ public sealed class BotBrainController
         && self.ClassId == PlayerClass.Engineer;
 
     private static bool IsControlPointEngineerBuilder(SimulationWorld world, PlayerEntity self) =>
-        world.MatchRules.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+        world.MatchRules.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest
         && self.ClassId == PlayerClass.Engineer;
 
     private static bool ShouldPreferTruefortEngineerCaptureTheFlagDefensePocketRecovery(
@@ -6758,7 +6763,7 @@ public sealed class BotBrainController
         directSteering = steeringOutput;
         directTrace = string.Empty;
         if ((IsNavigationGraphUsable(_navGraph))
-            || world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+            || world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest))
         {
             return false;
         }
@@ -7106,7 +7111,7 @@ public sealed class BotBrainController
     {
         target = null!;
         point = null!;
-        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest))
         {
             return false;
         }
@@ -7930,7 +7935,8 @@ public sealed class BotBrainController
         if (world.MatchRules.Mode is not (GameModeKind.Arena
             or GameModeKind.ControlPoint
             or GameModeKind.KingOfTheHill
-            or GameModeKind.DoubleKingOfTheHill))
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest))
         {
             return;
         }
@@ -8253,7 +8259,7 @@ public sealed class BotBrainController
         out ControlPointState point)
     {
         point = null!;
-        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest))
         {
             return false;
         }

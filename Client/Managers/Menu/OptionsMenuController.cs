@@ -69,7 +69,11 @@ public sealed class OptionsMenuController
         private int _optionsScrollOffset;
         private enum AudioOptionsGroup { Game, Chat }
         private AudioOptionsGroup? _expandedAudioGroup = AudioOptionsGroup.Game;
-        private bool _crtOptionsExpanded;
+        /// <summary>
+        /// The open settings group on each tab (one at a time, like an accordion). A tab with
+        /// no entry opens its first group; an empty name means every group is collapsed.
+        /// </summary>
+        private readonly Dictionary<OptionsMenuTab, string> _expandedOptionsGroups = new();
 
         public OptionsMenuController(IMenuContext context)
         {
@@ -79,7 +83,6 @@ public sealed class OptionsMenuController
         public void OpenOptionsMenu(bool fromGameplay)
         {
             _context._optionsMenuOpen = true;
-            _crtOptionsExpanded = false;
             _context._optionsMenuOpenedFromGameplay = fromGameplay;
             _context._optionsPageIndex = 0;
             _optionsScrollOffset = 0;
@@ -600,16 +603,22 @@ public sealed class OptionsMenuController
                 new("Menu Background", GetMenuBackgroundModeLabel(_context.GameplayRuntimeSettings.MenuBackgroundMode), _context.CycleMenuBackgroundModeSetting, OptionsMenuTab.Graphics),
                 new("Particles", GetParticleModeLabel(_context.GameplayRuntimeSettings.ParticleMode), _context.CycleParticleModeSetting, OptionsMenuTab.Graphics),
                 new("Flame Style", GetFlameRenderModeLabel(_context.GameplayRuntimeSettings.FlameRenderMode), _context.CycleFlameRenderModeSetting, OptionsMenuTab.Graphics),
-                new("Blood Style", GetBloodRenderModeLabel(_context.GameplayRuntimeSettings.BloodRenderMode), _context.CycleBloodRenderModeSetting, OptionsMenuTab.Graphics),
-                new("Dynamic Ragdoll", _context.GameplayRuntimeSettings.DynamicRagdollEnabled ? "Enabled" : "Disabled", _context.ToggleDynamicRagdollSetting, OptionsMenuTab.Graphics),
-                new("Burn Charred Corpses", _context.GameplayRuntimeSettings.BurnCharredCorpsesEnabled ? "Enabled" : "Disabled", _context.ToggleBurnCharredCorpsesSetting, OptionsMenuTab.Graphics),
+                new("Map Lighting", _context.GameplayRuntimeSettings.MapLightingEnabled ? "Enabled" : "Disabled", _context.ToggleMapLightingSetting, OptionsMenuTab.Graphics),
+                new("Lighting Intensity", $"{OpenGarrisonPreferencesDocument.NormalizeLightingIntensityPercent(_context.GameplayRuntimeSettings.LightingIntensityPercent)}%", _context.CycleLightingIntensitySetting, OptionsMenuTab.Graphics, _context.AdjustLightingIntensitySetting),
+                new("Music-Reactive Lights", _context.GameplayRuntimeSettings.LightsFollowJukeboxEnabled ? "Enabled" : "Disabled", _context.ToggleLightsFollowJukeboxSetting, OptionsMenuTab.Graphics),
+                new("Character Brightmaps", _context.GameplayRuntimeSettings.CharacterBrightmapsEnabled ? "Enabled" : "Disabled", _context.ToggleCharacterBrightmapsSetting, OptionsMenuTab.Graphics),
+                new("Weather", _context.GameplayRuntimeSettings.WeatherEnabled ? "Enabled" : "Disabled", _context.ToggleWeatherSetting, OptionsMenuTab.Graphics),
+                new("Classic GG2 Visuals", _context.GameplayRuntimeSettings.ClassicVisualsEnabled ? "Enabled" : "Disabled", _context.ToggleClassicVisualsSetting, OptionsMenuTab.Graphics),
+                new("Blood Style", ClassicForced(GetBloodRenderModeLabel(_context.GameplayRuntimeSettings.BloodRenderMode)), _context.CycleBloodRenderModeSetting, OptionsMenuTab.Graphics),
+                new("Dynamic Ragdoll", ClassicForced(_context.GameplayRuntimeSettings.DynamicRagdollEnabled ? "Enabled" : "Disabled"), _context.ToggleDynamicRagdollSetting, OptionsMenuTab.Graphics),
+                new("Burn Charred Corpses", ClassicForced(_context.GameplayRuntimeSettings.BurnCharredCorpsesEnabled ? "Enabled" : "Disabled"), _context.ToggleBurnCharredCorpsesSetting, OptionsMenuTab.Graphics),
                 new("Gibs", GetGibLevelLabel(_context.GameplayRuntimeSettings.GibLevel), _context.CycleGibLevelSetting, OptionsMenuTab.Graphics),
                 new("Blood Amount", GetBloodAmountLabel(_context.GameplayRuntimeSettings.BloodAmountLevel), _context.CycleBloodAmountSetting, OptionsMenuTab.Graphics),
                 new("Blood Persistence", $"{_context.GameplayRuntimeSettings.BloodPersistenceSeconds}s", () => _context.AdjustBloodPersistenceSeconds(1), OptionsMenuTab.Graphics, _context.AdjustBloodPersistenceSeconds),
-                new("Corpse Fade", GetCorpseFadeModeLabel(_context.GameplayRuntimeSettings.CorpseFadeMode), _context.CycleCorpseFadeModeSetting, OptionsMenuTab.Graphics),
+                new("Corpse Fade", ClassicForced(GetCorpseFadeModeLabel(_context.GameplayRuntimeSettings.CorpseFadeMode)), _context.CycleCorpseFadeModeSetting, OptionsMenuTab.Graphics),
                 new("Stuck Arrows", _context.GameplayRuntimeSettings.StuckArrowsEnabled ? "Enabled" : "Disabled", _context.ToggleStuckArrowsSetting, OptionsMenuTab.Graphics),
                 new("Weapon Bob", GetWeaponBobModeLabel(_context.GameplayRuntimeSettings.WeaponBobMode), _context.CycleWeaponBobSetting, OptionsMenuTab.Graphics),
-                new("Corpses", GetCorpseDurationLabel(_context.GameplayRuntimeSettings.CorpseDurationMode), _context.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
+                new("Corpses", ClassicForced(GetCorpseDurationLabel(_context.GameplayRuntimeSettings.CorpseDurationMode)), _context.CycleCorpseDurationSetting, OptionsMenuTab.Graphics),
                 new("Sprite Shadow", _context.GameplayRuntimeSettings.SpriteDropShadowEnabled ? "Enabled" : "Disabled", _context.ToggleSpriteDropShadowSetting, OptionsMenuTab.Graphics),
                 new("Weapon Rotation", _context.GameplayRuntimeSettings.PixelPerfectWeaponRotation ? "Pixel-Perfect" : "High-Res", _context.ToggleWeaponRotationStyleSetting, OptionsMenuTab.Graphics),
                 new("Weapon Rotation Source", _context.GameplayRuntimeSettings.UseLocalWeaponRotation ? "Local (snappier)" : "Remote (accurate)", _context.ToggleWeaponRotationSourceSetting, OptionsMenuTab.Graphics),
@@ -658,6 +667,7 @@ public sealed class OptionsMenuController
                 new("Kill Cam", _context.GameplayRuntimeSettings.KillCamEnabled ? "Enabled" : "Disabled", _context.ToggleKillCamSetting, OptionsMenuTab.Gameplay),
                 new("Network Smoothing", _context.GameplayRuntimeSettings.PositionSmoothingEnabled ? "Enabled" : "Disabled", _context.TogglePositionSmoothingSetting, OptionsMenuTab.Gameplay),
                 new("Enable Prediction", _context.GameplayRuntimeSettings.EnablePrediction ? "Enabled" : "Disabled", _context.TogglePredictionSetting, OptionsMenuTab.Gameplay),
+                new("GG2 Prediction", _context.GameplayRuntimeSettings.Gg2PredictionEnabled ? "Enabled" : "Disabled", _context.ToggleGg2PredictionSetting, OptionsMenuTab.Gameplay),
 
                 // Account: portable identity, recovery, points, and future cosmetic currency.
                 new("Friend Code", _context._clientIdentity.FriendCode, NoOp, OptionsMenuTab.Account),
@@ -681,24 +691,16 @@ public sealed class OptionsMenuController
 
             if (_context.IsCrtSettingsUnlockedForSession)
             {
-                var crtActions = new List<OptionsMenuAction>
+                // Grouped under "CRT" by ApplyOptionsGroups.
+                allActions.InsertRange(2, new OptionsMenuAction[]
                 {
-                    new("CRT", _crtOptionsExpanded ? "[-]" : "[+]", ToggleCrtOptionsGroup, OptionsMenuTab.Graphics, IsGroupHeader: true),
-                };
-                if (_crtOptionsExpanded)
-                {
-                    crtActions.AddRange(new OptionsMenuAction[]
-                    {
-                        new("CRT Filter", _context.GetCrtPresetLabel(), _context.CycleCrtPresetSetting, OptionsMenuTab.Graphics),
-                        new("CRT Quality", _context.GetCrtQualityStatusLabel(), _context.CycleCrtQualitySetting, OptionsMenuTab.Graphics),
-                        new("CRT Signal", _context.GetCrtSignalModeLabel(), _context.CycleCrtSignalModeSetting, OptionsMenuTab.Graphics),
-                        new("CRT Curvature", _context._clientSettings.CrtCurvatureEnabled ? "Enabled" : "Disabled", _context.ToggleCrtCurvatureSetting, OptionsMenuTab.Graphics),
-                        new("CRT Brightness", $"{_context._clientSettings.CrtBrightnessPercent}%", _context.CycleCrtBrightnessSetting, OptionsMenuTab.Graphics, step => _context.AdjustCrtBrightnessSetting(step * 5)),
-                        new("Reset CRT Settings", string.Empty, _context.ResetCrtSettings, OptionsMenuTab.Graphics),
-                    });
-                }
-
-                allActions.InsertRange(2, crtActions);
+                    new("CRT Filter", _context.GetCrtPresetLabel(), _context.CycleCrtPresetSetting, OptionsMenuTab.Graphics),
+                    new("CRT Quality", _context.GetCrtQualityStatusLabel(), _context.CycleCrtQualitySetting, OptionsMenuTab.Graphics),
+                    new("CRT Signal", _context.GetCrtSignalModeLabel(), _context.CycleCrtSignalModeSetting, OptionsMenuTab.Graphics),
+                    new("CRT Curvature", _context._clientSettings.CrtCurvatureEnabled ? "Enabled" : "Disabled", _context.ToggleCrtCurvatureSetting, OptionsMenuTab.Graphics),
+                    new("CRT Brightness", $"{_context._clientSettings.CrtBrightnessPercent}%", _context.CycleCrtBrightnessSetting, OptionsMenuTab.Graphics, step => _context.AdjustCrtBrightnessSetting(step * 5)),
+                    new("Reset CRT Settings", string.Empty, _context.ResetCrtSettings, OptionsMenuTab.Graphics),
+                });
             }
 
             if (!IsRestrictedBrowserEdition && _context.HasClientPluginOptions())
@@ -724,18 +726,133 @@ public sealed class OptionsMenuController
                     continue;
                 if (OpenGarrison.ClientShared.ClientDistribution.IsGg2Only && !IsGg2OnlyOption(action))
                     continue;
+                // The limited editions always use the classic look, so there is nothing to toggle.
+                if (GameplayRuntimeSettings.IsClassicVisualsForcedByEdition && action.Label == "Classic GG2 Visuals")
+                    continue;
                 if (action.Tab == currentTab)
                 {
                     filteredActions.Add(action);
                 }
             }
 
-            return filteredActions;
+            return ApplyOptionsGroups(currentTab, filteredActions);
+        }
+
+        /// <summary>Settings group order per tab; groups not listed follow in order of appearance.</summary>
+        private static readonly Dictionary<OptionsMenuTab, string[]> OptionsGroupOrder = new()
+        {
+            [OptionsMenuTab.Graphics] = ["Display", "Lighting & Weather", "Effects", "Gore", "Weapons", "CRT"],
+            [OptionsMenuTab.Controls] = ["Bindings", "Controller"],
+            [OptionsMenuTab.Hud] = ["Health", "Healing", "Names & Chat", "Layout"],
+            [OptionsMenuTab.Gameplay] = ["General", "Network"],
+            [OptionsMenuTab.Account] = ["Identity & Recovery", "Points & Status"],
+        };
+
+        /// <summary>The settings group an option belongs to, or null for tabs that stay a flat list.</summary>
+        private static string? GetOptionsGroup(OptionsMenuTab tab, string label) => tab switch
+        {
+            OptionsMenuTab.Graphics => label switch
+            {
+                "Display Mode" or "Aspect Ratio" or "Window Size" or "Reset Window Size" or "Frame Limit" or "V Sync"
+                    or "Cursor Size" or "Menu Background" or "Camera panning" => "Display",
+                "Map Lighting" or "Lighting Intensity" or "Weather" => "Lighting & Weather",
+                "Blood Style" or "Blood Amount" or "Blood Persistence" or "Gibs" or "Dynamic Ragdoll"
+                    or "Burn Charred Corpses" or "Corpse Fade" or "Corpses" => "Gore",
+                "Weapon Bob" or "Weapon Rotation" or "Weapon Rotation Source" => "Weapons",
+                "CRT Filter" or "CRT Quality" or "CRT Signal" or "CRT Curvature" or "CRT Brightness" or "Reset CRT Settings" => "CRT",
+                _ => "Effects",
+            },
+            OptionsMenuTab.Controls => label is "Keyboard & Mouse" or "Swap Weapons" or "Scroll Wheel Weapon Swap"
+                ? "Bindings"
+                : "Controller",
+            OptionsMenuTab.Hud => label switch
+            {
+                "Health Bar" or "Shield Bar" or "Low HP Color" or "Damage Vignette" or "Vignette Intensity" => "Health",
+                "Healer Radar" or "Show Healer" or "Show Healing" => "Healing",
+                "Player Names" or "Persistent Name" or "Overhead Chat" => "Names & Chat",
+                _ => "Layout",
+            },
+            OptionsMenuTab.Gameplay => label is "Network Smoothing" or "Enable Prediction" or "GG2 Prediction" ? "Network" : "General",
+            OptionsMenuTab.Account => label is "Lifetime Points" or "Wallet" or "Global Rank" or "Refresh Account" or "Account Status"
+                ? "Points & Status"
+                : "Identity & Recovery",
+            _ => null,
+        };
+
+        /// <summary>
+        /// Folds a tab's options into collapsible groups (one open at a time). A tab whose
+        /// options all fall in one group, or in none, stays a flat list.
+        /// </summary>
+        private List<OptionsMenuAction> ApplyOptionsGroups(OptionsMenuTab tab, List<OptionsMenuAction> actions)
+        {
+            var groups = new List<(string Name, List<OptionsMenuAction> Items)>();
+            var ungrouped = new List<OptionsMenuAction>();
+            foreach (var action in actions)
+            {
+                var groupName = action.IsGroupHeader ? null : GetOptionsGroup(tab, action.Label);
+                if (groupName is null)
+                {
+                    ungrouped.Add(action);
+                    continue;
+                }
+
+                var groupIndex = groups.FindIndex(group => group.Name == groupName);
+                if (groupIndex < 0)
+                {
+                    groups.Add((groupName, new List<OptionsMenuAction>()));
+                    groupIndex = groups.Count - 1;
+                }
+
+                groups[groupIndex].Items.Add(action);
+            }
+
+            if (groups.Count <= 1)
+            {
+                return actions;
+            }
+
+            var order = OptionsGroupOrder.TryGetValue(tab, out var listed) ? listed : Array.Empty<string>();
+            var sorted = new List<(string Name, List<OptionsMenuAction> Items)>(groups);
+            sorted.Sort((left, right) =>
+            {
+                var leftRank = Array.IndexOf(order, left.Name);
+                var rightRank = Array.IndexOf(order, right.Name);
+                leftRank = leftRank < 0 ? order.Length + groups.FindIndex(group => group.Name == left.Name) : leftRank;
+                rightRank = rightRank < 0 ? order.Length + groups.FindIndex(group => group.Name == right.Name) : rightRank;
+                return leftRank.CompareTo(rightRank);
+            });
+
+            var open = _expandedOptionsGroups.TryGetValue(tab, out var chosen) ? chosen : sorted[0].Name;
+            var result = new List<OptionsMenuAction>(actions.Count + sorted.Count);
+            foreach (var (name, items) in sorted)
+            {
+                var isOpen = name == open;
+                var capturedName = name;
+                result.Add(new OptionsMenuAction(name, isOpen ? "[-]" : "[+]", () => ToggleOptionsGroup(tab, capturedName), tab, IsGroupHeader: true));
+                if (isOpen)
+                {
+                    result.AddRange(items);
+                }
+            }
+
+            result.AddRange(ungrouped);
+            return result;
+        }
+
+        private void ToggleOptionsGroup(OptionsMenuTab tab, string groupName)
+        {
+            var actions = BuildOptionsMenuActions();
+            var wasOpen = actions.Exists(action => action.IsGroupHeader && action.Label == groupName && action.Value == "[-]");
+            _expandedOptionsGroups[tab] = wasOpen ? string.Empty : groupName;
+            _optionsScrollOffset = 0;
+            actions = BuildOptionsMenuActions();
+            _optionsHoverIndex = Math.Max(0, actions.FindIndex(action => action.IsGroupHeader && action.Label == groupName));
         }
 
         private static bool IsGg2OnlyOption(OptionsMenuAction action) => action.Tab switch
         {
             OptionsMenuTab.Graphics => action.Label is "Display Mode" or "Aspect Ratio"
+                or "Map Lighting" or "Lighting Intensity" or "Weather"
                 or "CRT" or "CRT Filter" or "CRT Quality" or "CRT Signal" or "CRT Curvature" or "CRT Brightness" or "Reset CRT Settings"
                 or "Window Size" or "Cursor Size" or "Particles" or "Flame Style" or "Blood Style" or "Blood Amount" or "Blood Persistence"
                 or "Dynamic Ragdoll" or "Corpse Fade" or "Gibs"
@@ -798,14 +915,6 @@ public sealed class OptionsMenuController
             _expandedAudioGroup = _expandedAudioGroup == group ? null : group;
             _optionsScrollOffset = 0;
             _optionsHoverIndex = group == AudioOptionsGroup.Game ? 0 : 1;
-        }
-
-        private void ToggleCrtOptionsGroup()
-        {
-            _crtOptionsExpanded = !_crtOptionsExpanded;
-            _optionsScrollOffset = 0;
-            var actions = BuildOptionsMenuActions();
-            _optionsHoverIndex = Math.Max(0, actions.FindIndex(action => action.Label == "CRT"));
         }
 
         private static OptionsMenuTab GetOptionsMenuTab(int pageIndex)
@@ -1070,6 +1179,10 @@ public sealed class OptionsMenuController
         {
             return flameRenderMode == 0 ? "Particle" : "Sprite";
         }
+
+        /// <summary>Marks a gore setting that Classic GG2 Visuals is currently overriding.</summary>
+        private string ClassicForced(string label) =>
+            _context.GameplayRuntimeSettings.ClassicVisualsEnabled ? $"{label} (Classic)" : label;
 
         private static string GetBloodRenderModeLabel(int bloodRenderMode)
         {

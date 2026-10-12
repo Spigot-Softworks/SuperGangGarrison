@@ -23,6 +23,7 @@ public partial class Game1
             var height = MathF.Max(1f, platform.Height);
             if (TryGetRuntimeCustomMapVisualResourceTexture(platform.ResourceName, out var texture))
             {
+                texture = GetCurrentCustomMapFrame(texture);
                 _spriteBatch.Draw(
                     texture,
                     position,

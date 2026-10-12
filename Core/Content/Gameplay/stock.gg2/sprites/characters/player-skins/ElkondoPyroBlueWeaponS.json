@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoPyroBlueWeaponS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoPyroBlueWeaponS/0.png",
+    "assets/characters/player-skins/ElkondoPyroBlueWeaponS/1.png",
+    "assets/characters/player-skins/ElkondoPyroBlueWeaponS/2.png",
+    "assets/characters/player-skins/ElkondoPyroBlueWeaponS/3.png",
+    "assets/characters/player-skins/ElkondoPyroBlueWeaponS/4.png",
+    "assets/characters/player-skins/ElkondoPyroBlueWeaponS/5.png",
+    "assets/characters/player-skins/ElkondoPyroBlueWeaponS/6.png",
+    "assets/characters/player-skins/ElkondoPyroBlueWeaponS/7.png",
+    "assets/characters/player-skins/ElkondoPyroBlueWeaponS/8.png"
+  ],
+  "originX": 30,
+  "originY": 38
+}

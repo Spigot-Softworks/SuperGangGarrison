@@ -636,7 +636,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimateVisualEventBytes(SnapshotVisualEvent visualEvent)
     {
-        return EstimateStringBytes(visualEvent.EffectName) + 32;
+        return EstimateStringBytes(visualEvent.EffectName) + 33;
     }
 
     private static int EstimateDeadBodyBytes(SnapshotDeadBodyState deadBody)
@@ -646,7 +646,7 @@ internal static class SnapshotDeltaBudgeter
 
     private static int EstimateGibSpawnEventBytes(SnapshotGibSpawnEvent gibEvent)
     {
-        return EstimateStringBytes(gibEvent.SpriteName) + 48;
+        return EstimateStringBytes(gibEvent.SpriteName) + 49;
     }
 
     private static int EstimateRocketSpawnEventBytes(SnapshotRocketSpawnEvent rocketEvent)

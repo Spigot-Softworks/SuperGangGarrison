@@ -176,6 +176,24 @@ public sealed class PlayerSkinWeapon
     public int[] Pivot { get; set; } = [];
     public int[] Muzzle { get; set; } = [];
     public bool DrawBehindBody { get; set; }
+
+    /// <summary>Weapon art box when wider than the body's (flamethrower, minigun); import-time only.</summary>
+    public int[] Canvas { get; set; } = [];
+
+    /// <summary>
+    /// Fire strips that play at a fixed rate while the trigger is held (flamethrower,
+    /// minigun): frames before this index play once as a wind-up, the rest loop.
+    /// -1 keeps the normal one-shot playback over the recoil duration.
+    /// </summary>
+    public int FireLoopStart { get; set; } = -1;
+
+    /// <summary>Playback rate for a looping fire strip (see <see cref="FireLoopStart"/>).</summary>
+    public float FireFramesPerSecond { get; set; } = 15;
+
+    /// <summary>Strip played when the class ability fires (Pyro airblast).</summary>
+    public string? AbilitySprite { get; set; }
+
+    public int AbilityDurationSourceTicks { get; set; } = 12;
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]

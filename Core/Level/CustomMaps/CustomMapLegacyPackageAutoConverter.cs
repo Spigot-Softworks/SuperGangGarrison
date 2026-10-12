@@ -142,9 +142,9 @@ public static class CustomMapLegacyPackageAutoConverter
             return;
         }
 
-        foreach (var legacyPngPath in Directory
-            .EnumerateFiles(customMapsDirectory, "*.png", SearchOption.TopDirectoryOnly)
-            .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+        // Maps can be sorted into group folders (Maps/Classic/koth/...); each PNG is
+        // converted beside itself. Listed first, since converting adds package folders.
+        foreach (var legacyPngPath in CustomMapDirectoryLayout.EnumerateLegacyPngMaps(customMapsDirectory).ToArray())
         {
             _ = TryConvertLegacyPng(legacyPngPath, out _, out _);
         }

@@ -80,9 +80,9 @@ internal interface IMatchObjectiveHost : IPlayerCountHost
 
     void ApplyControlPointSetupMatchRules();
 
-    void UpdateKothState();
+    void UpdatePointScoringState();
 
-    void AdvanceKothMatchStateCore();
+    void AdvancePointScoringMatchState();
 
     bool ShouldDeferVipObjectiveResolution();
 
@@ -136,8 +136,9 @@ internal sealed class MatchObjectiveSystem
                 break;
             case GameModeKind.KingOfTheHill:
             case GameModeKind.DoubleKingOfTheHill:
+            case GameModeKind.Conquest:
                 _host.UpdateControlPointState();
-                _host.UpdateKothState();
+                _host.UpdatePointScoringState();
                 break;
             case GameModeKind.Generator:
                 _host.UpdateGeneratorState();
@@ -171,7 +172,8 @@ internal sealed class MatchObjectiveSystem
                 break;
             case GameModeKind.KingOfTheHill:
             case GameModeKind.DoubleKingOfTheHill:
-                _host.AdvanceKothMatchStateCore();
+            case GameModeKind.Conquest:
+                _host.AdvancePointScoringMatchState();
                 break;
             case GameModeKind.Generator:
             case GameModeKind.TeamDeathmatch:

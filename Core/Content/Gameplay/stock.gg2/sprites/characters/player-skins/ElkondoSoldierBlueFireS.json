@@ -1,0 +1,14 @@
+{
+  "id": "ElkondoSoldierBlueFireS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoSoldierBlueFireS/0.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueFireS/1.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueFireS/2.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueFireS/3.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueFireS/4.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueFireS/5.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueFireS/6.png"
+  ],
+  "originX": 28,
+  "originY": 42
+}

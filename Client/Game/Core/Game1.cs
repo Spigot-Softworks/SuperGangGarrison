@@ -406,6 +406,12 @@ public partial class Game1 : Game
         FlushClientFrameCapture();
         _gameplayLightmap.Dispose();
         _builderLightmap.Dispose();
+        _gameplayEmissiveLayer.Dispose();
+        _builderEmissiveLayer.Dispose();
+        _mapBeamRenderer.Dispose();
+        _spriteBrightmaps?.Dispose();
+        DisposeBloodSpriteFrames();
+        DisposeTeamFireSpriteFrames();
         _voiceChat?.Dispose();
         _voiceChat = null;
         _runUploads?.Dispose();
@@ -427,6 +433,12 @@ public partial class Game1 : Game
         EnsureTextureUploadSyncPolicy();
         BeginClientPerformanceDiagnosticsFrame(gameTime);
         _networkInterpolationClockSeconds = _networkInterpolationClock.Elapsed.TotalSeconds;
+        // Classic GG2 visuals (the option, GG2 servers, the limited editions) also mean GG2's own gore.
+        _world.ClassicGoreEnabled = UsesClassicPlayerVisuals;
+        if (_runtimeAssets is not null)
+        {
+            _runtimeAssets.Gg2SoundsActive = UsesGg2Presentation;
+        }
         var clientTicks = _gameplayManager.Frame.Update(gameTime);
         UpdateVoiceChat(_gameplayManager.Frame.ClientPluginKeyboard, _gameplayManager.Frame.FrameMouseState, _gameplayManager.Frame.WasWindowActive);
         PumpDiscordRichPresence(gameTime.ElapsedGameTime.TotalSeconds);

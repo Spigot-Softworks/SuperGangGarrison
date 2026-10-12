@@ -465,6 +465,7 @@ public partial class Game1
             var separatorIndex = trimmed.IndexOf('_');
             if (separatorIndex >= 0
                 && (trimmed.StartsWith("ctf_", StringComparison.OrdinalIgnoreCase)
+                    || trimmed.StartsWith("cq_", StringComparison.OrdinalIgnoreCase)
                     || trimmed.StartsWith("cp_", StringComparison.OrdinalIgnoreCase)
                     || trimmed.StartsWith("koth_", StringComparison.OrdinalIgnoreCase)
                     || trimmed.StartsWith("3cp_", StringComparison.OrdinalIgnoreCase)))
@@ -477,6 +478,11 @@ public partial class Game1
 
         private static GameModeKind InferPracticeMapMode(string levelName)
         {
+            if (levelName.StartsWith("cq_", StringComparison.OrdinalIgnoreCase))
+            {
+                return GameModeKind.Conquest;
+            }
+
             if (levelName.StartsWith("koth_", StringComparison.OrdinalIgnoreCase))
             {
                 return GameModeKind.KingOfTheHill;

@@ -11,4 +11,5 @@ public enum GameModeKind
     TeamDeathmatch = 7,
     Scr = 8,
     Vip = 9,
+    Conquest = 10,
 }

@@ -54,9 +54,11 @@ public partial class Game1
 
     public void UpdateScoreboardState(KeyboardState keyboard, MouseState mouse)
     {
+        // GG2 brings the scoreboard up by itself when the round ends.
         _scoreboardOpen = CanShowGameplayScoreboard()
             && (IsBindingDown(keyboard, mouse, _inputBindings.ShowScoreboard)
-                || IsControllerBindingDown(_clientSettings.ControllerScoreboardButton));
+                || IsControllerBindingDown(_clientSettings.ControllerScoreboardButton)
+                || (UsesGg2Presentation && _world.MatchState.IsEnded));
 
         if (_scoreboardOpen)
         {

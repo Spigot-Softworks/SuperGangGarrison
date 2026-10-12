@@ -1,0 +1,15 @@
+{
+  "id": "ElkondoSoldierBlueReloadS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoSoldierBlueReloadS/0.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueReloadS/1.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueReloadS/2.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueReloadS/3.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueReloadS/4.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueReloadS/5.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueReloadS/6.png",
+    "assets/characters/player-skins/ElkondoSoldierBlueReloadS/7.png"
+  ],
+  "originX": 28,
+  "originY": 42
+}

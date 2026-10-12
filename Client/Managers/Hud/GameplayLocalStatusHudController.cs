@@ -224,7 +224,7 @@ public sealed class GameplayLocalStatusHudController
 
         public void TriggerLocalHudPortraitDamageFeedback(int damageAmount)
         {
-            if (!_context.HudRuntimeSettings.PortraitRumbleEnabled || _context._networkClient.IsLegacyGg2Connection || damageAmount <= 0)
+            if (!_context.HudRuntimeSettings.PortraitRumbleEnabled || _context.UsesGg2Presentation || damageAmount <= 0)
             {
                 return;
             }
@@ -236,7 +236,8 @@ public sealed class GameplayLocalStatusHudController
 
         public void TriggerLocalHudDamageVignette(int damageAmount)
         {
-            if (!_context.HudRuntimeSettings.DamageVignetteEnabled || damageAmount <= 0)
+            // GG2 has no damage vignette.
+            if (!_context.HudRuntimeSettings.DamageVignetteEnabled || _context.UsesGg2Presentation || damageAmount <= 0)
             {
                 return;
             }
@@ -267,6 +268,11 @@ public sealed class GameplayLocalStatusHudController
         public void DrawLocalHealthHud()
         {
             if (!_context._world.LocalPlayer.IsAlive)
+            {
+                return;
+            }
+
+            if (_context.UsesGg2Presentation && TryDrawGg2LocalHealthHud())
             {
                 return;
             }
@@ -325,7 +331,7 @@ public sealed class GameplayLocalStatusHudController
                 : portraitWeaponDefinition.NormalSpriteName;
             useTorsoReplacementPortrait = useTorsoReplacementPortrait
                 && !string.IsNullOrWhiteSpace(portraitTorsoSpriteName);
-            var characterSpriteName = _context._networkClient.IsLegacyGg2Connection
+            var characterSpriteName = _context._networkClient.Profile.QuoteAppearsAsImpostor
                 && localPlayer.ClassId == PlayerClass.Quote
                     ? $"Impostor{(localPlayer.Team == PlayerTeam.Blue ? "Blue" : "Red")}S"
                     : portraitSkin is null
@@ -529,6 +535,83 @@ public sealed class GameplayLocalStatusHudController
             var healthTextPosition = crossPosition + new Vector2((crossSprite?.Frames[0].Width ?? 0) * scale.X / 2f, (crossSprite?.Frames[0].Height ?? 0) * scale.Y / 2f);
             _context.DrawHudTextCentered(health.ToString(CultureInfo.InvariantCulture), healthTextPosition, hpColor, 1f * hudScale);
             UpdateLocalHealthHudBounds(portraitPosition, scale, backgroundHealthSprite, crossPosition, crossSprite);
+        }
+
+        /// <summary>GG2's class order, as its HUD sprites lay out their frames (CLASS_SCOUT 0 ... CLASS_QUOTE 9).</summary>
+        internal static int GetGg2HudClassIndex(PlayerClass playerClass) => playerClass switch
+        {
+            PlayerClass.Scout => 0,
+            PlayerClass.Soldier => 1,
+            PlayerClass.Sniper => 2,
+            PlayerClass.Demoman => 3,
+            PlayerClass.Medic => 4,
+            PlayerClass.Engineer => 5,
+            PlayerClass.Heavy => 6,
+            PlayerClass.Spy => 7,
+            PlayerClass.Pyro => 8,
+            PlayerClass.Quote => 9,
+            _ => -1,
+        };
+
+        /// <summary>
+        /// GG2's HealthHud: the class panel (CharacterHUD, frame = class, +10 on blue) over a
+        /// 42x37 bottom-up health bar (red to green), and the HP number, red at or under
+        /// max/3.5. Positions are GG2's (panel at 5, h-75; bar at 45, h-53), relative to the
+        /// health element so the movable HUD still applies. False for classes GG2 lacks.
+        /// </summary>
+        private bool TryDrawGg2LocalHealthHud()
+        {
+            var player = _context._world.LocalPlayer;
+            var classIndex = GetGg2HudClassIndex(player.ClassId);
+            if (classIndex < 0 || !_context.TryResolveHudElement(HudElementId.LocalHealth, out var resolved))
+            {
+                return false;
+            }
+
+            var hudScale = resolved.Layout.Scale;
+            var origin = resolved.Origin;
+            var maxHealth = Math.Max(1, player.MaxHealth);
+            var health = Math.Clamp(player.Health, 0, maxHealth);
+            var fraction = health / (float)maxHealth;
+            var bar = new Rectangle(
+                (int)MathF.Round(origin.X + (40f * hudScale)),
+                (int)MathF.Round(origin.Y + (22f * hudScale)),
+                Math.Max(1, (int)MathF.Round(42f * hudScale)),
+                Math.Max(1, (int)MathF.Round(37f * hudScale)));
+            _context.DrawScreenHealthBar(
+                bar,
+                health,
+                maxHealth,
+                false,
+                Color.Lerp(new Color(255, 0, 0), new Color(0, 128, 0), fraction),
+                Color.Black,
+                HudFillDirection.VerticalBottomToTop);
+
+            var frameIndex = classIndex + (player.Team == PlayerTeam.Blue ? 10 : 0);
+            var spriteScale = new Vector2(2f * hudScale, 2f * hudScale);
+            _context.TryDrawScreenSprite("CharacterHUD", frameIndex, origin, Color.White, spriteScale);
+
+            var hpColor = health > maxHealth / 3.5f ? Color.White : Color.Red;
+            _context.DrawHudTextCentered(
+                health.ToString(CultureInfo.InvariantCulture),
+                new Vector2(origin.X + (64f * hudScale), origin.Y + (40f * hudScale)),
+                hpColor,
+                hudScale);
+
+            var bounds = bar;
+            if (_context.GetResolvedSprite("CharacterHUD") is { Frames.Count: > 0 } panel)
+            {
+                var frame = panel.Frames[Math.Clamp(frameIndex, 0, panel.Frames.Count - 1)];
+                var topLeft = origin - (panel.Origin.ToVector2() * spriteScale);
+                bounds = Rectangle.Union(bounds, new Rectangle(
+                    (int)MathF.Round(topLeft.X),
+                    (int)MathF.Round(topLeft.Y),
+                    Math.Max(1, (int)MathF.Round(frame.Width * spriteScale.X)),
+                    Math.Max(1, (int)MathF.Round(frame.Height * spriteScale.Y))));
+            }
+
+            _context.UpdateHudElementBounds(HudElementId.LocalHealth, bounds);
+            return true;
         }
 
         internal static Rectangle? GetLocalHealthMedicineSourceRectangle(
@@ -832,7 +915,7 @@ public sealed class GameplayLocalStatusHudController
 
             var presentationPlayer = GetLocalWeaponPresentationPlayer();
             var displayedWeaponStats = GetLocalDisplayedMainWeaponStats();
-            var isLegacyGg2 = _context._networkClient.IsLegacyGg2Connection;
+            var isLegacyGg2 = !_context._networkClient.Profile.OffersLoadouts;
             var hasGrenadeLauncher = !isLegacyGg2 && HasLocalDemomanGrenadeLauncher();
             var showOnlyActiveWeapon = _context.HudRuntimeSettings.HudShowOnlyActiveWeapon || isLegacyGg2;
             var selectedOffhandItemId = !isLegacyGg2 && IsLocalDisplayedOffhandWeaponSelected()
@@ -927,7 +1010,7 @@ public sealed class GameplayLocalStatusHudController
         private List<WeaponHudRow> BuildAbilityHudRows()
         {
             var rows = new List<WeaponHudRow>();
-            var hasGrenadeLauncher = !_context._networkClient.IsLegacyGg2Connection
+            var hasGrenadeLauncher = _context._networkClient.Profile.OffersLoadouts
                 && HasLocalDemomanGrenadeLauncher();
 
             if (_context._world.LocalPlayer.ClassId == PlayerClass.Demoman)
@@ -949,7 +1032,7 @@ public sealed class GameplayLocalStatusHudController
                         new Vector2(66f, 42f))));
             }
 
-            if (!_context._networkClient.IsLegacyGg2Connection)
+            if (_context._networkClient.Profile.OffersLoadouts)
             {
                 AddConfiguredAbilityHudRows(rows);
             }
@@ -1573,7 +1656,7 @@ public sealed class GameplayLocalStatusHudController
 
         private void DrawDamageVignetteCore()
         {
-            if (!_context.HudRuntimeSettings.DamageVignetteEnabled)
+            if (!_context.HudRuntimeSettings.DamageVignetteEnabled || _context.UsesGg2Presentation)
             {
                 _damageVignetteIntensity = 0f;
                 _damageVignetteFlashIntensity = 0f;
@@ -2112,7 +2195,7 @@ public sealed class GameplayLocalStatusHudController
             }
 
             var player = GetLocalWeaponPresentationPlayer();
-            var currentAmmo = !ReferenceEquals(player, _context._world.LocalPlayer)
+            var currentAmmo = !ReferenceEquals(player, _context._world.LocalPlayer) || HasLiveOffhandAmmo(player)
                 ? player.ExperimentalOffhandCurrentShells
                 : player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, DemomanGrenadeLauncherAmmoKey, out var replicatedAmmo)
                     ? replicatedAmmo
@@ -2172,14 +2255,16 @@ public sealed class GameplayLocalStatusHudController
                     ? SniperBowMaxAmmoKey
                     : SoldierShotgunMaxAmmoKey;
 
-            var currentShells = !ReferenceEquals(player, _context._world.LocalPlayer)
+            // The live count on the player record first (see HasLiveOffhandAmmo); the replicated
+            // keys could lag while the weapon was stowed, leaving the row showing old ammo.
+            var currentShells = !ReferenceEquals(player, _context._world.LocalPlayer) || HasLiveOffhandAmmo(player)
                 ? player.ExperimentalOffhandCurrentShells
                 : player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SecondaryWeaponAmmoKey, out var replicatedSecondaryAmmo)
                 ? replicatedSecondaryAmmo
                 : player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, offhandAmmoKey, out var replicatedOffhandAmmo)
                     ? replicatedOffhandAmmo
                     : player.ExperimentalOffhandCurrentShells;
-            var maxShells = !ReferenceEquals(player, _context._world.LocalPlayer)
+            var maxShells = !ReferenceEquals(player, _context._world.LocalPlayer) || HasLiveOffhandAmmo(player)
                 ? Math.Max(1, player.ExperimentalOffhandMaxShells)
                 : player.TryGetReplicatedStateInt(CoreReplicatedOwnerId, SecondaryWeaponMaxAmmoKey, out var replicatedSecondaryMaxAmmo)
                     ? Math.Max(1, replicatedSecondaryMaxAmmo)
@@ -2199,7 +2284,7 @@ public sealed class GameplayLocalStatusHudController
         private bool ShouldDrawSecondaryWeaponHudRow(out GameplayItemDefinition item)
         {
             item = null!;
-            if (_context._networkClient.IsLegacyGg2Connection)
+            if (!_context._networkClient.Profile.OffersLoadouts)
             {
                 return false;
             }
@@ -2893,10 +2978,20 @@ public sealed class GameplayLocalStatusHudController
 
 
 
+        /// <summary>
+        /// True when the player record carries the offhand weapon's own ammo count. That count is
+        /// live on every path: the local simulation (offline and predicted), and both network
+        /// protocols, which copy the server's value into it with each update. The replicated
+        /// HUD keys are only a fallback for when the record has no offhand weapon; on the
+        /// protocol-64 path they can lag behind, which left the stowed secondary's ammo stale.
+        /// </summary>
+        private static bool HasLiveOffhandAmmo(PlayerEntity player) =>
+            player.HasExperimentalOffhandWeapon && player.ExperimentalOffhandMaxShells > 0;
+
         private int GetLocalMedicKritzCurrentShells()
         {
             var player = GetLocalWeaponPresentationPlayer();
-            if (!ReferenceEquals(player, _context._world.LocalPlayer))
+            if (!ReferenceEquals(player, _context._world.LocalPlayer) || HasLiveOffhandAmmo(player))
             {
                 return player.ExperimentalOffhandCurrentShells;
             }

@@ -60,7 +60,8 @@ public static class MapLogicActivatorImporter
                     targetRoomObjectIndex,
                     behavior,
                     activateOnStart,
-                    nodePriority));
+                    nodePriority,
+                    graph.TryGetNodeIndex(ReadProperty(properties, MapLogicMetadata.LogicKeyPropertyKey), out var pulseNodeIndex) ? pulseNodeIndex : -1));
             }
         }
 

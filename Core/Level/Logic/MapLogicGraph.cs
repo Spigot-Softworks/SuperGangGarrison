@@ -100,7 +100,8 @@ public sealed class MapLogicNode
         bool intelTriggerOnDrop = false,
         bool intelTriggerOnCapture = false,
         bool intelTriggerOnReset = false,
-        float anyDamageCooldownSeconds = 0f)
+        float anyDamageCooldownSeconds = 0f,
+        int? inputNodeIndex3 = null)
     {
         NodeIndex = nodeIndex;
         LogicKey = logicKey;
@@ -110,6 +111,7 @@ public sealed class MapLogicNode
         GateType = gateType;
         InputNodeIndex1 = inputNodeIndex1;
         InputNodeIndex2 = inputNodeIndex2;
+        InputNodeIndex3 = inputNodeIndex3;
         InputNodeIndex = inputNodeIndex;
         NodePriority = nodePriority;
         CountdownSeconds = countdownSeconds;
@@ -163,6 +165,9 @@ public sealed class MapLogicNode
     public int InputNodeIndex1 { get; }
 
     public int InputNodeIndex2 { get; }
+
+    // Null is an unused optional input; -1 is a connected reference that failed to resolve.
+    public int? InputNodeIndex3 { get; }
 
     public int InputNodeIndex { get; }
 
@@ -467,6 +472,8 @@ public sealed class MapLogicGraph
         return true;
     }
 
+    public bool HasPendingExternalPulses => Array.Exists(_externalPulseOutputs, static value => value);
+
 
     public void Evaluate(IReadOnlyList<ControlPointState> controlPoints)
     {
@@ -507,7 +514,8 @@ public sealed class MapLogicGraph
                 MapLogicNodeKind.Gate => MapLogicMetadata.EvaluateGate(
                     node.GateType,
                     ReadInput(node.InputNodeIndex1),
-                    ReadInput(node.InputNodeIndex2)),
+                    ReadInput(node.InputNodeIndex2),
+                    node.InputNodeIndex3 is not int thirdInput || ReadInput(thirdInput)),
                 MapLogicNodeKind.Not => !ReadInput(node.InputNodeIndex),
                 MapLogicNodeKind.RisingEdge => EvaluateRisingEdge(nodeIndex, node),
                 MapLogicNodeKind.Latch => EvaluateLatch(nodeIndex, node),
@@ -1064,7 +1072,8 @@ public sealed class MapLogicGraph
                 MapLogicNodeKind.Gate => MapLogicMetadata.EvaluateGate(
                     node.GateType,
                     ReadInput(node.InputNodeIndex1),
-                    ReadInput(node.InputNodeIndex2)),
+                    ReadInput(node.InputNodeIndex2),
+                    node.InputNodeIndex3 is not int thirdInput || ReadInput(thirdInput)),
                 MapLogicNodeKind.Not => !ReadInput(node.InputNodeIndex),
                 MapLogicNodeKind.RisingEdge => EvaluateRisingEdge(nodeIndex, node),
                 MapLogicNodeKind.Latch => EvaluateLatch(nodeIndex, node),
@@ -1577,7 +1586,12 @@ public static class MapLogicGraphBuilder
                 baseNode.IntelTriggerOnDrop,
                 baseNode.IntelTriggerOnCapture,
                 baseNode.IntelTriggerOnReset,
-                baseNode.AnyDamageCooldownSeconds);
+                baseNode.AnyDamageCooldownSeconds,
+                inputNodeIndex3: definition.Kind == MapLogicNodeKind.Gate
+                    && definition.GateType == MapLogicGateType.And
+                    && !string.IsNullOrWhiteSpace(definition.InputRef3)
+                    ? ResolveInput(definition.InputRef3, keyToIndex)
+                    : null);
         }
 
         var evaluationOrder = BuildEvaluationOrder(resolvedNodes);
@@ -1638,6 +1652,11 @@ public static class MapLogicGraphBuilder
             Visit(node.InputNodeIndex2, nodes, visited, visiting, order);
         }
 
+        if (node.Kind == MapLogicNodeKind.Gate && node.GateType == MapLogicGateType.And && node.InputNodeIndex3 is >= 0)
+        {
+            Visit(node.InputNodeIndex3.Value, nodes, visited, visiting, order);
+        }
+
         if (node.InputNodeIndex >= 0)
         {
             Visit(node.InputNodeIndex, nodes, visited, visiting, order);
@@ -1681,6 +1700,8 @@ public sealed class MapLogicNodeDefinition
     public string? InputRef1 { get; init; }
 
     public string? InputRef2 { get; init; }
+
+    public string? InputRef3 { get; init; }
 
     public int NodePriority { get; init; }
 

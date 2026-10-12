@@ -29,6 +29,21 @@ public sealed class GameplayPlayerStatusEffectRenderController
                     ? GameplayHudVisibilityMode.Minimal
                     : GameplayHudVisibilityMode.Visible;
             var forceHealthBar = forceSpecialEnemyHealthBar || forcePracticeCombatDummyHealthBar || forceMapBotHealthBar;
+            if (_game.UsesGg2Presentation && !forceHealthBar)
+            {
+                // GG2 Character Draw: teammates always show a bar; yourself only with the setting.
+                var isLocal = ReferenceEquals(player, _game._world.LocalPlayer);
+                if (mode != GameplayHudVisibilityMode.Hidden
+                    && visibilityAlpha > 0f
+                    && player.Team == _game._world.LocalPlayer.Team
+                    && (!isLocal || _game.HudRuntimeSettings.ShowHealthBarEnabled))
+                {
+                    _game.DrawGg2OverheadHealthBar(player, cameraPosition);
+                }
+
+                return;
+            }
+
             if (!GameplayHudVisibilityRules.ShouldDrawFloatingHealthBar(
                 _game.HudRuntimeSettings.ShowHealthBarEnabled,
                 mode,
@@ -388,7 +403,7 @@ public sealed class GameplayPlayerStatusEffectRenderController
                     }
                 }
 
-                _game.DrawProceduralFlameParticles(cells, cameraPosition, topOutlineOnly: true, drawAlpha: visibilityAlpha);
+                _game.DrawProceduralFlameParticles(cells, cameraPosition, topOutlineOnly: true, drawAlpha: visibilityAlpha, team: player.Team);
                 return;
             }
 
@@ -400,12 +415,13 @@ public sealed class GameplayPlayerStatusEffectRenderController
                 if (sprite is not null && sprite.Frames.Count > 0)
                 {
                     var frameIndex = player.GetBurnVisualFrameIndex(flameIndex, sourceFrame, sprite.Frames.Count);
-                    _game.DrawLoadedSpriteFrame(sprite.Frames[frameIndex], new Vector2(renderPosition.X + offsetX - cameraPosition.X, renderPosition.Y + offsetY - cameraPosition.Y), null, flameColor, 0f, sprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+                    _game.DrawLoadedSpriteFrame(_game.GetTeamFireSpriteFrame(sprite.Frames[frameIndex], player.Team), new Vector2(renderPosition.X + offsetX - cameraPosition.X, renderPosition.Y + offsetY - cameraPosition.Y), null, flameColor, 0f, sprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
                     continue;
                 }
 
                 var flameRectangle = new Rectangle((int)(renderPosition.X + offsetX - 2f - cameraPosition.X), (int)(renderPosition.Y + offsetY - 2f - cameraPosition.Y), 4, 4);
-                _game._spriteBatch.Draw(_game._pixel, flameRectangle, flameColor);
+                _game._spriteBatch.Draw(_game._pixel, flameRectangle, _game.UsesTeamFireColor(player.Team)
+                    ? TeamFireLighting.RecolorSpritePixel(player.Team, flameColor) : flameColor);
             }
         }
 

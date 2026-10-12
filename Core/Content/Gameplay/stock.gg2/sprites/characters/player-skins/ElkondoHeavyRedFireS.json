@@ -1,0 +1,15 @@
+{
+  "id": "ElkondoHeavyRedFireS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoHeavyRedFireS/0.png",
+    "assets/characters/player-skins/ElkondoHeavyRedFireS/1.png",
+    "assets/characters/player-skins/ElkondoHeavyRedFireS/2.png",
+    "assets/characters/player-skins/ElkondoHeavyRedFireS/3.png",
+    "assets/characters/player-skins/ElkondoHeavyRedFireS/4.png",
+    "assets/characters/player-skins/ElkondoHeavyRedFireS/5.png",
+    "assets/characters/player-skins/ElkondoHeavyRedFireS/6.png",
+    "assets/characters/player-skins/ElkondoHeavyRedFireS/7.png"
+  ],
+  "originX": 34,
+  "originY": 42
+}

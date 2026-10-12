@@ -319,6 +319,7 @@ public interface IMenuContext
     void TogglePositionSmoothingSetting();
     void TogglePostGameMvpArtSetting();
     void TogglePredictionSetting();
+    void ToggleGg2PredictionSetting();
     void ToggleProjectileTeamTintSetting();
     void ToggleScrollWheelWeaponSwapSetting();
     void ToggleShowHealerSetting();
@@ -328,6 +329,13 @@ public interface IMenuContext
     void ToggleShowShieldBarSetting();
     void ToggleSpatialVoice();
     void ToggleSpriteDropShadowSetting();
+    void ToggleClassicVisualsSetting();
+    void ToggleMapLightingSetting();
+    void ToggleLightsFollowJukeboxSetting();
+    void ToggleCharacterBrightmapsSetting();
+    void ToggleWeatherSetting();
+    void AdjustLightingIntensitySetting(int step);
+    void CycleLightingIntensitySetting();
     void CycleWeaponBobSetting();
     void ToggleStuckArrowsSetting();
     void ToggleUberOutlinesSetting();

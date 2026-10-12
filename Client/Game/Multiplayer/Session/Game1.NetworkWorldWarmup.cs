@@ -121,7 +121,7 @@ public partial class Game1
         }
 
         var establishesPresentationBaseline = ShouldEstablishNetworkWorldWarmupBaseline(
-            _networkClient.IsLegacyGg2Connection,
+            _networkClient.Profile.EverySnapshotIsFull,
             _gameplayManager.NetworkPresentation.NetworkWorldWarmupFullSnapshotApplied,
             isServerFullSnapshot,
             isPresentationEpochBaselineSnapshot,

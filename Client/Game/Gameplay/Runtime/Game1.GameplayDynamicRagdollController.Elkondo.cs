@@ -104,7 +104,7 @@ public partial class Game1
         PlayerTeam team,
         DeadBodyAnimationKind animationKind)
     {
-        if (_networkClient.IsLegacyGg2Connection && classId == PlayerClass.Quote)
+        if (_networkClient.Profile.QuoteAppearsAsImpostor && classId == PlayerClass.Quote)
         {
             var teamName = team == PlayerTeam.Blue ? "Blue" : "Red";
             return $"Impostor{teamName}DeadS";

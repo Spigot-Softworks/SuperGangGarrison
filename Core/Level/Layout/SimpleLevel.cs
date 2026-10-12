@@ -5,6 +5,13 @@ namespace OpenGarrison.Core;
 
 public sealed class SimpleLevel
 {
+    public DamageableZoneRuntimeState[] DamageableZoneStates { get; set; } = [];
+    public bool IsControlPointLogicActive(in RoomObjectMarker marker)
+    {
+        foreach (var index in GetRoomObjectIndices(RoomObjectType.ControlPoint))
+            if (GetRoomObject(index) == marker) return IsRoomObjectActive(index);
+        return true;
+    }
     private readonly RoomObjectMarker[] _roomObjectMarkers;
     private readonly Dictionary<RoomObjectType, RoomObjectMarker[]> _roomObjectsByType;
     private readonly IndexedRoomObject[] _playerWalls;
@@ -197,8 +204,11 @@ public sealed class SimpleLevel
     /// <summary>Author-marked indoor areas that ambient weather treats as roofed. Presentation only.</summary>
     public IReadOnlyList<IndoorRegionMarker> IndoorRegions { get; }
 
-    /// <summary>Author-placed point lights. Presentation only.</summary>
+    /// <summary>Author-placed lights. Presentation only, except damaging lasers (map hazards).</summary>
     public IReadOnlyList<MapLightMarker> MapLights { get; }
+
+    /// <summary>Logic-driven light state (power, colour) and fixed damaging-laser geometry.</summary>
+    public MapLightRuntimeState MapLightState { get; } = new();
 
     /// <summary>Map-wide lighting mood. Presentation only.</summary>
     public MapLighting Lighting { get; }
@@ -216,7 +226,7 @@ public sealed class SimpleLevel
     public bool ShouldSimulateControlPoints =>
         ShowControlPoints
         || Mode is GameModeKind.ControlPoint or GameModeKind.Scr
-        || Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill;
+        || Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest;
 
     public bool[] RoomObjectLogicActiveMask { get; private set; }
 

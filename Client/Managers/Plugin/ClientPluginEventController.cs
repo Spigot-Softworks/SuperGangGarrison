@@ -140,7 +140,8 @@ public sealed class ClientPluginEventController
 
                 if (ShouldSpawnClientBloodFromDamage(damageEvent.TargetKind, damageEvent.Amount))
                 {
-                    _context._world.PlayerRemains.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+                    _context._world.PlayerRemains.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount,
+                        _context.FindPlayerById(damageEvent.TargetEntityId)?.Team ?? OpenGarrison.Core.PlayerTeam.Neutral);
                 }
             }
 
@@ -194,7 +195,8 @@ public sealed class ClientPluginEventController
         {
             if (ShouldSpawnClientBloodFromDamage((CoreDamageTargetKind)damageEvent.TargetKind, damageEvent.Amount))
             {
-                _context._world.PlayerRemains.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+                _context._world.PlayerRemains.SpawnClientBloodFromDamage(damageEvent.X, damageEvent.Y, damageEvent.Amount,
+                        _context.FindPlayerById(damageEvent.TargetEntityId)?.Team ?? OpenGarrison.Core.PlayerTeam.Neutral);
             }
         }
 

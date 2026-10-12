@@ -36,7 +36,7 @@ public sealed class GameplayVisualEventController
             _context.AdvanceRecentPredictedAirBlastVisuals();
             foreach (var visualEvent in _context._world.DrainPendingVisualEvents())
             {
-                PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count);
+                PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count, (OpenGarrison.Core.PlayerTeam)visualEvent.SourceTeam);
                 _context.RememberPredictedExplosionVisual(visualEvent);
             }
 
@@ -70,13 +70,13 @@ public sealed class GameplayVisualEventController
                     continue;
                 }
 
-                PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count);
+                PlayVisualEvent(visualEvent.EffectName, visualEvent.X, visualEvent.Y, visualEvent.DirectionDegrees, visualEvent.Count, (OpenGarrison.Core.PlayerTeam)visualEvent.SourceTeam);
             }
 
             _pendingNetworkVisualEvents.RemoveRange(retainedCount, _pendingNetworkVisualEvents.Count - retainedCount);
         }
 
-        public void PlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count)
+        public void PlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count, OpenGarrison.Core.PlayerTeam team = OpenGarrison.Core.PlayerTeam.Neutral)
         {
             if (_context.Gameplay.ImpactEffects.TryPlayVisualEvent(effectName, x, y, directionDegrees, count))
             {
@@ -84,7 +84,7 @@ public sealed class GameplayVisualEventController
                 return;
             }
 
-            if (_context.Gameplay.GoreEffects.TryPlayVisualEvent(effectName, x, y, directionDegrees, count))
+            if (_context.Gameplay.GoreEffects.TryPlayVisualEvent(effectName, x, y, directionDegrees, count, team))
             {
                 return;
             }

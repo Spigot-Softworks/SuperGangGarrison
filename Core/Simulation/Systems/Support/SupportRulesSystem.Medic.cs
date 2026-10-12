@@ -366,7 +366,7 @@ internal sealed partial class SupportRulesSystem
 
         if (healthBefore > target.Health)
         {
-            _host.WorldEffects.RegisterBloodEffect(target.X, target.Y, SimulationMath.PointDirectionDegrees(medic.X, medic.Y, target.X, target.Y) - 180f, 4);
+            _host.WorldEffects.RegisterBloodEffect(target.X, target.Y, SimulationMath.PointDirectionDegrees(medic.X, medic.Y, target.X, target.Y) - 180f, 4, team: target.Team);
         }
 
         if (!medic.IsMedicUbering)
@@ -665,7 +665,7 @@ internal sealed partial class SupportRulesSystem
                 continue;
             }
 
-            _host.WorldEffects.RegisterBloodEffect(candidate.X, candidate.Y, SimulationMath.PointDirectionDegrees(player.X, player.Y, candidate.X, candidate.Y) - 180f, 3);
+            _host.WorldEffects.RegisterBloodEffect(candidate.X, candidate.Y, SimulationMath.PointDirectionDegrees(player.X, player.Y, candidate.X, candidate.Y) - 180f, 3, team: candidate.Team);
             if (_host.ApplyPlayerContinuousDamage(candidate, AcquiredMedigunHealsplosionMaxDamage * distanceFactor, player, PlayerEntity.SpyDamageRevealAlpha))
             {
                 _host.PlayerDeaths.KillPlayer(candidate, killer: player, weaponSpriteName: "NeedleKL");

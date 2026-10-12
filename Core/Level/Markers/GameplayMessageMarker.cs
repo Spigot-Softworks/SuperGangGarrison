@@ -42,6 +42,18 @@ public enum GameplayMessageAlignment
     Right,
 }
 
+public enum GameplayMessagePlacement
+{
+    Screen,
+    Local,
+}
+
+public enum GameplayMessageSoundScope
+{
+    Global,
+    Local,
+}
+
 public enum GameplayMessageEndMode
 {
     Auto,
@@ -130,7 +142,9 @@ public readonly record struct GameplayMessageMarker(
     string OnEndTeleportExitRef,
     string OnEndTriggerRef,
     int OnEndTriggerNodeIndex = -1,
-    int TriggerNodeIndex = -1)
+    int TriggerNodeIndex = -1,
+    GameplayMessagePlacement Placement = GameplayMessagePlacement.Screen,
+    GameplayMessageSoundScope SoundScope = GameplayMessageSoundScope.Global)
 {
     public bool UsesTrigger => TriggerNodeIndex >= 0;
 
@@ -158,6 +172,8 @@ public static class GameplayMessageMetadata
     public const string FontPropertyKey = "font";
     public const string FontScalePropertyKey = "fontSize";
     public const string AlignmentPropertyKey = "align";
+    public const string PlacementPropertyKey = "placement";
+    public const string SoundScopePropertyKey = "soundScope";
     public const string ChatTeamPropertyKey = "chatTeam";
     public const string ScreenXPropertyKey = "screenX";
     public const string ScreenYPropertyKey = "screenY";
@@ -203,7 +219,7 @@ public static class GameplayMessageMetadata
     public const float MinHeight = 16f;
 
     public const string DefaultProperties =
-        "xscale=1;yscale=1;trigger=;text=Enter text here;style=basic;dialogueBox=default;animation=none;font=default;fontSize=1;align=center;chatTeam=auto;duration=3;typingDuration=1.5;end=auto;input=any;freeze=false;sound=;music=;musicCrossfade=true;musicCrossfadeSeconds=1.5;musicLoop=true;musicFadeAfter=0;image=;imageAnimation=none;imageX=0;imageY=0;imageW=64;imageH=64;onEnd=none;onEndFlash=false;onEndPlaySound=false;onEndFade=false;onEndMapReset=false;onEndMapTransition=false;onEndMapTeleport=false;onEndLogic=false;onEndSound=;onEndSeconds=1;onEndMap=;onEndX=0;onEndY=0;onEndTeleportExit=;onEndTrigger=";
+        "xscale=1;yscale=1;trigger=;text=Enter text here;style=basic;placement=screen;dialogueBox=default;animation=none;font=default;fontSize=1;align=center;chatTeam=auto;duration=3;typingDuration=1.5;end=auto;input=any;freeze=false;sound=;soundScope=global;music=;musicCrossfade=true;musicCrossfadeSeconds=1.5;musicLoop=true;musicFadeAfter=0;image=;imageAnimation=none;imageX=0;imageY=0;imageW=64;imageH=64;onEnd=none;onEndFlash=false;onEndPlaySound=false;onEndFade=false;onEndMapReset=false;onEndMapTransition=false;onEndMapTeleport=false;onEndLogic=false;onEndSound=;onEndSeconds=1;onEndMap=;onEndX=0;onEndY=0;onEndTeleportExit=;onEndTrigger=";
 
     public static bool IsGameplayMessageEntityType(string type) =>
         type.Equals(EntityType, StringComparison.OrdinalIgnoreCase);
@@ -278,8 +294,48 @@ public static class GameplayMessageMetadata
             ParseFloat(properties, OnEndTeleportXPropertyKey, 0f),
             ParseFloat(properties, OnEndTeleportYPropertyKey, 0f),
             ReadProperty(properties, OnEndTeleportExitPropertyKey, string.Empty),
-            ReadProperty(properties, OnEndTriggerPropertyKey, string.Empty));
+            ReadProperty(properties, OnEndTriggerPropertyKey, string.Empty),
+            Placement: ParsePlacement(properties),
+            SoundScope: ParseSoundScope(properties));
     }
+
+    public static GameplayMessagePlacement ParsePlacement(IReadOnlyDictionary<string, string>? properties) =>
+        ReadOptional(properties, PlacementPropertyKey) switch
+        {
+            string value when value.Equals("local", StringComparison.OrdinalIgnoreCase) => GameplayMessagePlacement.Local,
+            string value when value.Equals("screen", StringComparison.OrdinalIgnoreCase) => GameplayMessagePlacement.Screen,
+            // Preserve the previous style/alignment behaviour for maps without the setting.
+            _ => ParseStyle(properties) == GameplayMessageStyle.Ltd || ParseAlignment(properties) == GameplayMessageAlignment.Center
+                ? GameplayMessagePlacement.Screen : GameplayMessagePlacement.Local,
+        };
+
+    public static GameplayMessageSoundScope ParseSoundScope(IReadOnlyDictionary<string, string>? properties) =>
+        ReadOptional(properties, SoundScopePropertyKey)?.Equals("local", StringComparison.OrdinalIgnoreCase) == true
+            ? GameplayMessageSoundScope.Local : GameplayMessageSoundScope.Global;
+
+    public static void EnsurePresentationDefaults(IDictionary<string, string> properties)
+    {
+        var current = new Dictionary<string, string>(properties, StringComparer.OrdinalIgnoreCase);
+        if (!properties.ContainsKey(PlacementPropertyKey))
+            properties[PlacementPropertyKey] = ToPlacementPropertyValue(ParsePlacement(current));
+        if (!properties.ContainsKey(SoundScopePropertyKey))
+            properties[SoundScopePropertyKey] = "global";
+    }
+
+    public static string ToPlacementPropertyValue(GameplayMessagePlacement placement) =>
+        placement == GameplayMessagePlacement.Local ? "local" : "screen";
+
+    public static string CyclePlacementPropertyValue(string? value) =>
+        value?.Equals("local", StringComparison.OrdinalIgnoreCase) == true ? "screen" : "local";
+
+    public static string CycleSoundScopePropertyValue(string? value) =>
+        value?.Equals("local", StringComparison.OrdinalIgnoreCase) == true ? "global" : "local";
+
+    public static string GetPlacementDisplayLabel(string? value) =>
+        value?.Equals("local", StringComparison.OrdinalIgnoreCase) == true ? "Local (builder location)" : "Screen (top middle)";
+
+    public static string GetSoundScopeDisplayLabel(string? value) =>
+        value?.Equals("local", StringComparison.OrdinalIgnoreCase) == true ? "Local (near entity)" : "Global";
 
     public static GameplayMessageStyle ParseStyle(IReadOnlyDictionary<string, string>? properties) =>
         ReadOptional(properties, StylePropertyKey) switch

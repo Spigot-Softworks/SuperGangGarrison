@@ -867,7 +867,7 @@ public sealed class TopDownMovementTests
         // contain an empty Maps/ctf_hangar shadow directory, while the source
         // manifest uniquely identifies the canonical packaged map.
         var manifestPath = ProjectSourceLocator.FindFile(
-            Path.Combine("Maps", "ctf_hangar", "ctf_hangar.json"));
+            Path.Combine("Maps", CustomMapDirectoryLayout.SuperGangGarrisonCategory, "ctf", "ctf_hangar", "ctf_hangar.json"));
         Assert.False(string.IsNullOrWhiteSpace(manifestPath));
         var mapDirectory = Path.GetDirectoryName(manifestPath!);
         Assert.False(string.IsNullOrWhiteSpace(mapDirectory));

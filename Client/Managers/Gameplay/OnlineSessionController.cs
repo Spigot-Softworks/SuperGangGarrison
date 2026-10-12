@@ -530,8 +530,8 @@ public sealed class OnlineSessionController
                 GameplaySessionKind.Online,
                 openJoinMenus: !_context._networkClient.IsReplayConnection
                     && _context._onlineConnectionIntent != OnlineConnectionIntent.Watch
-                    && (!_context._networkClient.IsSpectator || _context._networkClient.IsLegacyGg2Connection),
-                statusMessage: _context._networkClient.IsSpectator && !_context._networkClient.IsLegacyGg2Connection
+                    && (!_context._networkClient.IsSpectator || _context._networkClient.Profile.AssignsTeamsThroughRoster),
+                statusMessage: _context._networkClient.IsSpectator && !_context._networkClient.Profile.AssignsTeamsThroughRoster
                     ? "Connected as spectator."
                     : string.Empty);
             _context.StopMenuMusic();
@@ -546,7 +546,7 @@ public sealed class OnlineSessionController
                 _context._networkClient.IsSpectator
                     ? $"connected to {welcome.ServerName} ({welcome.LevelName}) as spectator tickrate={welcome.TickRate}"
                     : $"connected to {welcome.ServerName} ({welcome.LevelName}) tickrate={welcome.TickRate}");
-            if (!_context._networkClient.IsLegacyGg2Connection)
+            if (_context._networkClient.Profile.SupportsGameplayAccounts)
             {
                 _context.BeginGameplayAccountAttach();
                 _context.UploadSelectedCustomBubbleState();

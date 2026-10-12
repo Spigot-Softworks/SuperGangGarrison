@@ -25,7 +25,9 @@ public partial class Game1
         EnsureGarrisonBuilderMapEntityIds();
 
         var sourceToCloneIndex = new Dictionary<int, int>();
-        var offset = 0f;
+        // Clones sit directly to the right of the whole selection, level with it, all moved
+        // by the same amount so a multi-selection keeps its exact layout.
+        var offsetX = placeAtSourcePosition ? 0f : GetGarrisonBuilderCloneOffsetX(sourceIndices);
         foreach (var sourceIndex in sourceIndices)
         {
             if (sourceIndex < 0 || sourceIndex >= _builderEntities.Count)
@@ -36,12 +38,7 @@ public partial class Game1
             var source = _builderEntities[sourceIndex];
             var clone = placeAtSourcePosition
                 ? source
-                : source with
-                {
-                    X = source.X + 24f + offset,
-                    Y = source.Y + 24f + offset,
-                };
-            offset += 2f;
+                : source with { X = source.X + offsetX };
             var properties = new Dictionary<string, string>(clone.Properties, StringComparer.OrdinalIgnoreCase);
             properties[MapLogicMetadata.MapEntityIdPropertyKey] = MapLogicMetadata.CreateMapEntityId();
             _builderEntities.Add((clone with { Properties = properties }).NormalizeForEditing());
@@ -59,6 +56,44 @@ public partial class Game1
         _builderSelectedEntityType = string.Empty;
         _builderActiveTool = GarrisonBuilderTool.Select;
         return true;
+    }
+
+    /// <summary>The selection's width (so clones do not overlap it), snapped up to the grid when aligning.</summary>
+    private float GetGarrisonBuilderCloneOffsetX(IReadOnlyList<int> sourceIndices)
+    {
+        var minLeft = float.MaxValue;
+        var maxRight = float.MinValue;
+        foreach (var sourceIndex in sourceIndices)
+        {
+            if (sourceIndex < 0 || sourceIndex >= _builderEntities.Count)
+            {
+                continue;
+            }
+
+            var entity = _builderEntities[sourceIndex];
+            if (TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out _, out var width, out _) && width > 0f)
+            {
+                minLeft = MathF.Min(minLeft, left);
+                maxRight = MathF.Max(maxRight, left + width);
+            }
+            else
+            {
+                minLeft = MathF.Min(minLeft, entity.X);
+                maxRight = MathF.Max(maxRight, entity.X);
+            }
+        }
+
+        var offset = maxRight > minLeft ? maxRight - minLeft : 24f;
+        if (_builderGridAlign)
+        {
+            var snap = GetGarrisonBuilderGridSnapWorldSize();
+            if (snap > 0.0001f)
+            {
+                offset = MathF.Ceiling((offset / snap) - 0.001f) * snap;
+            }
+        }
+
+        return MathF.Max(1f, offset);
     }
 
     private void RemapGarrisonBuilderClonedLogicConnections(IReadOnlyDictionary<int, int> sourceToCloneIndex)

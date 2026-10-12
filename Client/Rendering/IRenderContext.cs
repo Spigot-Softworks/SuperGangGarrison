@@ -13,6 +13,7 @@ namespace OpenGarrison.Client;
 public interface IRenderContext : IGameplayContext
 {
     HudRuntimeSettings HudRuntimeSettings { get; }
+    bool UsesGg2Presentation { get; }
     GameplayManager GameplayManager { get; }
     GameplayPlayerRenderController GameplayPlayerRenderer { get; }
     GameplayDeadBodyRenderController GameplayDeadBodyRenderer { get; }
@@ -40,6 +41,7 @@ public interface IRenderContext : IGameplayContext
     void DrawExperimentalStickyGibBloodOverlay(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha);
     void DrawHealingCrossParticles(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha);
     void DrawHealthBar(PlayerEntity player, Vector2 cameraPosition, Color fillColor, Color backColor, Color borderColor);
+    void DrawGg2OverheadHealthBar(PlayerEntity player, Vector2 cameraPosition);
     void DrawHeavyDashDodgePopup(PlayerEntity player, Vector2 cameraPosition);
     void DrawLastToDieSniperAsceticGhosting(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha, Game1.PlayerBodySpriteSelection bodySelection);
     void DrawOverheadChatMessage(PlayerEntity player, Vector2 cameraPosition);
@@ -113,6 +115,7 @@ public interface IRenderContext : IGameplayContext
     bool TryDrawWeaponSpriteBackdrop(PlayerEntity player, Vector2 cameraPosition, Color tint, float visibilityAlpha, Game1.PlayerBodySpriteSelection bodySelection);
     void BeginCharacterLighting(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha);
     void EndCharacterLighting();
+    void DrawPlayerHealGlow(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha, Game1.PlayerBodySpriteSelection bodySelection, bool drawWeapon);
     bool TryGetLastToDieHaxtonSpriteName(PlayerEntity player, out string spriteName);
     bool TryGetLocalPlayerAimDirection(PlayerEntity player, out float aimDirectionDegrees);
     bool TryGetPlayerSkinBody(PlayerEntity player, out Game1.PlayerBodySpriteSelection selection);

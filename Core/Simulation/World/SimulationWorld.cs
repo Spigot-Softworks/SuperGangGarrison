@@ -128,6 +128,12 @@ public sealed partial class SimulationWorld
 
     public bool LocalGoreEffectsEnabled { get; set; } = true;
 
+    /// <summary>
+    /// Client presentation: spawn GG2's own gore (gib chunks, clumps, heads, hands, feet)
+    /// instead of the authored per-class body parts. Set from Classic GG2 Visuals.
+    /// </summary>
+    public bool ClassicGoreEnabled { get; set; }
+
     /// <summary>Client blood-drop lifetime in whole seconds.</summary>
     public int LocalBloodLifetimeSeconds { get; set; } = 9;
 

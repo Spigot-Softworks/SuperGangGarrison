@@ -290,7 +290,8 @@ public partial class Game1
             || key.Equals(ForegroundSpriteMetadata.JunglePropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(ForegroundSpriteMetadata.OutsideOpacityPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(ForegroundSpriteMetadata.InsideOpacityPropertyKey, StringComparison.OrdinalIgnoreCase)
-            || key.Equals(ForegroundSpriteMetadata.BoundaryPropertyKey, StringComparison.OrdinalIgnoreCase);
+            || key.Equals(ForegroundSpriteMetadata.BoundaryPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(ForegroundSpriteMetadata.OverlapLightsPropertyKey, StringComparison.OrdinalIgnoreCase);
     }
 
     private List<string> OrderGarrisonBuilderForegroundSpritePropertyRows(List<string> rows)
@@ -307,6 +308,7 @@ public partial class Game1
             ForegroundSpriteMetadata.OutsideOpacityPropertyKey,
             ForegroundSpriteMetadata.InsideOpacityPropertyKey,
             ForegroundSpriteMetadata.BoundaryPropertyKey,
+            ForegroundSpriteMetadata.OverlapLightsPropertyKey,
         ];
         var ordered = new List<string>(rows.Count);
         foreach (var key in order)
@@ -369,6 +371,14 @@ public partial class Game1
         {
             var next = !ForegroundSpriteMetadata.ParseJungle(value);
             _builderPropertyEditorValues[key] = ForegroundSpriteMetadata.ToJunglePropertyValue(next);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+            return true;
+        }
+
+        if (key.Equals(ForegroundSpriteMetadata.OverlapLightsPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = ForegroundSpriteMetadata.ToJunglePropertyValue(!ForegroundSpriteMetadata.ParseJungle(value));
             ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
             return true;
@@ -485,6 +495,11 @@ public partial class Game1
         if (key.Equals(ForegroundSpriteMetadata.BoundaryPropertyKey, StringComparison.OrdinalIgnoreCase))
         {
             return $"Boundary: {ForegroundSpriteMetadata.GetBoundaryDisplayLabel(value)}";
+        }
+
+        if (key.Equals(ForegroundSpriteMetadata.OverlapLightsPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Overlap lights: {(ForegroundSpriteMetadata.ParseJungle(value) ? "On" : "Off")}";
         }
 
         return value;

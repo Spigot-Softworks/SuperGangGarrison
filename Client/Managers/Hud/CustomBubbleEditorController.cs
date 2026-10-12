@@ -526,39 +526,7 @@ public sealed class CustomBubbleEditorController
         }
 
         private static IEnumerable<int> EnumerateLinePixels(int startPixelIndex, int endPixelIndex)
-        {
-            var x0 = startPixelIndex % CustomBubbleDocument.BubbleWidth;
-            var y0 = startPixelIndex / CustomBubbleDocument.BubbleWidth;
-            var x1 = endPixelIndex % CustomBubbleDocument.BubbleWidth;
-            var y1 = endPixelIndex / CustomBubbleDocument.BubbleWidth;
-            var dx = Math.Abs(x1 - x0);
-            var dy = -Math.Abs(y1 - y0);
-            var stepX = x0 < x1 ? 1 : -1;
-            var stepY = y0 < y1 ? 1 : -1;
-            var error = dx + dy;
-
-            while (true)
-            {
-                yield return (y0 * CustomBubbleDocument.BubbleWidth) + x0;
-                if (x0 == x1 && y0 == y1)
-                {
-                    break;
-                }
-
-                var doubleError = 2 * error;
-                if (doubleError >= dy)
-                {
-                    error += dy;
-                    x0 += stepX;
-                }
-
-                if (doubleError <= dx)
-                {
-                    error += dx;
-                    y0 += stepY;
-                }
-            }
-        }
+            => PixelPaintLine.Enumerate(startPixelIndex, endPixelIndex, CustomBubbleDocument.BubbleWidth);
 
         private static bool IsMouseOnBar(Rectangle bar, Point mousePosition)
         {

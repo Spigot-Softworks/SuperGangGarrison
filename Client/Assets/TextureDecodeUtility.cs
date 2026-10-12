@@ -1,6 +1,8 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Gif;
+using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using XnaColor = Microsoft.Xna.Framework.Color;
 using XnaRectangle = Microsoft.Xna.Framework.Rectangle;
@@ -99,6 +101,66 @@ internal static class TextureDecodeUtility
         }
 
         return frames;
+    }
+
+    /// <summary>Most frames an animated image resource may have (more are dropped).</summary>
+    internal const int MaxAnimationFrames = 256;
+
+    /// <summary>GIF frames with no delay (or under 20 ms) play at this rate, as browsers do.</summary>
+    internal const int DefaultAnimationFrameDelayMs = 100;
+
+    /// <summary>
+    /// The frames of an animated image (an animated GIF or PNG), each a full canvas with its delay,
+    /// or null for a still image. Frames come out composited, so each can be drawn alone.
+    /// </summary>
+    internal static List<(DecodedTextureData Frame, int DelayMs)>? DecodeAnimationFrames(byte[] bytes)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        using var image = Image.Load<Rgba32>(bytes);
+        if (image.Frames.Count <= 1)
+        {
+            return null;
+        }
+
+        var frameCount = Math.Min(image.Frames.Count, MaxAnimationFrames);
+        var frames = new List<(DecodedTextureData Frame, int DelayMs)>(frameCount);
+        var pixelData = new Rgba32[image.Width * image.Height];
+        for (var frameIndex = 0; frameIndex < frameCount; frameIndex += 1)
+        {
+            var frame = image.Frames[frameIndex];
+            frame.CopyPixelDataTo(pixelData);
+            var textureData = new XnaColor[pixelData.Length];
+            for (var index = 0; index < pixelData.Length; index += 1)
+            {
+                textureData[index] = ToPremultipliedColor(pixelData[index]);
+            }
+
+            var delayMs = GetFrameDelayMs(frame.Metadata);
+            frames.Add((
+                new DecodedTextureData(textureData, image.Width, image.Height, new XnaRectangle(0, 0, image.Width, image.Height)),
+                delayMs >= 20 ? delayMs : DefaultAnimationFrameDelayMs));
+        }
+
+        return frames;
+    }
+
+    // GIF delays are in 1/100 s; animated PNG delays are a fraction of a second.
+    private static int GetFrameDelayMs(SixLabors.ImageSharp.Metadata.ImageFrameMetadata metadata)
+    {
+        var gifDelay = metadata.GetGifMetadata().FrameDelay;
+        if (gifDelay > 0)
+        {
+            return gifDelay * 10;
+        }
+
+        var pngDelay = metadata.GetPngMetadata().FrameDelay;
+        if (pngDelay.Numerator > 0)
+        {
+            var denominator = pngDelay.Denominator == 0 ? 100u : pngDelay.Denominator;
+            return (int)Math.Min(60000L, (long)pngDelay.Numerator * 1000L / denominator);
+        }
+
+        return 0;
     }
 
     internal static DecodedTextureData DecodeTextureData(byte[] bytes, bool applyLegacyChromaKey)

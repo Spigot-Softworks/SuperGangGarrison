@@ -11,6 +11,336 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class BuilderPersistenceRegressionTests : IDisposable
 {
     [Theory]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, true, false)]
+    [InlineData(true, false, true)]
+    public void FireAndPlayerTeamColoursSaveIndependentlyInPngAndPackages(bool package, bool fire, bool players)
+    {
+        var metadata = new Dictionary<string, string>(_document.Metadata);
+        MapLightingMetadata.Write(metadata, MapLightingMetadata.GetPresetDefaults(MapLightingPreset.Night) with
+            { FireTeamColor = fire, PlayerTeamColor = players });
+        var document = _document with { Metadata = metadata };
+        var path = Path.Combine(_root, package ? "team-lights/map.json" : "team-lights.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var runtime = package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!;
+        Assert.Equal(fire, runtime.Room.Lighting.FireTeamColor);
+        Assert.Equal(players, runtime.Room.Lighting.PlayerTeamColor);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void DestructiblePropsSurvivePngAndPackageAndPackagesKeepSoundBytes(bool package, bool bareId)
+    {
+        using var image = new Image<Rgba32>(8, 8);
+        image[3, 3] = new Rgba32(255, 255, 255, 255);
+        using var stream = new MemoryStream();
+        image.SaveAsPng(stream);
+        var zone = CustomMapBuilderEntity.Create("logicDamageable", 80, 100, new Dictionary<string, string>
+        { ["mapEntityId"] = "destructible-zone", ["health"] = "125", ["respawnTime"] = "3", ["onRedDestroyed"] = "node:red-destroy" });
+        var zoneRef = MapLogicEntityReference.FormatEntityRef(zone);
+        if (bareId) zoneRef = zone.Properties[MapLogicMetadata.MapEntityIdPropertyKey];
+        var trigger = CustomMapBuilderEntity.Create("logicDamageTrigger", 160, 120, new Dictionary<string, string>
+        { ["damageableEntity"] = zoneRef, ["onDestruction"] = "breakApart", ["destroyedOpacity"] = "25",
+          ["onRespawn"] = "staticWarp", ["destructionTransitionTime"] = "0.75",
+          ["destructionSound"] = "prop_break", ["respawnSound"] = "prop_spawn" });
+        var signal = CustomMapBuilderEntity.Create("logicLatch", 200, 120, new Dictionary<string, string> { ["logicKey"] = "red-destroy" });
+        var sprite = CustomMapBuilderEntity.Create("logicCustomSprite", 240, 120, new Dictionary<string, string>
+        { ["image"] = "prop_image", ["scale"] = "2", ["damageableEntity"] = zoneRef });
+        var foreground = CustomMapBuilderEntity.Create("logicForegroundSprite", 280, 120, new Dictionary<string, string>
+        { ["image"] = "prop_image", ["scale"] = "2", ["damageableEntity"] = zoneRef });
+        var light = CustomMapBuilderEntity.Create("light", 320, 120, new Dictionary<string, string>
+        { ["mask"] = "prop_image", ["damageableEntity"] = zoneRef });
+        var resources = new Dictionary<string, CustomMapBuilderResource>
+        {
+            ["prop_image"] = new("prop_image", "", CustomMapBuilderResourceKind.GenericImage, stream.ToArray()),
+            ["prop_break"] = new("prop_break", "", CustomMapBuilderResourceKind.MessageSound, Encoding.ASCII.GetBytes("OggS break sound")),
+            ["prop_spawn"] = new("prop_spawn", "", CustomMapBuilderResourceKind.MessageSound, Encoding.ASCII.GetBytes("OggS spawn sound")),
+        };
+        if (!package)
+        {
+            resources.Remove("prop_break");
+            resources.Remove("prop_spawn");
+            trigger = trigger with { Properties = new Dictionary<string, string>(trigger.Properties)
+                { ["destructionSound"] = "CPCapturedSnd", ["respawnSound"] = "CPBeginCapSnd" } };
+        }
+        var document = _document with { Entities = [.. _document.Entities, zone, trigger, signal, sprite, foreground, light], Resources = resources };
+        var path = Path.Combine(_root, package ? "destructible/props.json" : "destructible.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var runtime = package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!;
+        Assert.NotNull(runtime);
+        var room = runtime.Room;
+        var zoneIndex = Enumerable.Range(0, room.RoomObjects.Count).Single(i => room.RoomObjects[i].Type == RoomObjectType.DamageableZone);
+        var marker = room.RoomObjects[zoneIndex];
+        Assert.Equal(3, marker.DamageableZone.RespawnSeconds);
+        Assert.Equal(125, marker.DamageableZone.MaxHealth);
+        Assert.Equal(room.LogicGraph.NodeIndexByKey["red-destroy"], marker.DamageableZone.OnRedDestroyedNodeIndex);
+        Assert.Equal(PropDestructionEffect.BreakApart, marker.DestructionSettings.Destruction);
+        Assert.Equal(PropRespawnEffect.StaticWarp, marker.DestructionSettings.Respawn);
+        Assert.Equal(0.25f, marker.DestructionSettings.MinimumOpacity);
+        Assert.Equal(0.75f, marker.DestructionSettings.TransitionSeconds);
+        Assert.Equal(2, room.RoomObjects.Count(m => m.DestructibleZoneIndex == zoneIndex));
+        Assert.Equal(zoneIndex, Assert.Single(room.MapLights).DestructibleZoneIndex);
+        if (package)
+        {
+            Assert.Equal(resources["prop_break"].EmbeddedBytes, room.CustomMapVisuals.SoundResources["prop_break"].Bytes);
+            Assert.Equal(resources["prop_spawn"].EmbeddedBytes, room.CustomMapVisuals.SoundResources["prop_spawn"].Bytes);
+        }
+        else
+        {
+            Assert.Equal("CPCapturedSnd", marker.DestructionSettings.DestructionSound);
+            Assert.Equal("CPBeginCapSnd", marker.DestructionSettings.RespawnSound);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, "team")]
+    [InlineData(true, "team")]
+    [InlineData(false, "40e0ff")]
+    [InlineData(true, "40e0ff")]
+    public void BloodColourAndGlowSurviveMapSave(bool package, string color)
+    {
+        var metadata = new Dictionary<string, string>(_document.Metadata)
+            { ["lighting"] = "night", ["lightBloodColor"] = color, ["lightBloodGlow"] = "65" };
+        var document = _document with { Metadata = metadata };
+        var path = Path.Combine(_root, package ? "blood-lighting/map.json" : "blood-lighting.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var reopened = package ? CustomMapPackageImporter.ImportDocument(path)! : CustomMapBuilderPngImporter.Import(path)!;
+        var lighting = MapLightingMetadata.Parse(reopened.Metadata);
+        Assert.Equal(color == "team", lighting.BloodTeamColor);
+        Assert.Equal(65, lighting.BloodGlow);
+        var runtime = package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!;
+        Assert.Equal(lighting, runtime.Room.Lighting);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LightColourTransitionSurvivesSaveAndRuntimeImport(bool package)
+    {
+        var light = CustomMapBuilderEntity.Create(MapLightMetadata.EntityType, 20, 30,
+            new Dictionary<string, string> { ["colorTransition"] = "warmup", ["colorTransitionTime"] = "0.5",
+                ["transition"] = "blink", ["fadeTime"] = "2" });
+        var document = _document with { Entities = [.. _document.Entities, light] };
+        var path = Path.Combine(_root, package ? "colour-transition/map.json" : "colour-transition.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var reopened = package ? CustomMapPackageImporter.ImportDocument(path)! : CustomMapBuilderPngImporter.Import(path)!;
+        Assert.Equal("warmup", reopened.Entities[^1].Properties[MapLightMetadata.ColorTransitionKey]);
+        Assert.Equal("0.5", reopened.Entities[^1].Properties[MapLightMetadata.ColorTransitionTimeKey]);
+        var runtime = package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!;
+        var marker = Assert.Single(runtime.Room.MapLights);
+        Assert.Equal(MapLightTransition.Warmup, marker.Style.ColorTransition);
+        Assert.Equal(0.5f, marker.Style.ColorTransitionTime);
+        Assert.Equal(MapLightTransition.Blink, marker.Style.Transition);
+        Assert.Equal(2, marker.Style.FadeTime);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ThirdAndInputSurvivesSaveAndRuntimeImport(bool package)
+    {
+        var source = CustomMapBuilderEntity.Create(MapLogicMetadata.CpTriggerEntityType, 10, 10,
+            new Dictionary<string, string> { ["logicKey"] = "third" });
+        var gate = CustomMapBuilderEntity.Create(MapLogicMetadata.GateEntityType, 20, 20,
+            new Dictionary<string, string> { ["logicKey"] = "gate", ["gateType"] = "and",
+                ["logicInput1"] = "node:third", ["logicInput2"] = "node:third", ["logicInput3"] = "node:third" });
+        var document = _document with { Entities = [.. _document.Entities, source, gate] };
+        var path = Path.Combine(_root, package ? "third-input/map.json" : "third-input.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var reopened = package ? CustomMapPackageImporter.ImportDocument(path)! : CustomMapBuilderPngImporter.Import(path)!;
+        Assert.Equal("node:third", reopened.Entities[^1].Properties[MapLogicMetadata.LogicInput3PropertyKey]);
+        var runtime = package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!;
+        var graph = runtime.Room.LogicGraph;
+        Assert.Equal(graph.NodeIndexByKey["third"], graph.Nodes[graph.NodeIndexByKey["gate"]].InputNodeIndex3);
+        graph.Evaluate([]);
+        Assert.False(graph.GetOutput(graph.NodeIndexByKey["gate"]));
+        graph.PulseExternalOutput(graph.NodeIndexByKey["third"]);
+        graph.EvaluateCombinatorialPropagators();
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["gate"]));
+        var broken = gate with { Properties = new Dictionary<string, string>(gate.Properties) { ["logicInput3"] = "node:missing" } };
+        var validation = CustomMapBuilderValidator.Validate(document with { Entities = [.. document.Entities.Take(document.Entities.Count - 1), broken] });
+        Assert.Contains(validation.Issues, issue => issue.Code == "missing_logic_reference" && issue.Message.Contains("logicInput3"));
+    }
+
+    [Theory]
+    [InlineData(false, "screen", "global")]
+    [InlineData(false, "screen", "local")]
+    [InlineData(false, "local", "global")]
+    [InlineData(false, "local", "local")]
+    [InlineData(true, "screen", "global")]
+    [InlineData(true, "screen", "local")]
+    [InlineData(true, "local", "global")]
+    [InlineData(true, "local", "local")]
+    public void MessagePlacementAndSoundScopeSurviveSaveReopenAndUniformScaling(bool package, string placement, string soundScope)
+    {
+        var entity = CustomMapBuilderEntity.Create("gameplayMessage", 20, 30,
+            new Dictionary<string, string>
+            {
+                ["style"] = "ltd", ["align"] = "center", ["placement"] = placement,
+                ["soundScope"] = soundScope, ["sound"] = "IntelPutSnd", ["onEndSound"] = "CPCapturedSnd",
+            });
+        var document = _document with { Entities = [.. _document.Entities, entity] };
+        var path = Path.Combine(_root, package ? "message-settings/settings.json" : "message-settings.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var reopened = package ? CustomMapPackageImporter.ImportDocument(path)! : CustomMapBuilderPngImporter.Import(path)!;
+        Assert.Equal(placement, reopened.Entities[^1].Properties["placement"]);
+        Assert.Equal(soundScope, reopened.Entities[^1].Properties["soundScope"]);
+        var runtime = package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!;
+        var marker = Assert.Single(runtime.Room.GameplayMessages);
+        Assert.Equal(placement == "local" ? GameplayMessagePlacement.Local : GameplayMessagePlacement.Screen, marker.Placement);
+        Assert.Equal(soundScope == "local" ? GameplayMessageSoundScope.Local : GameplayMessageSoundScope.Global, marker.SoundScope);
+        var level = new SimpleLevel("message-settings", GameModeKind.ControlPoint,
+            new WorldBounds(1024, 768), 1, null, 1, 1, new SpawnPoint(100, 100),
+            [new SpawnPoint(100, 100)], [new SpawnPoint(900, 100)], [], [], 768, [], false,
+            gameplayMessages: [marker]);
+        var scaled = Assert.Single(SimpleLevelScaling.ApplyUniformScale(level, 2).GameplayMessages);
+        Assert.Equal(marker.X * 2, scaled.X);
+        Assert.Equal(marker.Y * 2, scaled.Y);
+        Assert.Equal(marker.Placement, scaled.Placement);
+        Assert.Equal(marker.SoundScope, scaled.SoundScope);
+        Assert.Equal(marker.SoundName, scaled.SoundName);
+        Assert.Equal(marker.OnEndSoundName, scaled.OnEndSoundName);
+    }
+
+    [Theory]
+    [InlineData("sound")]
+    [InlineData("music")]
+    [InlineData("onEndSound")]
+    public void ClonedMessageSoundReplacementIsIndependentAndSurvivesPackageReload(string property)
+    {
+        var originalBytes = Encoding.ASCII.GetBytes("OggS original sound");
+        var replacementBytes = Encoding.ASCII.GetBytes("OggS replacement sound");
+        var original = CustomMapBuilderEntity.Create("gameplayMessage", 20, 20,
+            new Dictionary<string, string> { [property] = "message_sound", ["text"] = "Original" });
+        var clone = original with { X = 120, Properties = new Dictionary<string, string>(original.Properties) };
+        var resources = new Dictionary<string, CustomMapBuilderResource>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["message_sound"] = new("message_sound", "", CustomMapBuilderResourceKind.MessageSound, originalBytes),
+            ["MESSAGE_SOUND_2"] = new("MESSAGE_SOUND_2", "", CustomMapBuilderResourceKind.MessageSound, originalBytes),
+        };
+        var replacementName = CustomMapBuilderResourceCodec.CreateUnusedName("message_sound", resources);
+        Assert.Equal("message_sound_3", replacementName);
+        resources[replacementName] = new(replacementName, "", CustomMapBuilderResourceKind.MessageSound, replacementBytes);
+        var cloneProperties = new Dictionary<string, string>(clone.Properties) { [property] = replacementName };
+        clone = clone with { Properties = cloneProperties };
+        var path = Path.Combine(_root, "messages", "messages.json");
+        CustomMapPackageExporter.Export(_document with { Entities = [.. _document.Entities, original, clone], Resources = resources }, path);
+        var runtime = CustomMapPackageImporter.Import(path)!;
+        var messages = runtime.Room.GameplayMessages;
+        Assert.Equal(2, messages.Count);
+        string Sound(GameplayMessageMarker marker) => property switch
+        {
+            "music" => marker.MusicName, "onEndSound" => marker.OnEndSoundName, _ => marker.SoundName,
+        };
+        Assert.Equal("message_sound", Sound(messages[0]));
+        Assert.Equal(replacementName, Sound(messages[1]));
+        Assert.Equal(originalBytes, runtime.Room.CustomMapVisuals.SoundResources[Sound(messages[0])].Bytes);
+        Assert.Equal(replacementBytes, runtime.Room.CustomMapVisuals.SoundResources[Sound(messages[1])].Bytes);
+        // Replace the clone again, then publish over the existing manifest. Neither
+        // an old package asset nor the original message may supply the new sound.
+        var nextBytes = Encoding.ASCII.GetBytes("OggS updated replacement");
+        resources[replacementName] = new(replacementName, "", CustomMapBuilderResourceKind.MessageSound, nextBytes);
+        CustomMapPackageExporter.Export(_document with { Entities = [.. _document.Entities, original, clone], Resources = resources }, path);
+        runtime = CustomMapPackageImporter.Import(path)!;
+        Assert.Equal(nextBytes, runtime.Room.CustomMapVisuals.SoundResources[replacementName].Bytes);
+        Assert.Equal(originalBytes, runtime.Room.CustomMapVisuals.SoundResources["message_sound"].Bytes);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void LightMaskGlowAndThirdColourSurviveExportAndReopen(bool package, bool painted)
+    {
+        using var image = new Image<Rgba32>(8, 8);
+        for (var i = 0; i < 8; i++) image[i, i] = new Rgba32(255, 255, 255, 255);
+        using var stream = new MemoryStream();
+        image.SaveAsPng(stream);
+        var light = CustomMapBuilderEntity.Create("light", 20, 20, new Dictionary<string, string>
+        {
+            [MapLightMetadata.MaskKey] = "painted_mask", [MapLightMetadata.MaskPixelSizeKey] = painted ? "2" : "0",
+            [MapLightMetadata.MaskGlowRadiusKey] = "12",
+            [MapLightMetadata.ColorInputKey] = "node:secondary", [MapLightMetadata.TertiaryColorInputKey] = "node:tertiary",
+            [MapLightMetadata.ColorKey] = "ff0000", [MapLightMetadata.AltColorKey] = "0000ff",
+            [MapLightMetadata.TriggerColorKey] = "00ff00", [MapLightMetadata.ColorActionKey] = "trigger",
+        });
+        var document = _document with
+        {
+            Entities = [.. _document.Entities, light],
+            Resources = new Dictionary<string, CustomMapBuilderResource>
+            {
+                ["painted_mask"] = new("painted_mask", string.Empty, CustomMapBuilderResourceKind.GenericImage, stream.ToArray()),
+            },
+        };
+        var path = Path.Combine(_root, package ? "painted/painted.json" : "painted.png");
+        CustomMapBuilderDocument reopened;
+        CustomMapPngImporter.Result runtime;
+        if (package)
+        {
+            CustomMapPackageExporter.Export(document, path);
+            reopened = CustomMapPackageImporter.ImportDocument(path)!;
+            runtime = CustomMapPackageImporter.Import(path)!;
+        }
+        else
+        {
+            CustomMapPngExporter.Export(document, path);
+            reopened = CustomMapBuilderPngImporter.Import(path)!;
+            runtime = CustomMapPngImporter.Import(path)!;
+        }
+        var marker = Assert.Single(runtime.Room.MapLights);
+        Assert.Equal(painted ? 2 : 0, marker.MaskPixelSize);
+        Assert.Equal(12, marker.MaskGlowRadius);
+        Assert.Equal("node:secondary", marker.Style.ColorInput);
+        Assert.Equal("node:tertiary", marker.Style.TertiaryColorInput);
+        Assert.Equal("12", reopened.Entities[^1].Properties[MapLightMetadata.MaskGlowRadiusKey]);
+        Assert.Equal(new MapLightingColor(0, 255, 0), marker.Style.TriggerColor);
+        Assert.Equal(MapLightColorAction.Trigger, marker.Style.ColorAction);
+        Assert.Equal("painted_mask", reopened.Entities[^1].Properties[MapLightMetadata.MaskKey]);
+        using var decoded = Image.Load<Rgba32>(CustomMapBuilderResourceCodec.GetResourceBytes(reopened.Resources["painted_mask"]));
+        Assert.Equal(255, decoded[4, 4].A);
+        Assert.Equal(0, decoded[4, 3].A);
+    }
+
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void InactivePaintedLayerSurvivesMapSaveAndReload(bool package)
+    {
+        using var image = new Image<Rgba32>(8, 8);
+        image[3, 4] = new Rgba32(255, 255, 255, 255);
+        using var stream = new MemoryStream(); image.SaveAsPng(stream);
+        var properties = new Dictionary<string, string>
+        {
+            [MapLightMetadata.MaskKey] = "painted_mask", [MapLightMetadata.MaskPixelSizeKey] = "1",
+            [OpenGarrison.ClientShared.BuilderPaintedLightMask.BrushSizeKey] = "3",
+        };
+        OpenGarrison.ClientShared.BuilderPaintedLightMask.RememberActive(properties);
+        properties[MapLightMetadata.MaskKey] = string.Empty;
+        properties.Remove(MapLightMetadata.MaskPixelSizeKey);
+        var document = _document with
+        {
+            Entities = [.. _document.Entities, CustomMapBuilderEntity.Create("light", 20, 20, properties)],
+            Resources = new Dictionary<string, CustomMapBuilderResource>
+            {
+                ["painted_mask"] = new("painted_mask", string.Empty, CustomMapBuilderResourceKind.GenericImage, stream.ToArray()),
+            },
+        };
+        var path = Path.Combine(_root, package ? "inactive/inactive.json" : "inactive.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var reopened = package ? CustomMapPackageImporter.ImportDocument(path)! : CustomMapBuilderPngImporter.Import(path)!;
+        var layer = OpenGarrison.ClientShared.BuilderPaintedLightMask.GetLayer(reopened.Entities[^1].Properties);
+        Assert.Equal(("painted_mask", 1f), layer);
+        Assert.Equal(3, OpenGarrison.ClientShared.BuilderPaintedLightMask.GetBrushSize(reopened.Entities[^1].Properties));
+        using var decoded = Image.Load<Rgba32>(CustomMapBuilderResourceCodec.GetResourceBytes(reopened.Resources[layer.Resource!]));
+        Assert.Equal(255, decoded[3, 4].A);
+        Assert.Null(MapLightMetadata.FromProperties(0, 0, reopened.Entities[^1].Properties).Mask);
+    }
+
+    [Theory]
     [InlineData("cp_dirtbowl")]
     [InlineData("ctf_2dfort")]
     [InlineData("koth_harvest")]
@@ -61,18 +391,23 @@ public sealed class BuilderPersistenceRegressionTests : IDisposable
     }
 
     [Fact]
-    public void StaticGifIsTranscodedAndAnimationIsRejectedWithoutOverwriting()
+    public void StaticGifIsTranscodedAndAnimatedGifIsKeptAsAnimatedPng()
     {
         var gif = Path.Combine(_root, "static.gif");
         using (var image = new Image<Rgba32>(4, 4, new Rgba32(255, 0, 0, 255))) image.SaveAsGif(gif);
         var document = _document with { Resources = new Dictionary<string, CustomMapBuilderResource> { ["sprite"] = CustomMapBuilderResourceCodec.FromFile("sprite", gif) } };
         var output = Path.Combine(_root, "gif-map.json"); CustomMapPackageExporter.Export(document, output);
         Assert.EndsWith(".png", CustomMapPackageImporter.ImportDocument(output)!.Resources["sprite"].SourcePath);
-        var before = File.ReadAllBytes(output);
         using (var image = new Image<Rgba32>(4, 4)) { using var other = new Image<Rgba32>(4, 4, new Rgba32(0,255,0,255)); image.Frames.AddFrame(other.Frames[0]); image.SaveAsGif(gif); }
         document = document with { Resources = new Dictionary<string, CustomMapBuilderResource> { ["sprite"] = CustomMapBuilderResourceCodec.FromFile("sprite", gif) } };
-        Assert.Throws<InvalidOperationException>(() => CustomMapPackageExporter.Export(document, output));
-        Assert.Equal(before, File.ReadAllBytes(output));
+        CustomMapPackageExporter.Export(document, output);
+        var animated = CustomMapPackageImporter.ImportDocument(output)!.Resources["sprite"];
+        Assert.EndsWith(".png", animated.SourcePath);
+        var bytes = CustomMapBuilderResourceCodec.GetResourceBytes(animated);
+        Assert.Equal((byte)137, bytes[0]);
+        using var reloaded = Image.Load<Rgba32>(bytes);
+        Assert.Equal(2, reloaded.Frames.Count);
+        Assert.Equal(new Rgba32(0, 255, 0, 255), reloaded.Frames[1][1, 1]);
     }
 
     [Fact]

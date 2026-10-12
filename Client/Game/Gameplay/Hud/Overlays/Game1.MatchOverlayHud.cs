@@ -129,6 +129,12 @@ public partial class Game1
 
     private void DrawControlPointTimer(float centerX)
     {
+        if (UsesGg2Presentation)
+        {
+            DrawGg2RoundTimer(centerX);
+            return;
+        }
+
         var teamOffset = _world.LocalPlayerTeam == PlayerTeam.Blue ? 1 : 0;
         var timerPosition = new Vector2(centerX, 30f);
 
@@ -386,6 +392,12 @@ public partial class Game1
 
     private void DrawMatchTimerHud(float centerX)
     {
+        if (UsesGg2Presentation)
+        {
+            DrawGg2RoundTimer(centerX);
+            return;
+        }
+
         var teamOffset = _world.LocalPlayerTeam == PlayerTeam.Blue ? 1 : 0;
         var timerPosition = new Vector2(centerX, 30f);
         if (_world.MatchState.IsOvertime)
@@ -475,6 +487,12 @@ public partial class Game1
 
     private void DrawKillFeedHud()
     {
+        if (UsesGg2Presentation)
+        {
+            DrawGg2KillFeedHud();
+            return;
+        }
+
         if (!TryResolveHudElement(HudElementId.MatchKillFeed, out var resolved))
         {
             return;
@@ -731,6 +749,12 @@ public partial class Game1
             return;
         }
 
+        if (UsesGg2Presentation)
+        {
+            DrawGg2DeathCamHud(_world.LocalDeathCam);
+            return;
+        }
+
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
         var cardWidth = Math.Clamp((int)MathF.Round(viewportWidth * 0.1875f), 146, 241);
@@ -798,6 +822,58 @@ public partial class Game1
                 fillDirection: HudFillDirection.VerticalBottomToTop);
             DrawCenteredHudSprite("DeathCamHealthBarS", 0, new Vector2(viewportWidth / 2f, viewportHeight - 50f), Color.White, new Vector2(2f, 2f));
         }
+    }
+
+    /// <summary>
+    /// GG2's DeathCam layout: 100 px bars top and bottom, the kill message and the killer's
+    /// name centred at 2x on the top bar (blue text for red players, red for everyone else),
+    /// and the killer's health in the DeathCamHealthBarS frame while the killer lives.
+    /// The camera itself stays ours.
+    /// </summary>
+    private void DrawGg2DeathCamHud(LocalDeathCamState deathCam)
+    {
+        var viewportWidth = ViewportWidth;
+        var viewportHeight = ViewportHeight;
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, viewportWidth, 100), Color.Black);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, viewportHeight - 100, viewportWidth, 100), Color.Black);
+
+        var killerPlayer = ResolveDeathCamKillerPlayer();
+        var textColor = _world.LocalPlayer.Team == PlayerTeam.Red
+            ? new Color(0, 0, 255)
+            : new Color(255, 0, 0);
+        DrawHudTextCentered(GetGg2DeathCamMessage(deathCam), new Vector2(viewportWidth / 2f, 30f), textColor, 2f);
+        DrawHudTextCentered(SanitizeScoreboardText(deathCam.KillerName), new Vector2(viewportWidth / 2f, 60f), textColor, 2f);
+
+        var killerAlive = deathCam.FocusPlayerId <= 0 || killerPlayer is null || killerPlayer.IsAlive;
+        if (deathCam.MaxHealth > 0 && killerAlive)
+        {
+            DrawScreenHealthBar(
+                new Rectangle((viewportWidth / 2) - 18, viewportHeight - 68, 36, 36),
+                deathCam.Health,
+                deathCam.MaxHealth,
+                false,
+                fillDirection: HudFillDirection.VerticalBottomToTop);
+            DrawCenteredHudSprite("DeathCamHealthBarS", 0, new Vector2(viewportWidth / 2f, viewportHeight - 50f), Color.White, new Vector2(2f, 2f));
+        }
+    }
+
+    /// <summary>GG2's three kill cam messages, chosen from what our death cam recorded.</summary>
+    private static string GetGg2DeathCamMessage(LocalDeathCamState deathCam)
+    {
+        if (deathCam.KillMessage.StartsWith("You were killed by", StringComparison.OrdinalIgnoreCase))
+        {
+            return deathCam.KillMessage;
+        }
+
+        if (deathCam.KillMessage.Contains("autogun", StringComparison.OrdinalIgnoreCase))
+        {
+            return "You were killed by the autogun of";
+        }
+
+        // The killer was already dead when the death cam started.
+        return deathCam.FocusPlayerId > 0 && deathCam.MaxHealth > 0 && deathCam.Health <= 0
+            ? "You were killed by the late"
+            : "You were killed by";
     }
 
     internal static DeathCamHeaderLayout CenterDeathCamHeader(
@@ -919,6 +995,12 @@ public partial class Game1
 
         const float respawnTextX = 10f;
         const float respawnTextY = 10f;
+        if (UsesGg2Presentation)
+        {
+            DrawGg2RespawnText(new Vector2(respawnTextX, respawnTextY));
+            return;
+        }
+
         DrawArenaRespawnNotice(new Vector2(
             respawnTextX,
             respawnTextY - (MeasureBitmapFontHeight(1f) * 0.5f)));
@@ -952,6 +1034,18 @@ public partial class Game1
             PlayerTeam.Blue => 1,
             _ => 2,
         };
+
+        if (UsesGg2Presentation)
+        {
+            // GG2's WinBanner: 1x at y = 600/9, fading with the round-end scoreboard.
+            var alpha = _scoreboardAlpha > 0.02f ? _scoreboardAlpha * 0.8f : 0f;
+            if (alpha > 0f)
+            {
+                TryDrawScreenSprite("WinBannerS", frameIndex, new Vector2(viewportWidth / 2f, 600f / 9f), Color.White * alpha, Vector2.One);
+            }
+
+            return;
+        }
 
         DrawCenteredHudSprite(
             "WinBannerS",

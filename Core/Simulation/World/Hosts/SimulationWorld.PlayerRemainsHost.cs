@@ -7,6 +7,7 @@ public sealed partial class SimulationWorld : IPlayerRemainsHost
     bool IPlayerRemainsHost.ClientPredictionMode => ClientPredictionMode;
     EntityStore IPlayerRemainsHost.EntityStore => EntityStore;
     bool IPlayerRemainsHost.LocalGoreEffectsEnabled => LocalGoreEffectsEnabled;
+    bool IPlayerRemainsHost.ClassicGoreEnabled => ClassicGoreEnabled;
     PlayerDeathSystem IPlayerRemainsHost.PlayerDeaths => PlayerDeaths;
     PresentationEventLog IPlayerRemainsHost.PresentationEvents => PresentationEvents;
     SimulationRandomStreams IPlayerRemainsHost.Randoms => Randoms;

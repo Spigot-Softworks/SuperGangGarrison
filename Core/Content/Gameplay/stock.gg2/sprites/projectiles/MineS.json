@@ -6,8 +6,8 @@
                        "assets/projectiles/MineS.images/image 2.png",
                        "assets/projectiles/MineS.images/image 3.png"
                    ],
-    "originX":  3,
-    "originY":  3,
+    "originX":  7,
+    "originY":  7,
     "mask":  {
                  "separate":  false,
                  "shape":  "RECTANGLE",

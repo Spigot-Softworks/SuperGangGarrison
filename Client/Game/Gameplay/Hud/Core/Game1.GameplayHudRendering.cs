@@ -226,6 +226,7 @@ public partial class Game1
         }
 
         WriteGameplayRenderTrace("hud after damagevignette");
+        DrawGg2DeadViewBars();
         DrawKillFeedHud();
         WriteGameplayRenderTrace("hud after killfeed");
         DrawClientPluginOverlayMenuHud();

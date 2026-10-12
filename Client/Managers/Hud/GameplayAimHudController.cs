@@ -367,6 +367,12 @@ public sealed class GameplayAimHudController
                     || _context.GetPlayerIsExperimentalGhostDashing(_context._world.LocalPlayer),
                 _crosshairTiming.CooldownDurationTicks,
                 _crosshairTiming.ReloadDurationTicks);
+            if (_context.UsesGg2Presentation)
+            {
+                // GG2's cursor is CrosshairS itself, with no recharge frames.
+                frame = new CrosshairFrame("CrosshairS", RechargeCrosshairIdleFrameIndex);
+            }
+
             var crosshair = _context.GetResolvedSprite(frame.SpriteName);
             if (crosshair is null || crosshair.Frames.Count == 0)
             {

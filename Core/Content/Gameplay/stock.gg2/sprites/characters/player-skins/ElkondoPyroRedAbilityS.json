@@ -1,0 +1,13 @@
+{
+  "id": "ElkondoPyroRedAbilityS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoPyroRedAbilityS/0.png",
+    "assets/characters/player-skins/ElkondoPyroRedAbilityS/1.png",
+    "assets/characters/player-skins/ElkondoPyroRedAbilityS/2.png",
+    "assets/characters/player-skins/ElkondoPyroRedAbilityS/3.png",
+    "assets/characters/player-skins/ElkondoPyroRedAbilityS/4.png",
+    "assets/characters/player-skins/ElkondoPyroRedAbilityS/5.png"
+  ],
+  "originX": 30,
+  "originY": 38
+}

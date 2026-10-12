@@ -311,6 +311,7 @@ public partial class Game1
             (byte)GameModeKind.Generator => "Gen",
             (byte)GameModeKind.KingOfTheHill => "KOTH",
             (byte)GameModeKind.DoubleKingOfTheHill => "DKOTH",
+            (byte)GameModeKind.Conquest => "Conquest",
             (byte)GameModeKind.TeamDeathmatch => "TDM",
             (byte)GameModeKind.Scr => "SCR",
             _ => "CTF",

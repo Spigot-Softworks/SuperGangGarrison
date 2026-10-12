@@ -108,6 +108,8 @@ public static partial class ProtocolCodec
         writer.Write(snapshot.CompetitiveReadyUpPhase);
         writer.Write(snapshot.CompetitiveReadyUpTicksRemaining);
         writer.Write(snapshot.CapLimit);
+        WriteMapLightStates(writer, snapshot.MapLightStates);
+        WriteDamageableZoneStates(writer, snapshot.DamageableZoneStates);
         WriteControlPointStates(writer, snapshot.ControlPoints);
         WriteGeneratorStates(writer, snapshot.Generators);
         WriteDeathCamState(writer, snapshot.LocalDeathCam);
@@ -124,6 +126,42 @@ public static partial class ProtocolCodec
 
             WriteScoreboardDeltaExtension(writer, snapshot.ScoreboardPlayerOrder, snapshot.ScoreboardPlayerPatches);
         }
+    }
+
+    /// <summary>Most logic-driven lights a snapshot carries.</summary>
+    private const int MaxSnapshotMapLights = 1024;
+
+    private static void WriteMapLightStates(BinaryWriter writer, IReadOnlyList<SnapshotMapLightState> states)
+    {
+        var count = Math.Min(states.Count, MaxSnapshotMapLights);
+        writer.Write((ushort)count);
+        for (var index = 0; index < count; index += 1)
+        {
+            writer.Write(states[index].Index);
+            writer.Write(states[index].State);
+        }
+    }
+
+    private static IReadOnlyList<SnapshotMapLightState> ReadMapLightStates(BinaryReader reader)
+    {
+        var count = reader.ReadUInt16();
+        if (count > MaxSnapshotMapLights)
+        {
+            throw new InvalidDataException("Too many map light states in snapshot.");
+        }
+
+        if (count == 0)
+        {
+            return Array.Empty<SnapshotMapLightState>();
+        }
+
+        var states = new SnapshotMapLightState[count];
+        for (var index = 0; index < count; index += 1)
+        {
+            states[index] = new SnapshotMapLightState(reader.ReadUInt16(), reader.ReadByte());
+        }
+
+        return states;
     }
 
     private static SnapshotMessage ReadSnapshot(BinaryReader reader)
@@ -212,6 +250,8 @@ public static partial class ProtocolCodec
         var competitiveReadyUpPhase = reader.ReadByte();
         var competitiveReadyUpTicksRemaining = reader.ReadInt32();
         var capLimit = reader.ReadInt32();
+        var mapLightStates = ReadMapLightStates(reader);
+        var damageableZoneStates = ReadDamageableZoneStates(reader);
         var controlPoints = ReadControlPointStates(reader);
         var generators = ReadGeneratorStates(reader);
         var deathCam = ReadDeathCamState(reader);
@@ -290,6 +330,8 @@ public static partial class ProtocolCodec
             CompetitiveReadyUpPhase = competitiveReadyUpPhase,
             CompetitiveReadyUpTicksRemaining = competitiveReadyUpTicksRemaining,
             CapLimit = capLimit,
+            MapLightStates = mapLightStates,
+            DamageableZoneStates = damageableZoneStates,
             BaselineFrame = baselineFrame,
             IsDelta = isDelta,
             EntityCollectionCompletenessFlags = entityCollectionCompletenessFlags,

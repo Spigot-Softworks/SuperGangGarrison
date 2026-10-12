@@ -22,7 +22,8 @@ public partial class Game1
     private static readonly string[] GarrisonBuilderLightingSliderLabels =
     [
         "Brightness", "Effect lights", "Player light", "Rim light", "Cast shadow", "  Distance", "Vignette",
-        "Body shade", "  Saturation", "  Sky amount", "Sky reach", "  Opacity",
+        "Body shade", "  Saturation", "  Sky amount", "Sky reach", "  Opacity", "Band steps", "Pixel size",
+        "Muzzle flash", "Medic beams", "Beam haze",
     ];
 
     private static readonly RasterizerState GarrisonBuilderLightingScissorState = new()
@@ -32,7 +33,11 @@ public partial class Game1
     };
 
     private readonly LightmapRenderer _builderLightmap = new();
+    private readonly List<MapLightEmitter> _builderLightEmitters = new();
+    private readonly List<MapLightBeam> _builderLightBeams = new();
+    private readonly List<ResolvedMapBeam> _builderResolvedBeams = new();
     private bool _builderLightingPreviewEnabled = true;
+    private readonly EmissiveWorldLayer _builderEmissiveLayer = new();
     private bool _builderLightingDialogOpen;
     private MapLighting _builderLightingDraft = MapLighting.None;
     private GarrisonBuilderLightingRow _builderLightingDragRow = GarrisonBuilderLightingRow.None;
@@ -56,6 +61,8 @@ public partial class Game1
         EffectLights,
         EffectRange,
         PlayerLight,
+        PlayerTeamColor,
+        FireTeamColor,
         PlayerRange,
         Vignette,
         Pulse,
@@ -76,6 +83,18 @@ public partial class Game1
         CastShadow,
         ShadowDistance,
         Style,
+        BandSteps,
+        BandPixel,
+        BandClip,
+        MuzzleFlash,
+        MuzzleFlashSize,
+        MuzzleFlashLength,
+        MedicBeams,
+        BeamHaze,
+        HealGlow,
+        BuildingGlow,
+        BloodColor,
+        BloodGlow,
         Preview,
         Buttons,
     }
@@ -86,6 +105,7 @@ public partial class Game1
         Lights,
         Rim,
         Body,
+        Retro,
     }
 
     private static readonly (GarrisonBuilderLightingTab Tab, string Label)[] GarrisonBuilderLightingTabs =
@@ -94,6 +114,7 @@ public partial class Game1
         (GarrisonBuilderLightingTab.Lights, "Lights"),
         (GarrisonBuilderLightingTab.Rim, "Rim"),
         (GarrisonBuilderLightingTab.Body, "Body"),
+        (GarrisonBuilderLightingTab.Retro, "Retro"),
     ];
 
     private static readonly GarrisonBuilderLightingRow[] GarrisonBuilderLightingSceneRows =
@@ -117,9 +138,18 @@ public partial class Game1
     [
         GarrisonBuilderLightingRow.Glow,
         GarrisonBuilderLightingRow.EffectLights,
+        GarrisonBuilderLightingRow.FireTeamColor,
         GarrisonBuilderLightingRow.EffectRange,
+        GarrisonBuilderLightingRow.BuildingGlow,
         GarrisonBuilderLightingRow.PlayerLight,
+        GarrisonBuilderLightingRow.PlayerTeamColor,
         GarrisonBuilderLightingRow.PlayerRange,
+        GarrisonBuilderLightingRow.HealGlow,
+        GarrisonBuilderLightingRow.MuzzleFlash,
+        GarrisonBuilderLightingRow.MuzzleFlashSize,
+        GarrisonBuilderLightingRow.MuzzleFlashLength,
+        GarrisonBuilderLightingRow.MedicBeams,
+        GarrisonBuilderLightingRow.BeamHaze,
     ];
 
     private static readonly GarrisonBuilderLightingRow[] GarrisonBuilderLightingRimRows =
@@ -144,6 +174,16 @@ public partial class Game1
         GarrisonBuilderLightingRow.CastShadow,
         GarrisonBuilderLightingRow.ShadowDistance,
         GarrisonBuilderLightingRow.UberRim,
+        GarrisonBuilderLightingRow.BloodColor,
+        GarrisonBuilderLightingRow.BloodGlow,
+    ];
+
+    private static readonly GarrisonBuilderLightingRow[] GarrisonBuilderLightingRetroRows =
+    [
+        GarrisonBuilderLightingRow.Style,
+        GarrisonBuilderLightingRow.BandSteps,
+        GarrisonBuilderLightingRow.BandPixel,
+        GarrisonBuilderLightingRow.BandClip,
     ];
 
     /// <summary>Every tab gets the same height, so the dialog does not jump when switching.</summary>
@@ -163,6 +203,7 @@ public partial class Game1
         GarrisonBuilderLightingTab.Lights => GarrisonBuilderLightingLightsRows,
         GarrisonBuilderLightingTab.Rim => GarrisonBuilderLightingRimRows,
         GarrisonBuilderLightingTab.Body => GarrisonBuilderLightingBodyRows,
+        GarrisonBuilderLightingTab.Retro => GarrisonBuilderLightingRetroRows,
         _ => GarrisonBuilderLightingSceneRows,
     };
 
@@ -201,6 +242,7 @@ public partial class Game1
 
     private void CloseGarrisonBuilderLightingDialog(bool apply)
     {
+        _builderBloodPaletteOpen = false;
         if (apply)
         {
             var metadata = new Dictionary<string, string>(_builderDocument.Metadata, StringComparer.OrdinalIgnoreCase);
@@ -244,6 +286,7 @@ public partial class Game1
         if (!lighting.IsActive)
         {
             _builderLightmap.Begin(MapLighting.None, 0f, 0f, 1f, 1f, 1f, 0d);
+            _builderResolvedBeams.Clear();
             return;
         }
 
@@ -260,6 +303,12 @@ public partial class Game1
             MathF.Max(1f, bottomRight.Y - topLeft.Y),
             worldHeight,
             time);
+        // Same evaluation as gameplay (seeded by entity index). The preview has no wall
+        // reach (the editor builds no occlusion field), shows each light in its starting
+        // logic state, and plays a 120 BPM test beat for jukebox lights.
+        _builderLightEmitters.Clear();
+        _builderLightBeams.Clear();
+        var music = GetBuilderPreviewMusic(time);
         for (var index = 0; index < _builderEntities.Count; index += 1)
         {
             var entity = _builderEntities[index];
@@ -269,18 +318,174 @@ public partial class Game1
             }
 
             var light = MapLightMetadata.FromProperties(entity.X, entity.Y, entity.Properties);
-            _builderLightmap.AddLight(
-                light.X,
-                light.Y,
-                light.Radius,
-                new Color(light.Color.R, light.Color.G, light.Color.B),
-                light.Intensity / 100f * LightmapRenderer.GetFlicker(light.Flicker, time, index * 7.31f),
-                falloff: light.Falloff,
-                directionDegrees: light.Direction,
-                spreadDegrees: light.Spread);
+            if (_builderLightMaskCanvas is not null && index == _builderLightMaskPaintEntityIndex)
+            {
+                MapLightingColor.TryParse(_builderLightMaskPaintColor, out var paintColor);
+                light = light with { Mask = GarrisonBuilderPaintMaskPreviewResource, MaskPixelSize = GarrisonBuilderMaskPixelSize, Color = paintColor };
+            }
+            MapLightEmission.Evaluate(light, index, time, MapLightRuntimeSample.Initial(light.Style), music, _builderLightEmitters, _builderLightBeams);
         }
 
+        // Walls from the walkmask stop light in the preview too (as in game).
+        var field = GetGarrisonBuilderLightOcclusionField();
+        var reach = GetGarrisonBuilderLightReach(field);
+        SubmitMapLightEmitters(_builderLightmap, _builderLightEmitters, reach, ResolveGarrisonBuilderLightMask);
+        ResolveMapBeams(_builderLightBeams, _builderResolvedBeams, level: null, reach, field, includePlayers: false);
+        AddMapBeamLights(_builderLightmap, _builderResolvedBeams);
+
+        AddGarrisonBuilderJungleAmbientOnlyShapes();
+        _builderLightmap.BandEffect = lighting.Banded ? GetLightBandsEffect() : null;
+        var worldWidth = BuilderDisplayToWorld(new Vector2(GetGarrisonBuilderMapWidth(), 0f)).X;
+        _builderLightmap.SetBandClipArt(
+            lighting.Banded && lighting.BandClip ? _builderBackgroundTexture : null,
+            worldWidth,
+            worldHeight);
         _builderLightmap.Render(GraphicsDevice, _spriteBatch);
+    }
+
+    /// <summary>Jungle sprites keep lights off themselves in the preview too (see the gameplay version).</summary>
+    private void AddGarrisonBuilderJungleAmbientOnlyShapes()
+    {
+        for (var index = 0; index < _builderEntities.Count; index += 1)
+        {
+            var entity = _builderEntities[index];
+            if (!ForegroundSpriteMetadata.IsForegroundSpriteEntityType(entity.Type) || IsGarrisonBuilderEntityHidden(index))
+            {
+                continue;
+            }
+
+            var configuration = ForegroundSpriteMetadata.ParseConfiguration(entity.Properties);
+            if (!configuration.Jungle
+                || configuration.OverlapLights
+                || !TryGetGarrisonBuilderEntityWorldBounds(entity, out var left, out var top, out var width, out var height))
+            {
+                continue;
+            }
+
+            Texture2D? shape = _pixel;
+            if (!configuration.Tile)
+            {
+                shape = configuration.HasImage
+                    && _builderDocument.Resources.TryGetValue(configuration.ImageResourceName, out var resource)
+                    && TryGetGarrisonBuilderResourceBytes(resource, out var bytes)
+                        ? _jungleLightShapes.Get(GraphicsDevice, bytes)
+                        : null;
+            }
+
+            if (shape is not null)
+            {
+                _builderLightmap.AddAmbientOnlyShape(shape, left, top, width, height, configuration.OutsideOpacity);
+            }
+        }
+    }
+
+    /// <summary>The texture for a light mask resource in the document being edited, or null.</summary>
+    private Texture2D? ResolveGarrisonBuilderLightMask(string? resourceName)
+    {
+        if (resourceName == GarrisonBuilderPaintMaskPreviewResource && _builderLightMaskCanvas is not null)
+            return _builderLightMaskPaintTexture;
+
+        if (string.IsNullOrWhiteSpace(resourceName)
+            || !_builderDocument.Resources.TryGetValue(resourceName.Trim(), out var resource)
+            || !TryGetGarrisonBuilderResourceBytes(resource, out var bytes))
+        {
+            return null;
+        }
+
+        return _lightMaskTextures.Get(GraphicsDevice, bytes);
+    }
+
+    /// <summary>
+    /// Mask row of a light: with no mask, opens an image picker (PNG/GIF; solid = lit,
+    /// transparent = dark); with one set, clears it.
+    /// </summary>
+    private bool TryHandleGarrisonBuilderLightMaskClick(string key, string value)
+    {
+        if (!key.Equals(MapLightMetadata.MaskKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            BeginGarrisonBuilderPropertyTransaction();
+            RecordGarrisonBuilderHistory();
+            OpenGarrison.ClientShared.BuilderPaintedLightMask.RememberActive(_builderPropertyEditorValues);
+            _builderPropertyEditorValues[key] = string.Empty;
+            _builderPropertyEditorValues.Remove(MapLightMetadata.MaskPixelSizeKey);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            PruneGarrisonBuilderResourceIfUnreferenced(value);
+            MarkGarrisonBuilderPropertyEditorChanged();
+            _builderStatus = "light mask removed";
+            return true;
+        }
+
+        BeginChooseGarrisonBuilderFile(
+            "Select light mask (solid = lit, transparent = dark)",
+            "Image files (*.png;*.gif)|*.png;*.gif|PNG files (*.png)|*.png|All files (*.*)|*.*",
+            _builderResourcePathBuffer,
+            selectedPath =>
+            {
+                BeginGarrisonBuilderPropertyTransaction();
+                RecordGarrisonBuilderHistory();
+                OpenGarrison.ClientShared.BuilderPaintedLightMask.RememberActive(_builderPropertyEditorValues);
+                _builderResourcePathBuffer = selectedPath;
+                var resources = new Dictionary<string, CustomMapBuilderResource>(
+                    _builderDocument.Resources,
+                    StringComparer.OrdinalIgnoreCase);
+                var resourceName = CustomMapCustomSpriteMetadata.FindOrAssignImageResource(selectedPath, resources);
+                _builderDocument = _builderDocument with { Resources = resources };
+                _builderPropertyEditorValues[MapLightMetadata.MaskKey] = resourceName;
+                _builderPropertyEditorValues.Remove(MapLightMetadata.MaskPixelSizeKey);
+                ApplyGarrisonBuilderPropertyEditorLivePreview();
+                MarkGarrisonBuilderPropertyEditorChanged();
+                _builderDirty = true;
+                _builderStatus = $"light mask {resourceName}";
+            });
+        return true;
+    }
+
+    /// <summary>Sharp painted pixels draw with background art, below entities and foreground.</summary>
+    private void DrawGarrisonBuilderPaintedMaskEmission(Rectangle mapViewport)
+    {
+        var hasEmission = _builderLightmap.HasPaintedMaskEmission;
+        var hasDraft = _builderLightMaskCanvas is not null && _builderLightMaskPaintTexture is { IsDisposed: false };
+        if (!hasEmission && !hasDraft) return;
+        var origin = BuilderWorldToScreen(Vector2.Zero);
+        var scale = BuilderWorldToScreen(Vector2.UnitX).X - origin.X;
+        if (scale <= 0f) return;
+        var previousScissor = GraphicsDevice.ScissorRectangle;
+        _spriteBatch.End();
+        GraphicsDevice.ScissorRectangle = mapViewport;
+        if (_builderLightmap.HasFrame)
+        {
+            _spriteBatch.Begin(SpriteSortMode.Deferred, LightmapRenderer.Multiply2x,
+                _builderLightmap.PrefersPointSampling ? SamplerState.PointClamp : SamplerState.LinearClamp,
+                DepthStencilState.None, GarrisonBuilderLightingScissorState);
+            _builderLightmap.DrawMultiply(_spriteBatch, scale, origin);
+            _spriteBatch.End();
+        }
+        if (hasEmission)
+        {
+            _spriteBatch.Begin(SpriteSortMode.Deferred, LightmapRenderer.AddOne, SamplerState.PointClamp,
+                DepthStencilState.None, GarrisonBuilderLightingScissorState);
+            _builderLightmap.DrawPaintedMaskEmission(_spriteBatch, scale, origin);
+            _spriteBatch.End();
+        }
+        if (hasDraft)
+        {
+            // Keep paint visible while editing even with lighting preview disabled,
+            // but let foreground cover the draft just as it covers an applied mask.
+            MapLightingColor.TryParse(_builderLightMaskPaintColor, out var color);
+            _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: GarrisonBuilderLightingScissorState);
+            _spriteBatch.Draw(_builderLightMaskPaintTexture, BuilderWorldToScreen(_builderLightMaskPaintOrigin), null,
+                new Color(color.R, color.G, color.B) * 0.75f, 0f, Vector2.Zero,
+                GarrisonBuilderMaskPixelSize * scale, SpriteEffects.None, 0f);
+            _spriteBatch.End();
+        }
+        GraphicsDevice.ScissorRectangle = previousScissor;
+        if (_builderLightmap.HasFrame) _builderEmissiveLayer.BeginForeground(GraphicsDevice);
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp, rasterizerState: RasterizerState.CullNone);
     }
 
     /// <summary>Lays the preview light map over the editor's map view (art, sprites, entities).</summary>
@@ -299,16 +504,27 @@ public partial class Game1
         }
 
         var sampler = _builderLightmap.Lighting.Banded ? SamplerState.PointClamp : SamplerState.LinearClamp;
+        var multiplySampler = _builderLightmap.PrefersPointSampling ? SamplerState.PointClamp : sampler;
         var previousScissor = GraphicsDevice.ScissorRectangle;
         _spriteBatch.End();
         GraphicsDevice.ScissorRectangle = mapViewport;
-        _spriteBatch.Begin(SpriteSortMode.Deferred, LightmapRenderer.Multiply2x, sampler, DepthStencilState.None, GarrisonBuilderLightingScissorState);
+        _spriteBatch.Begin(SpriteSortMode.Deferred, LightmapRenderer.Multiply2x, multiplySampler, DepthStencilState.None, GarrisonBuilderLightingScissorState);
         _builderLightmap.DrawMultiply(_spriteBatch, scale, origin);
         _spriteBatch.End();
-        if (_builderLightmap.Lighting.Glow > 0)
+        _builderEmissiveLayer.CompositeForeground(GraphicsDevice, _spriteBatch, GarrisonBuilderLightingScissorState);
+        GraphicsDevice.ScissorRectangle = mapViewport;
+        if (_builderLightmap.HasGlow)
         {
-            _spriteBatch.Begin(SpriteSortMode.Deferred, LightmapRenderer.AddOne, SamplerState.LinearClamp, DepthStencilState.None, GarrisonBuilderLightingScissorState);
+            _spriteBatch.Begin(SpriteSortMode.Deferred, LightmapRenderer.AddOne, _builderLightmap.GlowSampler, DepthStencilState.None, GarrisonBuilderLightingScissorState);
             _builderLightmap.DrawGlow(_spriteBatch, scale, origin);
+            _spriteBatch.End();
+        }
+
+        if (_builderResolvedBeams.Count > 0)
+        {
+            var banded = _builderLightmap.IsBanded;
+            _spriteBatch.Begin(SpriteSortMode.Deferred, LightmapRenderer.AddOne, MapBeamRenderer.GetSampler(banded), DepthStencilState.None, GarrisonBuilderLightingScissorState);
+            _mapBeamRenderer.Draw(GraphicsDevice, _spriteBatch, _builderResolvedBeams, _builderLightmap.Lighting.BeamHaze / 100f, scale, origin, 1f, banded);
             _spriteBatch.End();
         }
 
@@ -318,44 +534,79 @@ public partial class Game1
 
     /// <summary>
     /// Light entity: a small bulb in its colour plus a dotted outline of what it lights:
-    /// a ring for a round light, or the cone's arc and edges for a spotlight.
+    /// a ring for a round light, the cone's arc and edges for a cone or searchlight, the
+    /// beams for a laser (red and hatched when it deals damage), and short ticks marking
+    /// the range a moving light sweeps.
     /// </summary>
     private void DrawGarrisonBuilderLightEntity(CustomMapBuilderEntity entity, Color tint)
     {
         var light = MapLightMetadata.FromProperties(entity.X, entity.Y, entity.Properties);
+        var style = light.Style;
         var color = new Color(light.Color.R, light.Color.G, light.Color.B);
         var center = BuilderWorldToScreen(new Vector2(entity.X, entity.Y));
         var edge = BuilderWorldToScreen(new Vector2(entity.X + light.Radius, entity.Y));
         var screenRadius = MathF.Abs(edge.X - center.X);
         var ringColor = color * 0.55f;
-        var directional = MapLightMetadata.IsDirectional(light.Spread);
         // Screen angles run clockwise (y down); map directions run counter-clockwise.
-        var arcCenter = -light.Direction * (MathF.PI / 180f);
-        var arcWidth = directional ? light.Spread * (MathF.PI / 180f) : MathF.Tau;
-        var arcStart = arcCenter - (arcWidth * 0.5f);
-        var dots = Math.Clamp((int)(screenRadius * arcWidth / 30f), 6, 96);
-        for (var dot = 0; dot <= dots; dot += 1)
-        {
-            var angle = arcStart + (dot * arcWidth / dots);
-            var point = center + (new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * screenRadius);
-            _spriteBatch.Draw(_pixel, new Rectangle((int)point.X, (int)point.Y, 2, 2), ringColor);
-        }
+        var aimDegrees = MapLightMetadata.GetAimDirection(light);
+        var arcCenter = -aimDegrees * (MathF.PI / 180f);
 
-        if (directional)
+        if (style.Kind == MapLightKind.Laser)
         {
-            var edgeDots = Math.Clamp((int)(screenRadius / 6f), 4, 48);
-            for (var side = 0; side < 2; side += 1)
+            var count = Math.Max(1, style.Beams);
+            for (var beam = 0; beam < count; beam += 1)
             {
-                var angle = side == 0 ? arcStart : arcStart + arcWidth;
+                var angle = -MapLightEmission.GetFanAngle(style, aimDegrees, beam) * (MathF.PI / 180f);
                 var along = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
-                for (var dot = 1; dot < edgeDots; dot += 1)
+                var dots = Math.Clamp((int)(screenRadius / 5f), 4, 160);
+                for (var dot = 1; dot <= dots; dot += 1)
                 {
-                    var point = center + (along * (screenRadius * dot / edgeDots));
-                    _spriteBatch.Draw(_pixel, new Rectangle((int)point.X, (int)point.Y, 2, 2), ringColor);
+                    var point = center + (along * (screenRadius * dot / dots));
+                    var dotColor = style.Damage
+                        ? (dot & 1) == 0 ? new Color(255, 60, 40) : new Color(255, 210, 60)
+                        : ringColor;
+                    _spriteBatch.Draw(_pixel, new Rectangle((int)point.X, (int)point.Y, 2, 2), dotColor);
                 }
             }
+        }
+        else
+        {
+            var spread = light.Spread;
+            if (style.Kind == MapLightKind.Spotlight && !MapLightMetadata.IsDirectional(spread))
+            {
+                spread = MapLightEmission.DefaultSpotlightSpread;
+            }
 
-            // Aim tick: a short solid line out of the bulb.
+            var directional = MapLightMetadata.IsDirectional(spread);
+            var arcWidth = directional ? spread * (MathF.PI / 180f) : MathF.Tau;
+            var arcStart = arcCenter - (arcWidth * 0.5f);
+            var ringDots = Math.Clamp((int)(screenRadius * arcWidth / 30f), 6, 96);
+            for (var dot = 0; dot <= ringDots; dot += 1)
+            {
+                var angle = arcStart + (dot * arcWidth / ringDots);
+                var point = center + (new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * screenRadius);
+                _spriteBatch.Draw(_pixel, new Rectangle((int)point.X, (int)point.Y, 2, 2), ringColor);
+            }
+
+            if (directional)
+            {
+                var edgeDots = Math.Clamp((int)(screenRadius / 6f), 4, 48);
+                for (var side = 0; side < 2; side += 1)
+                {
+                    var angle = side == 0 ? arcStart : arcStart + arcWidth;
+                    var along = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+                    for (var dot = 1; dot < edgeDots; dot += 1)
+                    {
+                        var point = center + (along * (screenRadius * dot / edgeDots));
+                        _spriteBatch.Draw(_pixel, new Rectangle((int)point.X, (int)point.Y, 2, 2), ringColor);
+                    }
+                }
+            }
+        }
+
+        // Aim tick: a short solid line out of the bulb (anything that points somewhere).
+        if (style.Kind != MapLightKind.Lamp || MapLightMetadata.IsDirectional(light.Spread))
+        {
             var aim = new Vector2(MathF.Cos(arcCenter), MathF.Sin(arcCenter));
             for (var step = 6; step <= 16; step += 1)
             {
@@ -364,13 +615,37 @@ public partial class Game1
             }
         }
 
+        // Sweep range: ticks at each end of the arc a moving light travels.
+        if (style.EffectiveMotion is MapLightMotion.Sweep or MapLightMotion.Bounce or MapLightMotion.Wander or MapLightMotion.Scan or MapLightMotion.Beat
+            && style.Arc > 0.5f)
+        {
+            var halfArc = style.Arc * 0.5f * (MathF.PI / 180f);
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var angle = arcCenter + (side * halfArc);
+                var along = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+                for (var step = 10; step <= 26; step += 2)
+                {
+                    var point = center + (along * step);
+                    _spriteBatch.Draw(_pixel, new Rectangle((int)point.X, (int)point.Y, 2, 2), Color.White * 0.7f);
+                }
+            }
+        }
+
+        // Second colour as a small swatch beside the bulb.
         var bulb = new Rectangle((int)MathF.Round(center.X) - 4, (int)MathF.Round(center.Y) - 4, 9, 9);
         _spriteBatch.Draw(_pixel, bulb, new Color(30, 26, 22) * (tint.A / 255f));
         _spriteBatch.Draw(_pixel, new Rectangle(bulb.X + 1, bulb.Y + 1, 7, 7), color);
+        if (style.AltColor is { } alt)
+        {
+            _spriteBatch.Draw(_pixel, new Rectangle(bulb.X + 5, bulb.Y + 5, 3, 3), new Color(alt.R, alt.G, alt.B));
+        }
+
         _spriteBatch.Draw(_pixel, new Rectangle(bulb.X + 3, bulb.Y - 3, 3, 2), color * 0.8f);
         _spriteBatch.Draw(_pixel, new Rectangle(bulb.X + 3, bulb.Bottom + 1, 3, 2), color * 0.8f);
         _spriteBatch.Draw(_pixel, new Rectangle(bulb.X - 3, bulb.Y + 3, 2, 3), color * 0.8f);
         _spriteBatch.Draw(_pixel, new Rectangle(bulb.Right + 1, bulb.Y + 3, 2, 3), color * 0.8f);
+        DrawGarrisonBuilderLightHandles(entity);
     }
 
     private float GetGarrisonBuilderLightingTextScale() => GetModernBuilderTextScale(0.82f);
@@ -448,6 +723,8 @@ public partial class Game1
         {
             return false;
         }
+
+        if (UpdateGarrisonBuilderBloodPalette(keyboard, mouse)) return true;
 
         if (IsKeyPressed(keyboard, Keys.Escape))
         {
@@ -531,9 +808,26 @@ public partial class Game1
                     EnsureGarrisonBuilderLightingDraftActive();
                     _builderLightingDraft = _builderLightingDraft with { UberRim = !_builderLightingDraft.UberRim };
                     return;
+                case GarrisonBuilderLightingRow.BloodColor:
+                    EnsureGarrisonBuilderLightingDraftActive();
+                    _builderBloodPaletteOpen = true;
+                    _builderBloodPaletteAnchor = bounds;
+                    return;
+                case GarrisonBuilderLightingRow.FireTeamColor:
+                    EnsureGarrisonBuilderLightingDraftActive();
+                    _builderLightingDraft = _builderLightingDraft with { FireTeamColor = !_builderLightingDraft.FireTeamColor };
+                    return;
+                case GarrisonBuilderLightingRow.PlayerTeamColor:
+                    EnsureGarrisonBuilderLightingDraftActive();
+                    _builderLightingDraft = _builderLightingDraft with { PlayerTeamColor = !_builderLightingDraft.PlayerTeamColor };
+                    return;
                 case GarrisonBuilderLightingRow.Style:
                     EnsureGarrisonBuilderLightingDraftActive();
                     _builderLightingDraft = _builderLightingDraft with { Banded = !_builderLightingDraft.Banded };
+                    return;
+                case GarrisonBuilderLightingRow.BandClip:
+                    EnsureGarrisonBuilderLightingDraftActive();
+                    _builderLightingDraft = _builderLightingDraft with { BandClip = !_builderLightingDraft.BandClip };
                     return;
                 case GarrisonBuilderLightingRow.Preview:
                     ToggleGarrisonBuilderLightingPreview();
@@ -624,6 +918,17 @@ public partial class Game1
             // Dragging the sky amount also switches the source to lights + sky.
             GarrisonBuilderLightingRow.SkyRim => draft with { SkyRim = percent, RimSource = MapRimLightSource.Both },
             GarrisonBuilderLightingRow.RimOpacity => draft with { RimOpacity = percent },
+            // Band controls only matter in retro style, so dragging one switches it on.
+            GarrisonBuilderLightingRow.MuzzleFlash => draft with { MuzzleFlash = percent },
+            GarrisonBuilderLightingRow.MuzzleFlashSize => draft with { MuzzleFlashSize = percent },
+            GarrisonBuilderLightingRow.MuzzleFlashLength => draft with { MuzzleFlashLength = percent },
+            GarrisonBuilderLightingRow.MedicBeams => draft with { MedicBeamLight = percent },
+            GarrisonBuilderLightingRow.BeamHaze => draft with { BeamHaze = percent },
+            GarrisonBuilderLightingRow.HealGlow => draft with { HealGlow = percent },
+            GarrisonBuilderLightingRow.BuildingGlow => draft with { BuildingGlow = percent },
+            GarrisonBuilderLightingRow.BloodGlow => draft with { BloodGlow = percent },
+            GarrisonBuilderLightingRow.BandSteps => draft with { BandSteps = percent, Banded = true },
+            GarrisonBuilderLightingRow.BandPixel => draft with { BandPixel = percent, Banded = true },
             // Dragging a custom channel also switches the rim to the custom colour.
             GarrisonBuilderLightingRow.RimCustomRed => draft with { RimColorMode = MapRimColorMode.Custom, RimCustomColor = draft.ResolvedRimCustomColor with { R = channel } },
             GarrisonBuilderLightingRow.RimCustomGreen => draft with { RimColorMode = MapRimColorMode.Custom, RimCustomColor = draft.ResolvedRimCustomColor with { G = channel } },
@@ -639,11 +944,14 @@ public partial class Game1
             or GarrisonBuilderLightingRow.GroundRed or GarrisonBuilderLightingRow.GroundGreen or GarrisonBuilderLightingRow.GroundBlue
             or GarrisonBuilderLightingRow.RimCustomRed or GarrisonBuilderLightingRow.RimCustomGreen or GarrisonBuilderLightingRow.RimCustomBlue => 255,
         GarrisonBuilderLightingRow.Brightness or GarrisonBuilderLightingRow.EffectRange or GarrisonBuilderLightingRow.PlayerRange
-            or GarrisonBuilderLightingRow.BodySaturation
+            or GarrisonBuilderLightingRow.BodySaturation or GarrisonBuilderLightingRow.MuzzleFlashSize
             => MapLightingMetadata.MaxScale,
         GarrisonBuilderLightingRow.RimWidth => MapLightingMetadata.MaxRimWidth,
         GarrisonBuilderLightingRow.ShadowDistance => MapLightingMetadata.MaxShadowDistance,
         GarrisonBuilderLightingRow.SkyReach => MapLightingMetadata.MaxSkyReach,
+        GarrisonBuilderLightingRow.MuzzleFlashLength => MapLightingMetadata.MaxMuzzleFlashLength,
+        GarrisonBuilderLightingRow.BandSteps => MapLightingMetadata.MaxBandSteps,
+        GarrisonBuilderLightingRow.BandPixel => MapLightingMetadata.MaxBandPixel,
         _ => 100,
     };
 
@@ -652,6 +960,9 @@ public partial class Game1
     {
         GarrisonBuilderLightingRow.RimWidth => MapLightingMetadata.MinRimWidth,
         GarrisonBuilderLightingRow.ShadowDistance => MapLightingMetadata.MinShadowDistance,
+        GarrisonBuilderLightingRow.MuzzleFlashLength => MapLightingMetadata.MinMuzzleFlashLength,
+        GarrisonBuilderLightingRow.BandSteps => MapLightingMetadata.MinBandSteps,
+        GarrisonBuilderLightingRow.BandPixel => MapLightingMetadata.MinBandPixel,
         _ => 0,
     };
 
@@ -724,6 +1035,16 @@ public partial class Game1
                     }
 
                     break;
+                case GarrisonBuilderLightingRow.BloodColor:
+                    var bloodLabel = draft.BloodTeamColor ? "Team color" : draft.BloodColor?.ToHex() ?? "Original";
+                    DrawBuilderMenuButton(bounds, $"Blood color / glow: {bloodLabel}   (palette)", hovered, enabled: active);
+                    break;
+                case GarrisonBuilderLightingRow.FireTeamColor:
+                    DrawBuilderMenuButton(bounds, $"Team-colored fire / afterburn: {(draft.FireTeamColor ? "On" : "Off")}", hovered, enabled: active);
+                    break;
+                case GarrisonBuilderLightingRow.PlayerTeamColor:
+                    DrawBuilderMenuButton(bounds, $"Team-colored player glow: {(draft.PlayerTeamColor ? "On" : "Off")}", hovered, enabled: active);
+                    break;
                 case GarrisonBuilderLightingRow.RimSource:
                     DrawBuilderMenuButton(bounds, $"Light from: {MapLightingMetadata.GetRimSourceDisplayLabel(draft.RimSource)}", hovered, enabled: active);
                     break;
@@ -735,6 +1056,9 @@ public partial class Game1
                     break;
                 case GarrisonBuilderLightingRow.Style:
                     DrawBuilderMenuButton(bounds, $"Falloff: {(draft.Banded ? "Retro bands" : "Smooth")}", hovered, enabled: active);
+                    break;
+                case GarrisonBuilderLightingRow.BandClip:
+                    DrawBuilderMenuButton(bounds, $"Bands only on map art: {(draft.BandClip ? "On" : "Off")}", hovered, enabled: active && draft.Banded);
                     break;
                 case GarrisonBuilderLightingRow.Preview:
                     DrawBuilderMenuButton(bounds, $"Preview in editor: {(_builderLightingPreviewEnabled ? "On" : "Off")}", hovered);
@@ -751,6 +1075,8 @@ public partial class Game1
                     var customRow = row is GarrisonBuilderLightingRow.RimCustomRed or GarrisonBuilderLightingRow.RimCustomGreen or GarrisonBuilderLightingRow.RimCustomBlue;
                     // Likewise the sky amount until "Lights + sky" is picked.
                     var skyRow = row == GarrisonBuilderLightingRow.SkyRim;
+                    // And the band controls until retro style is on.
+                    var bandRow = row is GarrisonBuilderLightingRow.BandSteps or GarrisonBuilderLightingRow.BandPixel;
                     DrawGarrisonBuilderLightingSlider(
                         row,
                         bounds,
@@ -758,10 +1084,12 @@ public partial class Game1
                         textScale,
                         active
                             && (!customRow || draft.RimColorMode == MapRimColorMode.Custom)
-                            && (!skyRow || draft.RimSource == MapRimLightSource.Both));
+                            && (!skyRow || draft.RimSource == MapRimLightSource.Both)
+                            && (!bandRow || draft.Banded));
                     break;
             }
         }
+        DrawGarrisonBuilderBloodPalette(mouse);
     }
 
     private void DrawGarrisonBuilderLightingSlider(GarrisonBuilderLightingRow row, Rectangle bounds, float textY, float textScale, bool active)
@@ -796,6 +1124,16 @@ public partial class Game1
             GarrisonBuilderLightingRow.RimOpacity => ("  Opacity", draft.RimOpacity, new Color(255, 215, 170)),
             GarrisonBuilderLightingRow.BodyShade => ("Body shade", draft.BodyShade, new Color(90, 80, 96)),
             GarrisonBuilderLightingRow.BodySaturation => ("  Saturation", draft.BodySaturation, new Color(200, 120, 170)),
+            GarrisonBuilderLightingRow.MuzzleFlash => ("Muzzle flash", draft.MuzzleFlash, new Color(255, 214, 140)),
+            GarrisonBuilderLightingRow.MuzzleFlashSize => ("  Size", draft.MuzzleFlashSize, new Color(255, 224, 170)),
+            GarrisonBuilderLightingRow.MuzzleFlashLength => ("  Length", draft.MuzzleFlashLength, new Color(255, 224, 170)),
+            GarrisonBuilderLightingRow.MedicBeams => ("Medic beams", draft.MedicBeamLight, new Color(240, 120, 120)),
+            GarrisonBuilderLightingRow.BeamHaze => ("Beam haze", draft.BeamHaze, new Color(190, 210, 255)),
+            GarrisonBuilderLightingRow.HealGlow => ("  Heal glow", draft.HealGlow, new Color(240, 150, 150)),
+            GarrisonBuilderLightingRow.BuildingGlow => ("  Building glow", draft.BuildingGlow, new Color(150, 180, 240)),
+            GarrisonBuilderLightingRow.BloodGlow => ("  Blood glow strength", draft.BloodGlow, new Color(235, 75, 90)),
+            GarrisonBuilderLightingRow.BandSteps => ("Band steps", draft.BandSteps, new Color(200, 170, 230)),
+            GarrisonBuilderLightingRow.BandPixel => ("Pixel size", draft.BandPixel, new Color(200, 170, 230)),
             _ => (string.Empty, 0, Color.White),
         };
         var max = GetGarrisonBuilderLightingSliderMax(row);

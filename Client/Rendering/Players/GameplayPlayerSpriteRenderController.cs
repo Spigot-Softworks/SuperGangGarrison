@@ -60,7 +60,7 @@ public sealed class GameplayPlayerSpriteRenderController
             var frameIndex = isHeavyEating
                 ? GetHeavyEatSpriteFrameIndex(
                     _game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team,
-                    _game._networkClient.IsLegacyGg2Connection ? 128 : PlayerEntity.HeavyEatDurationTicks)
+                    _game._networkClient.Profile.HeavyEatAnimationTicks)
                 : isPogoTrick
                     ? _game.GetCivviePogoTrickPresentationFrameIndex(player, sprite.Frames.Count)
                     : isPogo
@@ -231,7 +231,7 @@ public sealed class GameplayPlayerSpriteRenderController
             var frameIndex = isHeavyEating
                 ? GetHeavyEatSpriteFrameIndex(
                     _game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team,
-                    _game._networkClient.IsLegacyGg2Connection ? 128 : PlayerEntity.HeavyEatDurationTicks)
+                    _game._networkClient.Profile.HeavyEatAnimationTicks)
                 : isPogoTrick
                     ? _game.GetCivviePogoTrickPresentationFrameIndex(player, sprite.Frames.Count)
                     : isPogo
@@ -252,7 +252,7 @@ public sealed class GameplayPlayerSpriteRenderController
 
         public PlayerBodySpriteSelection GetPlayerBodySpriteSelection(PlayerEntity player)
         {
-            if (_game._networkClient.IsLegacyGg2Connection && player.ClassId == PlayerClass.Quote)
+            if (_game._networkClient.Profile.QuoteAppearsAsImpostor && player.ClassId == PlayerClass.Quote)
             {
                 var teamName = player.Team == PlayerTeam.Blue ? "Blue" : "Red";
                 var legacyRenderState = _game._playerRenderStates.GetValueOrDefault(_game.GetPlayerStateKey(player));
@@ -691,7 +691,8 @@ public sealed class GameplayPlayerSpriteRenderController
         private LeanDirection GetPlayerLeanDirectionCore(PlayerEntity player)
         {
             var playerScale = player.PlayerScale;
-            if (_game._networkClient.IsLegacyGg2Connection)
+            // The original GG2 lean poses: on GG2 servers, or with Classic GG2 Visuals.
+            if (_game._networkClient.Profile.ForcesClassicPlayerVisuals || _game.GameplayRuntimeSettings.ClassicVisualsEnabled)
             {
                 // The animation deliberately holds a standing frame through a
                 // brief loss of ground contact. Do not infer a ledge from that

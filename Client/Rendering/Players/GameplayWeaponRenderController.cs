@@ -66,6 +66,7 @@ public sealed class GameplayWeaponRenderController
                 WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
                 WeaponAnimationMode.Reload when weaponDefinition.ReloadOverlay.CarrierSpriteName is not null => weaponDefinition.ReloadOverlay.CarrierSpriteName,
                 WeaponAnimationMode.Reload when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Ability when weaponDefinition.AbilitySpriteName is not null => weaponDefinition.AbilitySpriteName,
                 WeaponAnimationMode.Recoil when weaponDefinition.RecoilOverlay.CarrierSpriteName is not null => weaponDefinition.RecoilOverlay.CarrierSpriteName,
                 WeaponAnimationMode.Recoil when weaponDefinition.RecoilSpriteName is not null => weaponDefinition.RecoilSpriteName,
                 _ => weaponDefinition.NormalSpriteName,
@@ -163,6 +164,7 @@ public sealed class GameplayWeaponRenderController
                 WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
                 WeaponAnimationMode.Reload when weaponDefinition.ReloadOverlay.CarrierSpriteName is not null => weaponDefinition.ReloadOverlay.CarrierSpriteName,
                 WeaponAnimationMode.Reload when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Ability when weaponDefinition.AbilitySpriteName is not null => weaponDefinition.AbilitySpriteName,
                 WeaponAnimationMode.Recoil when weaponDefinition.RecoilOverlay.CarrierSpriteName is not null => weaponDefinition.RecoilOverlay.CarrierSpriteName,
                 WeaponAnimationMode.Recoil when weaponDefinition.RecoilSpriteName is not null => weaponDefinition.RecoilSpriteName,
                 _ => weaponDefinition.NormalSpriteName,
@@ -342,6 +344,7 @@ public sealed class GameplayWeaponRenderController
                 WeaponAnimationMode.ScopedRecoil when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
                 WeaponAnimationMode.Reload when weaponDefinition.ReloadOverlay.CarrierSpriteName is not null => weaponDefinition.ReloadOverlay.CarrierSpriteName,
                 WeaponAnimationMode.Reload when weaponDefinition.ReloadSpriteName is not null => weaponDefinition.ReloadSpriteName,
+                WeaponAnimationMode.Ability when weaponDefinition.AbilitySpriteName is not null => weaponDefinition.AbilitySpriteName,
                 WeaponAnimationMode.Recoil when weaponDefinition.RecoilOverlay.CarrierSpriteName is not null => weaponDefinition.RecoilOverlay.CarrierSpriteName,
                 WeaponAnimationMode.Recoil when weaponDefinition.RecoilSpriteName is not null => weaponDefinition.RecoilSpriteName,
                 _ => weaponDefinition.NormalSpriteName,
@@ -583,6 +586,202 @@ public sealed class GameplayWeaponRenderController
                     drawRotation,
                     drawOrigin,
                     scale);
+            }
+        }
+
+        private Color[] _umbrellaCanopyPixels = System.Array.Empty<Color>();
+        private readonly System.Collections.Generic.Dictionary<LoadedSpriteFrame, Vector2?> _barrelTipCache = new();
+        private Color[] _barrelTipPixels = System.Array.Empty<Color>();
+
+        /// <summary>
+        /// Where the equipped weapon's barrel ends, in world space, as it is drawn right now
+        /// (aim rotation, facing, scale, run bob), and the direction it points. Uses the
+        /// weapon's authored muzzle point when it has one, otherwise the tip found in its art:
+        /// the frontmost column of solid pixels, at that column's middle.
+        /// </summary>
+        public bool TryGetWeaponMuzzle(PlayerEntity player, out Vector2 position, out Vector2 forward)
+        {
+            position = default;
+            forward = default;
+            if (!player.IsAlive)
+            {
+                return false;
+            }
+
+            var weaponDefinition = GetWeaponRenderDefinition(player);
+            if (weaponDefinition.NormalSpriteName is not { } spriteName
+                || _game.GetResolvedSprite(spriteName) is not { Frames.Count: > 0 } sprite)
+            {
+                return false;
+            }
+
+            var renderPosition = _game.GetRenderPosition(player);
+            var bodySelection = _game.GameplayPlayerSpriteRenderer.GetPlayerBodySpriteSelection(player);
+            if (!TryGetWeaponDrawTransform(
+                    player,
+                    renderPosition,
+                    bodySelection,
+                    WeaponAnimationMode.Idle,
+                    weaponDefinition,
+                    sprite,
+                    out var worldDrawX,
+                    out var worldDrawY,
+                    out var rotation,
+                    out var facingScale,
+                    out var playerScale))
+            {
+                return false;
+            }
+
+            Vector2 local;
+            if (weaponDefinition.MuzzleOffset is { } authored)
+            {
+                // Authored as world-unit offsets from the pivot along the unflipped weapon.
+                local = authored;
+            }
+            else
+            {
+                var frameIndex = System.Math.Clamp(
+                    GetWeaponSpriteFrameIndex(player, WeaponAnimationMode.Idle, weaponDefinition, sprite.Frames.Count),
+                    0,
+                    sprite.Frames.Count - 1);
+                if (FindBarrelTip(sprite.Frames[frameIndex]) is not { } tip)
+                {
+                    return false;
+                }
+
+                local = tip - sprite.Origin.ToVector2();
+            }
+
+            var cos = System.MathF.Cos(rotation);
+            var sin = System.MathF.Sin(rotation);
+            var scaledX = local.X * facingScale * playerScale;
+            var scaledY = local.Y * playerScale;
+            position = new Vector2(
+                worldDrawX + (scaledX * cos) - (scaledY * sin),
+                worldDrawY + (scaledX * sin) + (scaledY * cos));
+            forward = new Vector2(facingScale * cos, facingScale * sin);
+            return float.IsFinite(position.X) && float.IsFinite(position.Y);
+        }
+
+        /// <summary>The barrel tip of a weapon frame in texels (cached), or null for an empty frame.</summary>
+        private Vector2? FindBarrelTip(LoadedSpriteFrame frame)
+        {
+            if (_barrelTipCache.TryGetValue(frame, out var cached))
+            {
+                return cached;
+            }
+
+            Vector2? tip = null;
+            var pixelCount = frame.Width * frame.Height;
+            if (_barrelTipPixels.Length < pixelCount)
+            {
+                _barrelTipPixels = new Color[pixelCount];
+            }
+
+            if (frame.TryCopyPixelData(_barrelTipPixels))
+            {
+                for (var x = frame.Width - 1; x >= 0 && tip is null; x -= 1)
+                {
+                    var rows = 0;
+                    var rowSum = 0f;
+                    for (var y = 0; y < frame.Height; y += 1)
+                    {
+                        if (_barrelTipPixels[(y * frame.Width) + x].A >= 128)
+                        {
+                            rows += 1;
+                            rowSum += y + 0.5f;
+                        }
+                    }
+
+                    if (rows > 0)
+                    {
+                        tip = new Vector2(x + 1f, rowSum / rows);
+                    }
+                }
+            }
+
+            _barrelTipCache[frame] = tip;
+            return tip;
+        }
+
+        /// <summary>
+        /// The open umbrella's top edge in world space, for weather: for every world pixel
+        /// column the canopy covers, the highest opaque umbrella pixel. Uses the same
+        /// transform the umbrella is drawn with (aim rotation, facing, scale).
+        /// </summary>
+        /// <param name="addRoof">Receives (world column, top Y) pairs; a column may repeat.</param>
+        public void CollectCivvieUmbrellaWeatherRoof(PlayerEntity player, System.Action<int, float> addRoof)
+        {
+            if (!player.IsAlive
+                || !_game.GetPlayerIsCivvieUmbrellaActive(player)
+                || GetPlayerWeaponAnimationMode(player) != WeaponAnimationMode.CivvieUmbrellaHold)
+            {
+                return;
+            }
+
+            var weaponDefinition = GetWeaponRenderDefinition(player, forceCivvieUmbrellaPresentation: true);
+            if (weaponDefinition.NormalSpriteName is not { } spriteName
+                || _game.GetResolvedSprite(spriteName) is not { Frames.Count: > 0 } sprite)
+            {
+                return;
+            }
+
+            var renderPosition = _game.GetRenderPosition(player);
+            var bodySelection = _game.GameplayPlayerSpriteRenderer.GetPlayerBodySpriteSelection(player);
+            if (!TryGetWeaponDrawTransform(
+                    player,
+                    renderPosition,
+                    bodySelection,
+                    WeaponAnimationMode.CivvieUmbrellaHold,
+                    weaponDefinition,
+                    sprite,
+                    out var worldDrawX,
+                    out var worldDrawY,
+                    out var rotation,
+                    out var facingScale,
+                    out var playerScale))
+            {
+                return;
+            }
+
+            var frameIndex = GetWeaponSpriteFrameIndex(player, WeaponAnimationMode.CivvieUmbrellaHold, weaponDefinition, sprite.Frames.Count);
+            var frame = sprite.Frames[System.Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
+            var pixelCount = frame.Width * frame.Height;
+            if (_umbrellaCanopyPixels.Length < pixelCount)
+            {
+                _umbrellaCanopyPixels = new Color[pixelCount];
+            }
+
+            if (!frame.TryCopyPixelData(_umbrellaCanopyPixels))
+            {
+                return;
+            }
+
+            var origin = sprite.Origin.ToVector2();
+            var cos = System.MathF.Cos(rotation);
+            var sin = System.MathF.Sin(rotation);
+            var scaleX = facingScale * playerScale;
+            var scaleY = playerScale;
+            for (var y = 0; y < frame.Height; y += 1)
+            {
+                for (var x = 0; x < frame.Width; x += 1)
+                {
+                    if (_umbrellaCanopyPixels[(y * frame.Width) + x].A < 128)
+                    {
+                        continue;
+                    }
+
+                    // SpriteBatch order: scale (with the facing flip) about the origin, then rotate.
+                    var localX = (x + 0.5f - origin.X) * scaleX;
+                    var localY = (y + 0.5f - origin.Y) * scaleY;
+                    var worldX = worldDrawX + (localX * cos) - (localY * sin);
+                    var worldY = worldDrawY + (localX * sin) + (localY * cos);
+                    // Mark both columns the pixel touches so rotation leaves no gaps.
+                    var top = worldY - (0.5f * playerScale);
+                    addRoof((int)System.MathF.Floor(worldX - 0.5f), top);
+                    addRoof((int)System.MathF.Floor(worldX + 0.5f), top);
+                }
             }
         }
 
@@ -904,11 +1103,25 @@ public sealed class GameplayWeaponRenderController
                 }
 
                 var hasActionStrip = weaponAnimationMode == WeaponAnimationMode.Recoil && weaponDefinition.RecoilSpriteName is not null
-                    || weaponAnimationMode == WeaponAnimationMode.Reload && weaponDefinition.ReloadSpriteName is not null;
+                    || weaponAnimationMode == WeaponAnimationMode.Reload && weaponDefinition.ReloadSpriteName is not null
+                    || weaponAnimationMode == WeaponAnimationMode.Ability && weaponDefinition.AbilitySpriteName is not null;
                 if (!hasActionStrip)
                     return System.Math.Clamp(weaponDefinition.PoseFrameIndex, 0, frameCount - 1);
-                var progress = _game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var skinState)
-                    ? skinState.WeaponAnimationElapsedSeconds / System.MathF.Max(skinState.WeaponAnimationDurationSeconds, 0.0001f)
+                var hasSkinState = _game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var skinState);
+                if (weaponAnimationMode == WeaponAnimationMode.Recoil
+                    && weaponDefinition.RecoilFramesPerSecond > 0f
+                    && weaponDefinition.RecoilLoopStartFrame >= 0)
+                {
+                    // Held fire (flamethrower, minigun): wind-up frames once, then loop the rest
+                    // at a fixed rate for as long as the trigger keeps the recoil alive.
+                    var elapsedFrame = hasSkinState
+                        ? (int)System.MathF.Floor(skinState!.WeaponAnimationElapsedSeconds * weaponDefinition.RecoilFramesPerSecond)
+                        : 0;
+                    return ResolveLoopingFrameIndex(elapsedFrame, weaponDefinition.RecoilLoopStartFrame, frameCount);
+                }
+
+                var progress = hasSkinState
+                    ? skinState!.WeaponAnimationElapsedSeconds / System.MathF.Max(skinState.WeaponAnimationDurationSeconds, 0.0001f)
                     : 0;
                 if (weaponDefinition.UseTorsoReplacement
                     && weaponAnimationMode == WeaponAnimationMode.Recoil
@@ -962,6 +1175,25 @@ public sealed class GameplayWeaponRenderController
                 : System.Math.Clamp((int)System.MathF.Floor(animationPosition), 0, perTeamFrames - 1);
             var teamOffset = ShouldUseBlueTeamMedigunFrames(player) ? perTeamFrames : 0;
             return System.Math.Clamp(teamOffset + animationFrame, 0, frameCount - 1);
+        }
+
+        /// <summary>Frame for a wind-up-then-loop strip: frames before loopStart once, the rest repeating.</summary>
+        internal static int ResolveLoopingFrameIndex(int elapsedFrame, int loopStart, int frameCount)
+        {
+            if (frameCount <= 0)
+            {
+                return 0;
+            }
+
+            elapsedFrame = System.Math.Max(0, elapsedFrame);
+            loopStart = System.Math.Clamp(loopStart, 0, frameCount - 1);
+            if (elapsedFrame < loopStart)
+            {
+                return elapsedFrame;
+            }
+
+            var loopLength = frameCount - loopStart;
+            return loopStart + ((elapsedFrame - loopStart) % loopLength);
         }
 
         private bool TryDrawTorsoReplacementAtPosition(
@@ -1235,7 +1467,7 @@ public sealed class GameplayWeaponRenderController
         {
             var renderPlayer = player;
             player = _game.GetPlayerPredictedPresentationState(player);
-            var presentation = _game._networkClient.IsLegacyGg2Connection && player.ClassId == PlayerClass.Quote
+            var presentation = _game._networkClient.Profile.QuoteAppearsAsImpostor && player.ClassId == PlayerClass.Quote
                 ? CharacterClassCatalog.RuntimeRegistry.GetRequiredItem("weapon.blade").Presentation
                 : ResolveRenderPresentation(player, forceCivvieUmbrellaPresentation);
             var rifleCycleSpeed = player.ClassId == PlayerClass.Sniper

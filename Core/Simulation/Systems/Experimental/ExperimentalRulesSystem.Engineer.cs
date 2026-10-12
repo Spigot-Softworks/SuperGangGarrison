@@ -1010,7 +1010,7 @@ internal sealed partial class ExperimentalRulesSystem
                 baseDamage
                     * GetExperimentalOutgoingSentryDamageMultiplier(owner, target)
                     * (sentry.IsOverdriveActive ? WhippingCordCatalog.AutogunOverdriveDamageMultiplier : 1f)));
-        _host.WorldEffects.RegisterBloodEffect(target.X, target.Y, sentry.AimDirectionDegrees - 180f, 2);
+        _host.WorldEffects.RegisterBloodEffect(target.X, target.Y, sentry.AimDirectionDegrees - 180f, 2, team: target.Team);
         var healthBefore = target.Health;
         var resolution = _host.ResolvePlayerDamageWithContext(
             target,

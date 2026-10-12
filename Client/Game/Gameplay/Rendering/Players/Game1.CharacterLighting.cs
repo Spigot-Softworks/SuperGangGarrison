@@ -143,8 +143,10 @@ public partial class Game1
         _characterLightingActive = false;
         _characterShadowRecording = null;
         _characterUberRim = false;
+        BeginCharacterBrightmaps(renderPosition, visibilityAlpha);
         var lighting = _world.Level.Lighting;
         if (!lighting.HasCharacterLighting
+            || !_gameplayManager.RuntimeSettings.MapLightingEnabled
             || !IsGameplayLightingPassActive
             || UseReducedBrowserEffects
             || _world.Level.IsTopDown
@@ -181,6 +183,11 @@ public partial class Game1
             _characterLightStrength = 0f;
         }
 
+        // The player's lighting intensity tones down rim light and body shade with the light map.
+        var intensity = OpenGarrisonPreferencesDocument.NormalizeLightingIntensityPercent(
+            _gameplayManager.RuntimeSettings.LightingIntensityPercent) / 100f;
+        _characterBodyShade *= intensity;
+        _characterLightStrength *= intensity;
         _characterLightingActive = true;
         _characterLightTeam = team;
         _characterSpriteAnchor = renderPosition - cameraPosition;
@@ -206,6 +213,7 @@ public partial class Game1
 
     internal void EndCharacterLighting()
     {
+        EndCharacterBrightmaps();
         _characterLightingActive = false;
         _characterShadowRecording = null;
         _characterUberRim = false;
@@ -324,6 +332,22 @@ public partial class Game1
 
     /// <summary>Sprite primitives call this after drawing a sprite normally.</summary>
     private void ObserveCharacterSpriteDraw(
+        Texture2D texture,
+        Rectangle? source,
+        Vector2 position,
+        Color tint,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects)
+    {
+        ObserveCharacterLightingSpriteDraw(texture, source, position, tint, rotation, origin, scale, effects);
+        // After the rim, which writes over the sprite's pixels.
+        ObserveBrightmapSpriteDraw(texture, source, position, tint, rotation, origin, scale, effects);
+    }
+
+    /// <summary>Records the sprite for the cast shadow and gives it its rim light.</summary>
+    private void ObserveCharacterLightingSpriteDraw(
         Texture2D texture,
         Rectangle? source,
         Vector2 position,

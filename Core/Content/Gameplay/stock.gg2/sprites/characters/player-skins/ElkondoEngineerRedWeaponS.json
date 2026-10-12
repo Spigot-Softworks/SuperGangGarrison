@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoEngineerRedWeaponS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoEngineerRedWeaponS/0.png",
+    "assets/characters/player-skins/ElkondoEngineerRedWeaponS/1.png",
+    "assets/characters/player-skins/ElkondoEngineerRedWeaponS/2.png",
+    "assets/characters/player-skins/ElkondoEngineerRedWeaponS/3.png",
+    "assets/characters/player-skins/ElkondoEngineerRedWeaponS/4.png",
+    "assets/characters/player-skins/ElkondoEngineerRedWeaponS/5.png",
+    "assets/characters/player-skins/ElkondoEngineerRedWeaponS/6.png",
+    "assets/characters/player-skins/ElkondoEngineerRedWeaponS/7.png",
+    "assets/characters/player-skins/ElkondoEngineerRedWeaponS/8.png"
+  ],
+  "originX": 28,
+  "originY": 42
+}

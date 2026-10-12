@@ -964,9 +964,23 @@ internal static class Og2AlphaNavigationDiagnostics
             : RuntimePaths.MapSearchDirectories.FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(mapsRoot) && Directory.Exists(mapsRoot))
         {
-            foreach (var directory in Directory.EnumerateDirectories(mapsRoot, "*", SearchOption.TopDirectoryOnly))
+            foreach (var packageDirectory in CustomMapDirectoryLayout.EnumeratePackageDirectories(mapsRoot))
             {
-                var mapName = Path.GetFileName(directory);
+                if (!CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out var manifestPath))
+                {
+                    continue;
+                }
+
+                var mapName = Path.GetFileNameWithoutExtension(manifestPath);
+                if (!string.IsNullOrWhiteSpace(mapName) && !IsNonNavigableStockMap(mapName))
+                {
+                    mapNames.Add(mapName);
+                }
+            }
+
+            foreach (var legacyPngPath in CustomMapDirectoryLayout.EnumerateLegacyPngMaps(mapsRoot))
+            {
+                var mapName = Path.GetFileNameWithoutExtension(legacyPngPath);
                 if (!string.IsNullOrWhiteSpace(mapName) && !IsNonNavigableStockMap(mapName))
                 {
                     mapNames.Add(mapName);
@@ -1180,7 +1194,7 @@ internal static class Og2AlphaNavigationDiagnostics
             return GetTeamCaps(world, team) > GetTeamCaps(initialRedCaps, initialBlueCaps, team);
         }
 
-        if (world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.ControlPoint)
+        if (world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest or GameModeKind.ControlPoint)
         {
             return world.ControlPoints.Any(point =>
                 initialControlPointTeams.TryGetValue(point.Index, out var initialTeam)

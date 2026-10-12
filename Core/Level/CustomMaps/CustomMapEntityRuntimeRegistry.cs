@@ -30,6 +30,8 @@ public static class CustomMapEntityRuntimeRegistry
         Register(new AreaMapEntityRuntimeImporter());
         Register(new CustomMapCustomSpriteMapEntityRuntimeImporter());
         Register(new ForegroundSpriteMapEntityRuntimeImporter());
+        Register(new Gg2ForegroundMapEntityRuntimeImporter(Gg2ForegroundMapEntityRuntimeImporter.ForegroundEntityType));
+        Register(new Gg2ForegroundMapEntityRuntimeImporter(Gg2ForegroundMapEntityRuntimeImporter.ForegroundScaleEntityType));
         Register(new SpritesheetMapEntityRuntimeImporter());
         Register(new HealthPackMapEntityRuntimeImporter());
         Register(new JumpPadMapEntityRuntimeImporter());

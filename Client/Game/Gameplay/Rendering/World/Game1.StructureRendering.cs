@@ -188,6 +188,7 @@ public partial class Game1
         var bloodTint = bloodDrop.ExperimentalCryoTinted
             ? new Color(176, 232, 255)
             : Color.White;
+        bloodTint = BloodLighting.ResolveColor(_world.Level.Lighting, bloodDrop.Team, bloodTint);
         if (sprite is null || sprite.Frames.Count == 0)
         {
             var size = Math.Max(2, (int)MathF.Round(2f * bloodDrop.Scale));
@@ -201,7 +202,7 @@ public partial class Game1
         }
 
         DrawLoadedSpriteFrame(
-            sprite.Frames[0],
+            GetBloodSpriteFrame(sprite.Frames[0]),
             new Vector2(bloodDrop.X - cameraPosition.X, bloodDrop.Y - cameraPosition.Y),
             null,
             bloodTint * bloodDrop.Alpha,
@@ -235,6 +236,15 @@ public partial class Game1
                 Vector2.One,
                 SpriteEffects.None,
                 0f);
+            DrawSpriteFrameTeamGlow(
+                dispenserSprite.Frames[frameIndex],
+                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                0f,
+                dispenserSprite.Origin.ToVector2(),
+                Vector2.One,
+                SpriteEffects.None,
+                sentry.Team,
+                GetStructureGlowLevel(sentry));
             return true;
         }
 
@@ -260,6 +270,15 @@ public partial class Game1
                 Vector2.One,
                 baseEffects,
                 0f);
+            DrawSpriteFrameTeamGlow(
+                baseSprite.Frames[baseFrameIndex],
+                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                0f,
+                baseSprite.Origin.ToVector2(),
+                Vector2.One,
+                baseEffects,
+                sentry.Team,
+                GetStructureGlowLevel(sentry));
         }
 
         if (!sentry.IsBuilt)
@@ -307,6 +326,15 @@ public partial class Game1
             turretScale,
             SpriteEffects.None,
             0f);
+        DrawSpriteFrameTeamGlow(
+            turretSprite.Frames[turretFrameIndex],
+            turretScreenPosition,
+            turretRotation,
+            turretSprite.Origin.ToVector2(),
+            turretScale,
+            SpriteEffects.None,
+            sentry.Team,
+            GetStructureGlowLevel(sentry));
         return true;
     }
 

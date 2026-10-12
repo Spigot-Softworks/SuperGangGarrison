@@ -1,0 +1,12 @@
+{
+  "id": "ElkondoScoutRedReloadS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoScoutRedReloadS/0.png",
+    "assets/characters/player-skins/ElkondoScoutRedReloadS/1.png",
+    "assets/characters/player-skins/ElkondoScoutRedReloadS/2.png",
+    "assets/characters/player-skins/ElkondoScoutRedReloadS/3.png",
+    "assets/characters/player-skins/ElkondoScoutRedReloadS/4.png"
+  ],
+  "originX": 32,
+  "originY": 44
+}

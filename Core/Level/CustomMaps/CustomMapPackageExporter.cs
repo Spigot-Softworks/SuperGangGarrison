@@ -71,8 +71,12 @@ public static class CustomMapPackageExporter
                 BuilderImageValidation.Validate(bytes);
                 using var image = Image.Load<Rgba32>(bytes);
                 if (image.Frames.Count > 1)
-                    throw new InvalidOperationException($"Resource '{resource.Name}' is animated. Convert it to a spritesheet before saving a package.");
-                if (!IsPng(bytes))
+                {
+                    // Animated resources (GG2 animated GIFs) are kept as animated PNG so the
+                    // package stays PNG-only for download and sync, and the frames still play.
+                    bytes = EncodeAnimatedPng(image);
+                }
+                else if (!IsPng(bytes))
                 {
                     using var output = new MemoryStream();
                     image.SaveAsPng(output);
@@ -252,6 +256,28 @@ public static class CustomMapPackageExporter
         for (var i = 0; i < cells.Length; i++)
             if (cells[i]) image[i % width, i / width] = new Rgba32(255, 255, 255, 255);
         image.SaveAsPng(outputPath);
+    }
+
+    private static byte[] EncodeAnimatedPng(Image<Rgba32> image)
+    {
+        image.Metadata.GetPngMetadata().RepeatCount = 0;
+        foreach (var frame in image.Frames)
+        {
+            var gifDelay = frame.Metadata.GetGifMetadata().FrameDelay;
+            var pngFrame = frame.Metadata.GetPngMetadata();
+            if (gifDelay > 0 || pngFrame.FrameDelay.Numerator == 0)
+            {
+                pngFrame.FrameDelay = new Rational((uint)(gifDelay > 0 ? gifDelay : 10), 100u);
+            }
+
+            // Decoded frames are already full composited canvases; replace rather than blend.
+            pngFrame.BlendMethod = PngBlendMethod.Source;
+            pngFrame.DisposalMethod = PngDisposalMethod.DoNotDispose;
+        }
+
+        using var output = new MemoryStream();
+        image.SaveAsPng(output);
+        return output.ToArray();
     }
 
     private static bool IsPng(byte[] bytes)

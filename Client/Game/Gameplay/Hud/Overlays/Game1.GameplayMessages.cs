@@ -240,7 +240,7 @@ public partial class Game1
         _activeGameplayMessage = new ActiveGameplayMessage(marker);
         if (!string.IsNullOrWhiteSpace(marker.SoundName))
         {
-            TryPlayGameplayMessageSound(marker.SoundName);
+            TryPlayGameplayMessageSound(marker.SoundName, marker);
         }
 
         if (!string.IsNullOrWhiteSpace(marker.MusicName))
@@ -272,7 +272,14 @@ public partial class Game1
             music);
     }
 
-    private void TryPlayGameplayMessageSound(string soundName)
+    internal static (float Volume, float Pan) ResolveGameplayMessageSoundMix(GameplayMessageMarker marker, Vector2 listenerPosition)
+    {
+        if (marker.SoundScope == GameplayMessageSoundScope.Global) return (0.88f, 0f);
+        var mix = GameplayRapidFireAudioController.GetWorldSoundMix(marker.X, marker.Y, listenerPosition);
+        return (mix.Volume * 0.88f, mix.Pan);
+    }
+
+    private void TryPlayGameplayMessageSound(string soundName, GameplayMessageMarker marker)
     {
         var normalized = soundName.Trim();
         if (normalized.Length == 0)
@@ -280,9 +287,13 @@ public partial class Game1
             return;
         }
 
+        var mix = ResolveGameplayMessageSoundMix(marker,
+            marker.SoundScope == GameplayMessageSoundScope.Local ? GetWorldSoundListenerPosition() : Vector2.Zero);
+        if (mix.Volume <= 0f) return;
+
         if (TryGetGameplayMessageCustomSound(normalized, out var customSound))
         {
-            TryPlaySound(customSound, 0.88f, 0f, 0f);
+            TryPlaySound(customSound, mix.Volume, 0f, mix.Pan);
             return;
         }
 
@@ -294,7 +305,7 @@ public partial class Game1
         var sound = _runtimeAssets.GetSound(normalized);
         if (sound is not null)
         {
-            TryPlaySound(sound, 0.88f, 0f, 0f);
+            TryPlaySound(sound, mix.Volume, 0f, mix.Pan);
         }
     }
 
@@ -442,7 +453,7 @@ public partial class Game1
         {
             TryPlayGameplayMessageSound(string.IsNullOrWhiteSpace(marker.OnEndSoundName)
                 ? marker.SoundName
-                : marker.OnEndSoundName);
+                : marker.OnEndSoundName, marker);
         }
 
         if (effects.HasFlag(GameplayMessageOnEndEffects.FadeOut))
@@ -589,7 +600,8 @@ public partial class Game1
             : marker.Text;
         var viewportBounds = new Rectangle(0, 0, ViewportWidth, ViewportHeight);
         var bounds = ResolveGameplayMessageBounds(marker, text, active.ElapsedSeconds, cameraPosition, viewportBounds, out var rotation);
-        DrawGameplayMessageStyle(bounds, viewportBounds, marker, text, alpha, rotation, renderScale: 1f, active.ElapsedSeconds);
+        var renderScale = IsGameplayMessageWorldPlaced(marker) ? GameplayCameraZoom : 1f;
+        DrawGameplayMessageStyle(bounds, viewportBounds, marker, text, alpha, rotation, renderScale, active.ElapsedSeconds);
         DrawGameplayMessageEndEffectsHud();
     }
 
@@ -681,14 +693,16 @@ public partial class Game1
         out float rotation)
     {
         rotation = 0f;
-        var width = MathF.Max(16f, marker.Width);
-        var height = MathF.Max(16f, marker.Height);
         var worldPlaced = IsGameplayMessageWorldPlaced(marker);
+        var renderScale = worldPlaced ? GameplayCameraZoom : 1f;
+        var width = MathF.Max(16f, marker.Width) * renderScale;
+        var height = MathF.Max(16f, marker.Height) * renderScale;
+        var localPosition = worldPlaced ? GetWorldHudScreenPosition(marker.X, marker.Y, cameraPosition) : Vector2.Zero;
         var x = worldPlaced
-            ? marker.ScreenX - cameraPosition.X
+            ? viewportBounds.X + localPosition.X
             : viewportBounds.X + ResolveGameplayMessageCoordinate(marker.ScreenX, viewportBounds.Width, width);
         var y = worldPlaced
-            ? marker.ScreenY - cameraPosition.Y
+            ? viewportBounds.Y + localPosition.Y
             : viewportBounds.Y + ResolveGameplayMessageCoordinate(marker.ScreenY, viewportBounds.Height, height);
         var styleBounds = ResolveGameplayMessageStyleBounds(
             new Rectangle(
@@ -699,7 +713,7 @@ public partial class Game1
             viewportBounds,
             marker,
             text,
-            renderScale: 1f);
+            renderScale);
 
         return ResolveGameplayMessageAnimatedBounds(styleBounds, marker, elapsedSeconds, viewportBounds, out rotation);
     }
@@ -731,14 +745,24 @@ public partial class Game1
         string text,
         float renderScale)
     {
-        return marker.Style switch
+        var styledBounds = marker.Style switch
         {
             GameplayMessageStyle.Notification => ResolveGameplayMessageNotificationBounds(bounds, viewportBounds, marker, renderScale),
-            GameplayMessageStyle.Notification2 => ResolveGameplayMessageNotification2Bounds(bounds, viewportBounds, renderScale),
+            GameplayMessageStyle.Notification2 => ResolveGameplayMessageNotification2Bounds(bounds, viewportBounds, marker, renderScale),
             GameplayMessageStyle.Ltd => ResolveGameplayMessageLtdBounds(bounds, marker, text, renderScale),
             _ => bounds,
         };
+        return IsGameplayMessageScreenCentered(marker)
+            ? ResolveGameplayMessageCenteredBounds(styledBounds, viewportBounds)
+            : styledBounds;
     }
+
+    internal static bool IsGameplayMessageScreenCentered(GameplayMessageMarker marker) =>
+        marker.Placement == GameplayMessagePlacement.Screen;
+
+    internal static Rectangle ResolveGameplayMessageCenteredBounds(Rectangle bounds, Rectangle viewportBounds) =>
+        new(viewportBounds.X + (int)MathF.Round((viewportBounds.Width - bounds.Width) * 0.5f),
+            viewportBounds.Y + (int)MathF.Round(viewportBounds.Height * 0.12f) + 15, bounds.Width, bounds.Height);
 
     private Rectangle ResolveGameplayMessageLtdBounds(
         Rectangle bounds,
@@ -874,8 +898,7 @@ public partial class Game1
         };
 
     private static bool IsGameplayMessageWorldPlaced(GameplayMessageMarker marker) =>
-        MathF.Abs(marker.ScreenX - marker.X) <= 0.001f
-        && MathF.Abs(marker.ScreenY - marker.Y) <= 0.001f;
+        marker.Placement == GameplayMessagePlacement.Local;
 
     private static float ResolveGameplayMessageAlpha(GameplayMessageMarker marker, float elapsedSeconds)
     {
@@ -1007,7 +1030,7 @@ public partial class Game1
         float rotation,
         float renderScale)
     {
-        var fillBounds = ResolveGameplayMessageNotification2Bounds(bounds, viewportBounds, renderScale);
+        var fillBounds = ResolveGameplayMessageNotification2Bounds(bounds, viewportBounds, marker, renderScale);
         _spriteBatch.Draw(_pixel, fillBounds, Color.Black * (0.42f * alpha));
         DrawGameplayMessageText(marker, text, fillBounds, new Color(255, 226, 120) * alpha, 8f * renderScale, renderScale, rotation);
     }
@@ -1115,6 +1138,8 @@ public partial class Game1
         var barHeight = Math.Max(
             ScaleGameplayMessageInteger(18f, scale),
             (int)MathF.Ceiling(textHeight + (8f * scale)));
+        if (IsGameplayMessageWorldPlaced(marker))
+            return new Rectangle(bounds.X, bounds.Y, bounds.Width, barHeight);
         var y = Math.Clamp(bounds.Y, viewportBounds.Y - barHeight, viewportBounds.Bottom);
         return new Rectangle(viewportBounds.X, y, viewportBounds.Width, barHeight);
     }
@@ -1122,9 +1147,12 @@ public partial class Game1
     private static Rectangle ResolveGameplayMessageNotification2Bounds(
         Rectangle bounds,
         Rectangle viewportBounds,
+        GameplayMessageMarker marker,
         float renderScale)
     {
         var height = Math.Max(ScaleGameplayMessageInteger(28f, renderScale), bounds.Height);
+        if (IsGameplayMessageWorldPlaced(marker))
+            return new Rectangle(bounds.X, bounds.Y, bounds.Width, height);
         var y = Math.Clamp(bounds.Y, viewportBounds.Y, Math.Max(viewportBounds.Y, viewportBounds.Bottom - height));
         return new Rectangle(viewportBounds.X, y, viewportBounds.Width, height);
     }
@@ -1150,8 +1178,14 @@ public partial class Game1
                 FontScale = messageMarker.FontScale * clampedScale,
             };
             var textHeight = MeasureGameplayMessageFontHeight(scaledMarker);
+            var textX = barBounds.X + (50f * clampedScale);
+            if (messageMarker.Alignment == GameplayMessageAlignment.Center)
+            {
+                textX = barBounds.X + (barBounds.Width - MeasureGameplayMessageTextWidth(scaledMarker, text)) * 0.5f;
+                iconPositionX = textX - (25f * clampedScale);
+            }
             var textPosition = new Vector2(
-                barBounds.X + (50f * clampedScale),
+                textX,
                 barBounds.Y + MathF.Max(0f, (barBounds.Height - textHeight) * 0.5f));
             var spriteY = barBounds.Y + (barBounds.Height * 0.5f);
             TryDrawScreenSprite(

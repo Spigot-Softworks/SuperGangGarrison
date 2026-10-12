@@ -30,7 +30,7 @@ public partial class Game1
     {
         var level = _world.Level;
         var weather = level.Weather;
-        if (!weather.IsActive)
+        if (!weather.IsActive || !_gameplayManager.RuntimeSettings.WeatherEnabled)
         {
             return;
         }
@@ -60,6 +60,20 @@ public partial class Game1
         DrawMapWeatherAtmosphere(level, weather, cameraPosition, worldViewport, time);
 
         var skyMask = level.IsTopDown ? null : GetWeatherSkyMask(level);
+        // An open Civilian umbrella (alt-fire) shelters whoever is under it.
+        _weatherField.ClearDynamicRoofs();
+        if (skyMask is not null)
+        {
+            _addWeatherRoof ??= _weatherField.AddDynamicRoof;
+            foreach (var player in EnumerateRenderablePlayers())
+            {
+                if (player.IsCivilian)
+                {
+                    _gameplayWeaponRenderController.CollectCivvieUmbrellaWeatherRoof(player, _addWeatherRoof);
+                }
+            }
+        }
+
         var sink = new SpriteBatchWeatherSink(_spriteBatch, _pixel);
         _weatherField.Emit(
             ref sink,
@@ -74,7 +88,10 @@ public partial class Game1
             weather.Wind,
             density,
             level.IsTopDown ? level.IndoorRegions : null);
+        _weatherField.ClearDynamicRoofs();
     }
+
+    private Action<int, float>? _addWeatherRoof;
 
     /// <summary>
     /// Fireflies: a bright 1px core with a small soft pixel halo whose strength follows the
@@ -138,7 +155,8 @@ public partial class Game1
     {
         var weather = level.Weather;
         var particleMode = _gameplayManager.RuntimeSettings.ParticleMode;
-        if (weather.Kind != MapWeatherKind.Fireflies || weather.FireflyGlow <= 0 || particleMode == WeatherParticleModeDisabled)
+        if (weather.Kind != MapWeatherKind.Fireflies || weather.FireflyGlow <= 0 || particleMode == WeatherParticleModeDisabled
+            || !_gameplayManager.RuntimeSettings.WeatherEnabled)
         {
             return;
         }

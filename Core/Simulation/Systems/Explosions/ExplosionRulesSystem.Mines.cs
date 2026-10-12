@@ -120,7 +120,7 @@ internal sealed partial class ExplosionRulesSystem
 
             if (_host.CanTeamDamagePlayer(mine.Team, mine.OwnerId, player))
             {
-                _host.WorldEffects.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(mine.X, mine.Y, player.X, player.Y) - 180f, 3);
+                _host.WorldEffects.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(mine.X, mine.Y, player.X, player.Y) - 180f, 3, team: player.Team);
                 var critMultiplier = (player.Id == mine.OwnerId && player.Team == mine.Team) ? 1f : mine.CriticalDamageMultiplier;
                 var maximumDamage = mine.ExplosionDamage * critMultiplier;
                 if (player.Id == mine.OwnerId && player.Team == mine.Team)
@@ -524,7 +524,7 @@ internal sealed partial class ExplosionRulesSystem
             }
 
             var appliedDamage = CombatSystem.ResolveExplosiveSplashDamage(blastDamage, distanceFactor);
-            _host.WorldEffects.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(centerX, centerY, player.X, player.Y) - 180f, 3);
+            _host.WorldEffects.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(centerX, centerY, player.X, player.Y) - 180f, 3, team: player.Team);
             if (_host.ApplyPlayerContinuousDamageWithContext(
                     player,
                     appliedDamage,

@@ -286,7 +286,7 @@ if (options.DropBlueIntel)
 var brain = new BotBrainController(graph);
 var goal = ObjectiveEvaluator.EvaluateGoal(bot, world, options.Team, combatTarget: null);
 var startNode = graph.FindNearestTraversalStartNode(bot.X, bot.Y);
-var exactGoalNode = world.MatchRules.Mode is GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+var exactGoalNode = world.MatchRules.Mode is GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest
     ? graph.FindNearestReachableNode(goal.X, goal.Y, startNode, options.PlayerClass, team: options.Team)
     : graph.FindNearestNode(goal.X, goal.Y);
 var goalNode = exactGoalNode;
@@ -4812,7 +4812,7 @@ internal static class BotBrainToolCommandHelpers
                 : 0f;
         }
 
-        if (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+        if (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest
             && TryFindNearestControlObjective(level, sample.X, sample.Y, out var point))
         {
             return Distance(sample.X, sample.Y, point.CenterX, point.CenterY);
@@ -5089,7 +5089,7 @@ internal static class BotBrainToolCommandHelpers
         List<BotBrainCorridorRecordingSample> segment)
     {
         if (segment.Count < 2
-            || level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+            || level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest)
             || !TryFindNearestControlObjective(level, segment[0].X, segment[0].Y, out var objective))
         {
             return segment;
@@ -5113,7 +5113,7 @@ internal static class BotBrainToolCommandHelpers
         PlayerTeam recordedTeam,
         PlayerTeam startTeam) =>
         playerClass == PlayerClass.Heavy
-        || (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+        || (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest
             && startTeam != recordedTeam)
             ? -1
             : 1 << (int)playerClass;
@@ -5134,7 +5134,7 @@ internal static class BotBrainToolCommandHelpers
         PlayerTeam team,
         PlayerTeam startTeam)
     {
-        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest))
         {
             return 1 << (int)team;
         }
@@ -5147,7 +5147,7 @@ internal static class BotBrainToolCommandHelpers
         List<List<BotBrainCorridorRecordingSample>> segments,
         PlayerTeam team)
     {
-        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest))
         {
             return team;
         }

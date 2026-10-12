@@ -8,6 +8,7 @@ namespace OpenGarrison.Core;
 public sealed class MapLogicActivatorRuntimeState
 {
     private bool[] _previousSignals = [];
+    private bool[] _resolvedActiveValues = [];
     private long[] _lastRisingEdgeOrders = [];
     private bool[] _toggleNextIsDisable = [];
     private bool[] _toggleActivateOnStartPending = [];
@@ -29,6 +30,7 @@ public sealed class MapLogicActivatorRuntimeState
         if (activatorCount <= 0)
         {
             _previousSignals = [];
+            _resolvedActiveValues = [];
             _lastRisingEdgeOrders = [];
             _toggleNextIsDisable = [];
             _toggleActivateOnStartPending = [];
@@ -41,6 +43,7 @@ public sealed class MapLogicActivatorRuntimeState
         if (_previousSignals.Length != activatorCount)
         {
             _previousSignals = new bool[activatorCount];
+            _resolvedActiveValues = new bool[activatorCount];
             _lastRisingEdgeOrders = new long[activatorCount];
             _toggleNextIsDisable = new bool[activatorCount];
             _toggleActivateOnStartPending = new bool[activatorCount];
@@ -73,6 +76,7 @@ public sealed class MapLogicActivatorRuntimeState
         if (_previousSignals.Length > 0)
         {
             Array.Clear(_previousSignals, 0, _previousSignals.Length);
+            Array.Clear(_resolvedActiveValues, 0, _resolvedActiveValues.Length);
             Array.Fill(_lastRisingEdgeOrders, -1L);
             Array.Fill(_toggleNextIsDisable, true);
             Array.Clear(_toggleActivateOnStartPending, 0, _toggleActivateOnStartPending.Length);
@@ -140,8 +144,10 @@ public sealed class MapLogicActivatorRuntimeState
         var nextIsDisable = _toggleNextIsDisable[activatorIndex];
         _toggleNextIsDisable[activatorIndex] = !nextIsDisable;
         _toggleActivateOnStartPending[activatorIndex] = false;
-        return !nextIsDisable;
+        return _resolvedActiveValues[activatorIndex] = !nextIsDisable;
     }
+
+    internal bool GetResolvedActiveValue(int activatorIndex) => _resolvedActiveValues[activatorIndex];
 
     internal bool IsToggleActivateOnStartPending(int activatorIndex)
     {

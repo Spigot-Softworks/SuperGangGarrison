@@ -107,6 +107,7 @@ public static partial class ProtocolCodec
             writer.Write(e.LifetimeTicks);
             writer.Write(e.BloodChance);
             writer.Write(e.EventId);
+            writer.Write(e.Team);
         }
     }
 
@@ -128,7 +129,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadInt32(),
                 reader.ReadSingle(),
-                reader.ReadUInt64()));
+                reader.ReadUInt64(),
+                reader.ReadByte()));
         }
         return events;
     }
@@ -223,6 +225,7 @@ public static partial class ProtocolCodec
             writer.Write(gib.RotationSpeedDegrees);
             writer.Write(gib.TicksRemaining);
             writer.Write(gib.BloodChance);
+            writer.Write(gib.Team);
         }
     }
 
@@ -243,7 +246,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadInt32(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadByte()));
         }
 
         return playerGibs;
@@ -263,6 +267,7 @@ public static partial class ProtocolCodec
             writer.Write(bloodDrop.IsStuck);
             writer.Write(bloodDrop.TicksRemaining);
             writer.Write(bloodDrop.Scale);
+            writer.Write(bloodDrop.Team);
         }
     }
 
@@ -280,7 +285,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadBoolean(),
                 reader.ReadInt32(),
-                reader.ReadSingle()));
+                reader.ReadSingle(),
+                reader.ReadByte()));
         }
 
         return bloodDrops;
@@ -375,6 +381,7 @@ public static partial class ProtocolCodec
             writer.Write(visualEvent.Count);
             writer.Write(visualEvent.EventId);
             writer.Write(visualEvent.SourceFrame);
+            writer.Write(visualEvent.SourceTeam);
         }
     }
 
@@ -391,7 +398,8 @@ public static partial class ProtocolCodec
                 reader.ReadSingle(),
                 reader.ReadInt32(),
                 reader.ReadUInt64(),
-                reader.ReadUInt64()));
+                reader.ReadUInt64(),
+                reader.ReadByte()));
         }
 
         return visualEvents;

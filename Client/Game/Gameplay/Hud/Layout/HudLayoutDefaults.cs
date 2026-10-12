@@ -165,4 +165,70 @@ internal static class HudLayoutDefaults
                 Layer: 60),
         };
     }
+
+    /// <summary>
+    /// GG2 mode starts these elements where GG2 Modern's Draw events put them (800x600
+    /// view numbers, anchored to the same screen edge). They take precedence over the SGG
+    /// defaults and runtime defaults while GG2 presentation is on; the player's own moves
+    /// in the HUD editor still apply on top.
+    /// </summary>
+    public static IReadOnlyDictionary<string, HudElementLayout> CreateGg2()
+    {
+        return new Dictionary<string, HudElementLayout>(StringComparer.Ordinal)
+        {
+            // KillLog: rows right-aligned to the view edge, first row centred 24 px down.
+            [HudElementId.MatchKillFeed] = new(
+                HudElementId.MatchKillFeed,
+                HudAnchor.TopRight,
+                Vector2.Zero,
+                new Vector2(340f, 104f),
+                new Vector2(-340f, 14f),
+                Layer: 5,
+                Scale: 1f),
+
+            // KothHUD / DKothHUD: small timers at y 36, 43 * 1.15 either side of centre.
+            [HudElementId.MatchKothRedTimer] = new(
+                HudElementId.MatchKothRedTimer,
+                HudAnchor.TopCenter,
+                new Vector2(-43f * 1.15f, 36f),
+                new Vector2(92f, 36f),
+                new Vector2(-46f, -18f),
+                Layer: 8),
+
+            [HudElementId.MatchKothBlueTimer] = new(
+                HudElementId.MatchKothBlueTimer,
+                HudAnchor.TopCenter,
+                new Vector2(43f * 1.15f, 36f),
+                new Vector2(92f, 36f),
+                new Vector2(-46f, -18f),
+                Layer: 9),
+
+            // UberHud: icon at (w - 80, h - 85).
+            [HudElementId.ClassMedicUber] = new(
+                HudElementId.ClassMedicUber,
+                HudAnchor.BottomRight,
+                new Vector2(-80f, -85f),
+                new Vector2(134f, 56f),
+                new Vector2(-58f, -20f),
+                Layer: 30),
+
+            // NutsNBoltsHud: icon at (w - 70, h - 85).
+            [HudElementId.ClassEngineerMetal] = new(
+                HudElementId.ClassEngineerMetal,
+                HudAnchor.BottomRight,
+                new Vector2(-70f, -85f),
+                new Vector2(88f, 48f),
+                new Vector2(-54f, -18f),
+                Layer: 50),
+
+            // SentryHealthHud: the sentry panel above the health panel, at (5, h - 145).
+            [HudElementId.ClassEngineerSentry] = new(
+                HudElementId.ClassEngineerSentry,
+                HudAnchor.BottomLeft,
+                new Vector2(5f, -145f),
+                new Vector2(EngineerSentryWidth, EngineerSentryHeight),
+                Vector2.Zero,
+                Layer: 51),
+        };
+    }
 }

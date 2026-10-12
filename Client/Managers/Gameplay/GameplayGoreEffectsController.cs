@@ -17,9 +17,10 @@ public sealed partial class GameplayGoreEffectsController
         private const float GibBloodExplosionDrawScale = 1.4f;
         private readonly List<GibBloodExplosionVisual> _gibBloodExplosionVisuals = new();
         private readonly IGameplayContext _context;
+        private PlayerTeam _spawnBloodTeam = PlayerTeam.Neutral;
         private readonly List<(int X, int Y)> _staleSettledBloodCellKeys = new();
         private readonly Dictionary<(int X, int Y), OpenGarrison.Client.Game1.SettledBloodCell> _settledBloodCells = new();
-        private readonly List<(int X, int Y, float Amount, bool Cryo)> _pendingSettledBloodTransfers = new();
+        private readonly List<(int X, int Y, float Amount, bool Cryo, PlayerTeam Team)> _pendingSettledBloodTransfers = new();
         private readonly SettledBloodHostSolidCache _settledBloodHostSolidCache = new();
         private readonly SettledBloodNeighbourSupportCache _settledBloodNeighbourSupportCache = new();
         private readonly SettledBloodPoolDrawCache _settledBloodPoolDrawCache = new();
@@ -38,11 +39,12 @@ public sealed partial class GameplayGoreEffectsController
         private readonly List<int> _staleStickyGibBloodPlayerIds = new();
         private readonly Dictionary<int, OpenGarrison.Client.Game1.StickyGibBloodCoating> _stickyGibBloodCoatings = new();
 
-        private sealed class GibBloodExplosionVisual(float x, float y)
+        private sealed class GibBloodExplosionVisual(float x, float y, PlayerTeam team = PlayerTeam.Neutral)
         {
             public float X { get; } = x;
             public float Y { get; } = y;
             public int AgeClientTicks { get; set; }
+            public PlayerTeam Team { get; } = team;
         }
 
         public GameplayGoreEffectsController(IGameplayContext context)
@@ -247,10 +249,10 @@ public sealed partial class GameplayGoreEffectsController
                 var scale = elapsedTicks < 2 ? 0.5f : 1f;
                 var alpha = elapsedTicks < 2 ? 1f : 0.5f;
                 _context.DrawLoadedSpriteFrame(
-                    sprite.Frames[frameIndex],
+                    _context.GetBloodSpriteFrame(sprite.Frames[frameIndex]),
                     new Vector2(blood.X - cameraPosition.X, blood.Y - cameraPosition.Y),
                     null,
-                    Color.White * alpha,
+                    GetBloodColor(Color.White, blood.Team) * alpha,
                     0f,
                     sprite.Origin.ToVector2(),
                     new Vector2(scale, scale),
@@ -266,10 +268,10 @@ public sealed partial class GameplayGoreEffectsController
                 if (bloodDropSprite is not null && bloodDropSprite.Frames.Count > 0)
                 {
                     _context.DrawLoadedSpriteFrame(
-                        bloodDropSprite.Frames[0],
+                        _context.GetBloodSpriteFrame(bloodDropSprite.Frames[0]),
                         new Vector2(spray.X - cameraPosition.X, spray.Y - cameraPosition.Y),
                         null,
-                        Color.White * alpha,
+                        GetBloodColor(Color.White, spray.Team) * alpha,
                         0f,
                         bloodDropSprite.Origin.ToVector2(),
                         Vector2.One,
@@ -283,7 +285,7 @@ public sealed partial class GameplayGoreEffectsController
                     (int)(spray.Y - cameraPosition.Y),
                     2,
                     2);
-                _context._spriteBatch.Draw(_context._pixel, rectangle, Color.White * alpha);
+                _context._spriteBatch.Draw(_context._pixel, rectangle, GetBloodColor(Color.White, spray.Team) * alpha);
             }
         }
 
@@ -304,10 +306,10 @@ public sealed partial class GameplayGoreEffectsController
             {
                 var frameIndex = Math.Min(visual.AgeClientTicks / GibBloodExplosionClientTicksPerFrame, sprite.Frames.Count - 1);
                 _context.DrawLoadedSpriteFrame(
-                    sprite.Frames[frameIndex],
+                    _context.GetBloodSpriteFrame(sprite.Frames[frameIndex]),
                     new Vector2(visual.X - cameraPosition.X, visual.Y - cameraPosition.Y),
                     null,
-                    Color.White,
+                    GetBloodColor(Color.White, visual.Team),
                     0f,
                     sprite.Origin.ToVector2(),
                     new Vector2(GibBloodExplosionDrawScale, GibBloodExplosionDrawScale),
@@ -336,8 +338,9 @@ public sealed partial class GameplayGoreEffectsController
             DrawFlyingBloodSquibParticles(cameraPosition);
         }
 
-        public bool TryPlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count)
+        public bool TryPlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count, PlayerTeam team = PlayerTeam.Neutral)
         {
+            _spawnBloodTeam = team;
             if (string.Equals(effectName, "BackstabBlue", StringComparison.OrdinalIgnoreCase))
             {
                 _context.SpawnBackstabVisual(ownerId: count, PlayerTeam.Blue, x, y, directionDegrees);
@@ -357,7 +360,7 @@ public sealed partial class GameplayGoreEffectsController
                     return true;
                 }
 
-                _gibBloodExplosionVisuals.Add(new GibBloodExplosionVisual(x, y));
+                _gibBloodExplosionVisuals.Add(new GibBloodExplosionVisual(x, y, _spawnBloodTeam));
                 SpawnGibBloodImpactVisuals(x, y, Math.Max(1, count));
                 return true;
             }
@@ -376,8 +379,9 @@ public sealed partial class GameplayGoreEffectsController
             return true;
         }
 
-        public void SpawnImmediateFatalDamageVisuals(float x, float y, int damageAmount)
+        public void SpawnImmediateFatalDamageVisuals(float x, float y, int damageAmount, PlayerTeam team = PlayerTeam.Neutral)
         {
+            _spawnBloodTeam = team;
             if (!_context.AreBloodVisualsEnabled)
             {
                 return;
@@ -387,8 +391,9 @@ public sealed partial class GameplayGoreEffectsController
             SpawnBloodImpactVisuals(x, y, 270f, burstCount, explosive: true);
         }
 
-        public void SpawnBisectCutSquibs(float x, float y)
+        public void SpawnBisectCutSquibs(float x, float y, PlayerTeam team = PlayerTeam.Neutral)
         {
+            _spawnBloodTeam = team;
             if (!_context.AreBloodVisualsEnabled)
             {
                 return;
@@ -642,7 +647,7 @@ public sealed partial class GameplayGoreEffectsController
                 var distance = splashCount > 1 ? _context._visualRandom.NextSingle() * (explosive ? 8f : 1f) : 0f;
                 _bloodVisuals.Add(new BloodVisual(
                     x + MathF.Cos(spreadRadians) * distance,
-                    y + MathF.Sin(spreadRadians) * distance));
+                    y + MathF.Sin(spreadRadians) * distance, _spawnBloodTeam));
             }
 
             var sprayCount = explosive
@@ -662,7 +667,7 @@ public sealed partial class GameplayGoreEffectsController
                     y,
                     MathF.Cos(spreadRadians) * speed,
                     MathF.Sin(spreadRadians) * speed,
-                    explosive ? _context._visualRandom.Next(26, 48) : _context._visualRandom.Next(16, 30)));
+                    explosive ? _context._visualRandom.Next(26, 48) : _context._visualRandom.Next(16, 30), _spawnBloodTeam));
             }
         }
 
@@ -688,7 +693,7 @@ public sealed partial class GameplayGoreEffectsController
                 var distance = _context._visualRandom.NextSingle() * 8f;
                 _bloodVisuals.Add(new BloodVisual(
                     x + MathF.Cos(directionRadians) * distance,
-                    y + MathF.Sin(directionRadians) * distance));
+                    y + MathF.Sin(directionRadians) * distance, _spawnBloodTeam));
             }
 
             var sprayCount = _context.ScaleBloodVisualCount(Math.Clamp(10 + (intensity * 3), 10, 20));
@@ -702,7 +707,7 @@ public sealed partial class GameplayGoreEffectsController
                     y + MathF.Sin(directionRadians) * startRadius,
                     MathF.Cos(directionRadians) * speed,
                     MathF.Sin(directionRadians) * speed,
-                    _context._visualRandom.Next(26, 48)));
+                    _context._visualRandom.Next(26, 48), _spawnBloodTeam));
             }
         }
 

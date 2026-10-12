@@ -22,7 +22,7 @@ public sealed class BloodDropEntity : SimulationEntity
         float velocityY,
         float scale = DefaultScale,
         bool experimentalCryoTinted = false,
-        int? lifetimeTicks = null) : base(id)
+        int? lifetimeTicks = null, PlayerTeam team = PlayerTeam.Neutral) : base(id)
     {
         X = x;
         Y = y;
@@ -33,6 +33,7 @@ public sealed class BloodDropEntity : SimulationEntity
         TicksRemaining = _lifetimeTicks;
         Scale = float.Clamp(scale, DefaultScale, MaxScale);
         ExperimentalCryoTinted = experimentalCryoTinted;
+        Team = team;
     }
 
     public float X { get; private set; }
@@ -52,6 +53,8 @@ public sealed class BloodDropEntity : SimulationEntity
     public float Scale { get; private set; }
 
     public bool ExperimentalCryoTinted { get; }
+
+    public PlayerTeam Team { get; }
 
     public float Alpha => float.Clamp(TicksRemaining / (float)_lifetimeTicks, 0f, 1f);
 
@@ -239,7 +242,7 @@ public sealed class BloodDropEntity : SimulationEntity
 
     public bool CanMergeWith(BloodDropEntity other)
     {
-        if (ReferenceEquals(this, other) || !IsMergeable || !other.IsMergeable)
+        if (ReferenceEquals(this, other) || !IsMergeable || !other.IsMergeable || Team != other.Team)
         {
             return false;
         }

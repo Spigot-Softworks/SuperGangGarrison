@@ -506,7 +506,7 @@ public sealed class ProtocolCodecTests
                     InvolvedPlayerIds = SnapshotRoundTripKillFeedInvolvedPlayerIds,
                 },
             ],
-            VisualEvents: [new SnapshotVisualEvent("spark", 10f, 20f, 45f, 1, EventId: 55, SourceFrame: 101)],
+            VisualEvents: [new SnapshotVisualEvent("Blood", 10f, 20f, 45f, 1, EventId: 55, SourceFrame: 101, SourceTeam: 2)],
             DamageEvents: [new SnapshotDamageEvent(45, 5, -1, 1, 6, 10f, 20f, false, EventId: 66, SourceFrame: 101, Flags: 6)],
             SoundEvents: [new SnapshotSoundEvent("rocket_fire", 11f, 21f, 77, 101, SourcePlayerId: 5)],
             IsCustomMap: true,
@@ -516,6 +516,8 @@ public sealed class ProtocolCodecTests
         {
             BaselineFrame = 100,
             IsDelta = true,
+            GibSpawnEvents = [new SnapshotGibSpawnEvent("GibS", 0, 10, 20, 1, 2, 3, 0.4f, 0.5f, 250, 1.8f, 78, Team: 2)],
+            DamageableZoneStates = [new SnapshotDamageableZoneState(2, 0, 5, 40), new SnapshotDamageableZoneState(7, 100, 6, 8)],
             EntityCollectionCompletenessFlags =
                 SnapshotEntityCollectionCompletenessFlags.AllProjectiles & ~SnapshotEntityCollectionCompletenessFlags.Rockets,
             CapLimit = 9,
@@ -675,6 +677,9 @@ public sealed class ProtocolCodecTests
         var deadBody = Assert.Single(roundTrippedSnapshot.DeadBodies);
         Assert.Equal("plugin.quote-curly.quote", deadBody.GameplayClassId);
         Assert.Equal(101UL, Assert.Single(roundTrippedSnapshot.VisualEvents).SourceFrame);
+        Assert.Equal(2, Assert.Single(roundTrippedSnapshot.VisualEvents).SourceTeam);
+        Assert.Equal(2, Assert.Single(roundTrippedSnapshot.GibSpawnEvents).Team);
+        Assert.Equal(snapshot.DamageableZoneStates, roundTrippedSnapshot.DamageableZoneStates);
         Assert.Equal(9, roundTrippedSnapshot.CapLimit);
         var scoreboardPlayer = Assert.Single(roundTrippedSnapshot.ScoreboardPlayers);
         Assert.Equal(6, scoreboardPlayer.PlayerId);

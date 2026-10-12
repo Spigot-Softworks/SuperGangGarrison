@@ -54,7 +54,7 @@ public partial class Game1
         if (visuals.Foreground is not null)
         {
             _spriteBatch.Draw(
-                visuals.Foreground,
+                GetCurrentCustomMapFrame(visuals.Foreground),
                 new Vector2(
                     -cameraPosition.X + visuals.ForegroundOffsetX,
                     -cameraPosition.Y + visuals.ForegroundOffsetY),
@@ -75,7 +75,7 @@ public partial class Game1
 
     private void DrawCustomMapParallaxLayer(RuntimeCustomMapParallaxLayer layer, Vector2 cameraPosition, int viewportWidth, int viewportHeight, float imageScale)
     {
-        var texture = layer.Texture;
+        var texture = GetCurrentCustomMapFrame(layer.Texture);
         var scaledWidth = texture.Width * imageScale;
         var scaledHeight = texture.Height * imageScale;
         if (scaledWidth <= 0.01f || scaledHeight <= 0.01f)
@@ -219,10 +219,85 @@ public partial class Game1
         return resources;
     }
 
+    /// <summary>Frames and timing of an animated map image, keyed by its first frame's texture.</summary>
+    private sealed record CustomMapAnimation(Texture2D[] Frames, int[] FrameEndsMs, int TotalMs);
+
+    private readonly Dictionary<Texture2D, CustomMapAnimation> _customMapAnimations = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>
+    /// The frame to draw now for a map image texture: the texture itself for a still image,
+    /// the current frame for an animated GIF (played at the GIF's own frame timing; all
+    /// animated map images run on one clock, so copies of the same image stay in step).
+    /// </summary>
+    private Texture2D GetCurrentCustomMapFrame(Texture2D texture)
+    {
+        if (_customMapAnimations.Count == 0 || !_customMapAnimations.TryGetValue(texture, out var animation))
+        {
+            return texture;
+        }
+
+        var timeMs = (int)(_weatherClock.Elapsed.TotalMilliseconds % animation.TotalMs);
+        for (var index = 0; index < animation.Frames.Length; index += 1)
+        {
+            if (timeMs < animation.FrameEndsMs[index])
+            {
+                return animation.Frames[index];
+            }
+        }
+
+        return animation.Frames[^1];
+    }
+
+    /// <summary>
+    /// Like <see cref="GetCurrentCustomMapFrame(Texture2D)"/>, but at a fixed frame rate when
+    /// one is given (GG2 foregrounds set it with animationspeed); 0 holds the first frame.
+    /// </summary>
+    private Texture2D GetCurrentCustomMapFrame(Texture2D texture, float? framesPerSecond)
+    {
+        if (framesPerSecond is not { } fps || !float.IsFinite(fps))
+        {
+            return GetCurrentCustomMapFrame(texture);
+        }
+
+        if (_customMapAnimations.Count == 0 || !_customMapAnimations.TryGetValue(texture, out var animation))
+        {
+            return texture;
+        }
+
+        if (fps <= 0f)
+        {
+            return animation.Frames[0];
+        }
+
+        var frame = (long)Math.Floor(_weatherClock.Elapsed.TotalSeconds * fps);
+        return animation.Frames[(int)(frame % animation.Frames.Length)];
+    }
+
     private bool TryLoadCustomMapVisualTexture(CustomMapVisualResource resource, out Texture2D texture)
     {
         try
         {
+            var animationFrames = TextureDecodeUtility.DecodeAnimationFrames(resource.Bytes);
+            if (animationFrames is { Count: > 1 })
+            {
+                // Animated GIF: every frame becomes a texture; draw sites pick the current
+                // one with GetCurrentCustomMapFrame. The first frame stands for the image.
+                var frames = new Texture2D[animationFrames.Count];
+                var frameEnds = new int[animationFrames.Count];
+                var totalMs = 0;
+                for (var index = 0; index < animationFrames.Count; index += 1)
+                {
+                    var (frame, delayMs) = animationFrames[index];
+                    frames[index] = TextureDecodeUtility.CreateTexture(GraphicsDevice, frame.PixelData, frame.Width, frame.Height);
+                    totalMs += delayMs;
+                    frameEnds[index] = totalMs;
+                }
+
+                texture = frames[0];
+                _customMapAnimations[texture] = new CustomMapAnimation(frames, frameEnds, Math.Max(1, totalMs));
+                return true;
+            }
+
             texture = TextureDecodeUtility.LoadTexture(GraphicsDevice, resource.Bytes, applyLegacyChromaKey: false);
             return true;
         }
@@ -239,6 +314,17 @@ public partial class Game1
 
     private void ClearRuntimeCustomMapVisuals()
     {
+        // The first frame of each animation is disposed with the visuals or the sprite cache
+        // below; the rest belong only to the animation.
+        foreach (var animation in _customMapAnimations.Values)
+        {
+            for (var index = 1; index < animation.Frames.Length; index += 1)
+            {
+                animation.Frames[index].Dispose();
+            }
+        }
+
+        _customMapAnimations.Clear();
         _loadedCustomMapVisuals?.Dispose();
         _loadedCustomMapVisuals = null;
         _loadedCustomMapVisualsSource = null;

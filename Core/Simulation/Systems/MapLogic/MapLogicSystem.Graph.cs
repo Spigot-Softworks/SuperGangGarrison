@@ -34,6 +34,7 @@ internal sealed partial class MapLogicSystem
             EvaluateMapLogicDamageTriggersIfNeeded();
             TickMapLogicTimers();
         }
+        else TickDamageableZoneRespawns();
 
         TickSpritesheetPlayback();
     }
@@ -51,6 +52,12 @@ internal sealed partial class MapLogicSystem
 
     internal void TickMapLogicTimers()
     {
+        TickDamageableZoneRespawns();
+        if (_host.Level.LogicGraph.HasPendingExternalPulses)
+        {
+            _host.Level.LogicGraph.EvaluateCombinatorial(_host.Objectives.ControlPoints.Points, CreatePlayerTriggerEvaluationContext());
+            ApplyMapLogicActivators();
+        }
         EvaluateMapLogicPlayerTriggersIfNeeded();
         EvaluateMapLogicIntelTriggersIfNeeded();
         ApplyDamageableZoneHealWhenSignals();
@@ -107,6 +114,7 @@ internal sealed partial class MapLogicSystem
         }
 
         ApplyMapLogicActivators();
+        ApplyMapLogicPresentationSignals();
         return true;
     }
 
@@ -183,6 +191,7 @@ internal sealed partial class MapLogicSystem
             && !graph.HasPlayerTriggers
             && !graph.HasIntelTriggers
             && !graph.HasDamageTriggers
+            && !graph.HasPendingExternalPulses
             && signature == _host.MapRuntime.LogicControlPointInputSignature)
         {
             return;
@@ -215,6 +224,7 @@ internal sealed partial class MapLogicSystem
             graph.EvaluateIntelTriggers(CreateIntelTriggerEvaluationContext());
             ApplyDamageableZoneHealWhenSignals();
             graph.EvaluateDamageTriggers(CreateDamageTriggerEvaluationContext());
+            ApplyMapLogicPresentationSignals();
             EvaluateMapLogicScoreTriggersIfNeeded();
             ApplyControlPointLogicLockTriggers();
 
@@ -349,7 +359,29 @@ internal sealed partial class MapLogicSystem
             _host.Level.RoomObjectLogicActiveMask,
             _host.MapRuntime.LogicActivatorStartApplied,
             _host.MapRuntime.LogicActivatorRuntimeState,
-            _host.Level.RoomObjects);
+            _host.Level.RoomObjects,
+            ApplyControlPointActivator);
+    }
+
+    private void ApplyControlPointActivator(int roomObjectIndex, MapLogicActivatorBehavior behavior)
+    {
+        if (_host.ClientPredictionMode) return;
+        var marker = _host.Level.GetRoomObject(roomObjectIndex);
+        if (marker.Type != RoomObjectType.ControlPoint) return;
+        foreach (var point in _host.Objectives.ControlPoints.Points)
+        {
+            if (point.Marker != marker) continue;
+            if (behavior == MapLogicActivatorBehavior.Enable) return;
+            point.Team = behavior == MapLogicActivatorBehavior.Toggle
+                ? point.Team == PlayerTeam.Red ? PlayerTeam.Blue : PlayerTeam.Red : null;
+            point.CappingTeam = null;
+            point.CappingTicks = 0;
+            point.Cappers = point.RedCappers = point.BlueCappers = 0;
+            point.RedCaptureParticipantIds.Clear();
+            point.BlueCaptureParticipantIds.Clear();
+            point.ConquestOwnedTicks = 0;
+            point.ConquestScoringTeam = null;
+        }
     }
 
 }

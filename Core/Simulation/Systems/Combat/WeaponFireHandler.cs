@@ -31,9 +31,9 @@ internal sealed partial class WeaponFireHandler
         _host.WorldEffects.RegisterCombatTrace(originX, originY, directionX, directionY, distance, hitCharacter, team, isSniperTracer, isCritical);
     }
 
-    private void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1)
+    private void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1, PlayerTeam team = PlayerTeam.Neutral)
     {
-        _host.WorldEffects.RegisterBloodEffect(x, y, directionDegrees, count);
+        _host.WorldEffects.RegisterBloodEffect(x, y, directionDegrees, count, team);
     }
 
     private void RegisterImpactEffect(float x, float y, float directionDegrees)

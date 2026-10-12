@@ -517,6 +517,13 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    public void ToggleGg2PredictionSetting()
+    {
+        _gameplayManager.RuntimeSettings.Gg2PredictionEnabled = !_gameplayManager.RuntimeSettings.Gg2PredictionEnabled;
+        ResetLocalPredictionForAuthorityTransition();
+        PersistClientSettings();
+    }
+
     public void TogglePredictionSetting()
     {
         _gameplayManager.RuntimeSettings.EnablePrediction = !_gameplayManager.RuntimeSettings.EnablePrediction;
@@ -820,9 +827,32 @@ public partial class Game1
         PersistClientSettings();
     }
 
+    /// <summary>
+    /// Original GG2 look on/off. Turning it on clears the modern-only effects already on
+    /// screen (blood squibs, ragdolls, burnt corpses, corpses kept forever) so the switch is
+    /// immediate.
+    /// </summary>
+    public void ToggleClassicVisualsSetting()
+    {
+        var settings = _gameplayManager.RuntimeSettings;
+        settings.ClassicVisualsEnabled = !settings.ClassicVisualsEnabled;
+        if (settings.ClassicVisualsEnabled)
+        {
+            _gameplayManager.GoreEffects.ResetBloodSquibEffects();
+            ResetDynamicRagdollEffects();
+            ResetBurnCharredCorpses();
+            ResetRetainedDeadBodies();
+        }
+
+        PersistClientSettings();
+    }
+
+    // The gore toggles below change the player's own choice (Stored*), so clicking them while
+    // Classic visuals is on still works and takes effect once it is turned off.
+
     public void CycleBloodRenderModeSetting()
     {
-        _gameplayManager.RuntimeSettings.BloodRenderMode = (_gameplayManager.RuntimeSettings.BloodRenderMode + 1) % 2;
+        _gameplayManager.RuntimeSettings.BloodRenderMode = (_gameplayManager.RuntimeSettings.StoredBloodRenderMode + 1) % 2;
         if (_gameplayManager.RuntimeSettings.BloodRenderMode != 0)
         {
             _gameplayManager.GoreEffects.ResetBloodSquibEffects();
@@ -833,7 +863,7 @@ public partial class Game1
 
     public void ToggleDynamicRagdollSetting()
     {
-        _gameplayManager.RuntimeSettings.DynamicRagdollEnabled = !_gameplayManager.RuntimeSettings.DynamicRagdollEnabled;
+        _gameplayManager.RuntimeSettings.DynamicRagdollEnabled = !_gameplayManager.RuntimeSettings.StoredDynamicRagdollEnabled;
         if (!_gameplayManager.RuntimeSettings.DynamicRagdollEnabled)
         {
             ResetDynamicRagdollEffects();
@@ -844,7 +874,7 @@ public partial class Game1
 
     public void ToggleBurnCharredCorpsesSetting()
     {
-        _gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled = !_gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled;
+        _gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled = !_gameplayManager.RuntimeSettings.StoredBurnCharredCorpsesEnabled;
         if (!_gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled)
         {
             ResetBurnCharredCorpses();
@@ -862,7 +892,7 @@ public partial class Game1
 
     public void CycleCorpseFadeModeSetting()
     {
-        _gameplayManager.RuntimeSettings.CorpseFadeMode = (_gameplayManager.RuntimeSettings.CorpseFadeMode + 1) % 2;
+        _gameplayManager.RuntimeSettings.CorpseFadeMode = (_gameplayManager.RuntimeSettings.StoredCorpseFadeMode + 1) % 2;
         PersistClientSettings();
     }
 
@@ -914,7 +944,7 @@ public partial class Game1
 
     public void CycleCorpseDurationSetting()
     {
-        _gameplayManager.RuntimeSettings.CorpseDurationMode = _gameplayManager.RuntimeSettings.CorpseDurationMode == ClientSettings.CorpseDurationInfinite
+        _gameplayManager.RuntimeSettings.CorpseDurationMode = _gameplayManager.RuntimeSettings.StoredCorpseDurationMode == ClientSettings.CorpseDurationInfinite
             ? ClientSettings.CorpseDurationDefault
             : ClientSettings.CorpseDurationInfinite;
         if (_gameplayManager.RuntimeSettings.CorpseDurationMode != ClientSettings.CorpseDurationInfinite)
@@ -1016,6 +1046,51 @@ public partial class Game1
     public void ToggleShowPlayerNamesSetting()
     {
         _hudManager.RuntimeSettings.ShowPlayerNamesEnabled = !_hudManager.RuntimeSettings.ShowPlayerNamesEnabled;
+        PersistClientSettings();
+    }
+
+    public void ToggleMapLightingSetting()
+    {
+        _gameplayManager.RuntimeSettings.MapLightingEnabled = !_gameplayManager.RuntimeSettings.MapLightingEnabled;
+        PersistClientSettings();
+    }
+
+    /// <summary>Every map light pulses with the jukebox, whatever the map set.</summary>
+    public void ToggleLightsFollowJukeboxSetting()
+    {
+        _gameplayManager.RuntimeSettings.LightsFollowJukeboxEnabled = !_gameplayManager.RuntimeSettings.LightsFollowJukeboxEnabled;
+        PersistClientSettings();
+    }
+
+    /// <summary>Brightmapped parts of characters keep some of their colour in the dark.</summary>
+    public void ToggleCharacterBrightmapsSetting()
+    {
+        _gameplayManager.RuntimeSettings.CharacterBrightmapsEnabled = !_gameplayManager.RuntimeSettings.CharacterBrightmapsEnabled;
+        PersistClientSettings();
+    }
+
+    public void ToggleWeatherSetting()
+    {
+        _gameplayManager.RuntimeSettings.WeatherEnabled = !_gameplayManager.RuntimeSettings.WeatherEnabled;
+        PersistClientSettings();
+    }
+
+    /// <summary>Steps lighting intensity by 5%; clicking cycles up and wraps to the minimum.</summary>
+    public void AdjustLightingIntensitySetting(int step)
+    {
+        var settings = _gameplayManager.RuntimeSettings;
+        var current = OpenGarrisonPreferencesDocument.NormalizeLightingIntensityPercent(settings.LightingIntensityPercent);
+        settings.LightingIntensityPercent = OpenGarrisonPreferencesDocument.NormalizeLightingIntensityPercent(current + (step * 5));
+        PersistClientSettings();
+    }
+
+    public void CycleLightingIntensitySetting()
+    {
+        var settings = _gameplayManager.RuntimeSettings;
+        var current = OpenGarrisonPreferencesDocument.NormalizeLightingIntensityPercent(settings.LightingIntensityPercent);
+        settings.LightingIntensityPercent = current >= OpenGarrisonPreferencesDocument.MaxLightingIntensityPercent
+            ? OpenGarrisonPreferencesDocument.MinLightingIntensityPercent
+            : current + 5;
         PersistClientSettings();
     }
 

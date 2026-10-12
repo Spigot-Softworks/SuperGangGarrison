@@ -840,7 +840,7 @@ public sealed class SnapshotSystem
             gib.RotationDegrees,
             gib.RotationSpeedDegrees,
             gib.TicksRemaining,
-            gib.BloodChance);
+            gib.BloodChance, (byte)gib.Team);
     }
 
     public SnapshotBloodDropState ToSnapshotBloodDropState(BloodDropEntity bloodDrop)
@@ -853,7 +853,8 @@ public sealed class SnapshotSystem
             bloodDrop.VelocityY,
             bloodDrop.IsStuck,
             bloodDrop.TicksRemaining,
-            bloodDrop.Scale);
+            bloodDrop.Scale,
+            (byte)bloodDrop.Team);
     }
 
     public SnapshotCombatTraceState ToSnapshotCombatTraceState(CombatTrace trace)
@@ -900,7 +901,8 @@ public sealed class SnapshotSystem
             visualEvent.DirectionDegrees,
             visualEvent.Count,
             visualEvent.EventId == 0 ? fallbackEventId : visualEvent.EventId,
-            visualEvent.SourceFrame);
+            visualEvent.SourceFrame,
+            (byte)visualEvent.SourceTeam);
     }
 
     public SnapshotDamageEvent ToSnapshotDamageEvent(WorldDamageEvent damageEvent, ulong fallbackEventId)

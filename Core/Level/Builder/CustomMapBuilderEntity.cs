@@ -35,6 +35,8 @@ public sealed record CustomMapBuilderEntity(
         };
 
         var normalizedXScale = NormalizeScale(XScale);
+        if (normalizedProperties.TryGetValue(DamageTriggerMetadata.DamageableEntityPropertyKey, out var damageZoneRef))
+            normalizedProperties[DamageTriggerMetadata.DamageableEntityPropertyKey] = DamageableMetadata.NormalizeEntityReference(damageZoneRef);
         var normalizedYScale = NormalizeScale(YScale);
         normalizedProperties.Remove("xscale");
         normalizedProperties.Remove("yscale");

@@ -16,7 +16,7 @@ public partial class Game1
             return;
         }
 
-        if (!_networkClient.IsConnected || !_networkClient.IsLegacyGg2Connection)
+        if (!_networkClient.IsConnected || !_networkClient.Profile.AssignsTeamsThroughRoster)
         {
             _legacyGg2TeamRequestStartedAtMilliseconds = -1;
             return;

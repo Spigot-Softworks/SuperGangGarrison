@@ -160,7 +160,7 @@ public sealed partial class ProjectileSystem
         float directionDegrees,
         bool removeDamageCap)
     {
-        RegisterBloodEffect(target.X, target.Y, directionDegrees - 180f, 6);
+        RegisterBloodEffect(target.X, target.Y, directionDegrees - 180f, 6, team: target.Team);
         var damage = removeDamageCap
             ? Math.Max(1, target.Health)
             : StabMaskEntity.DamagePerHit;

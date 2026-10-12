@@ -110,7 +110,7 @@ public static class CustomMapPngImporter
     private static bool TryExtractLevelData(string pngPath, out string levelData)
     {
         Stream? stream = File.Exists(pngPath) ? File.OpenRead(pngPath) : null;
-        if (stream is null && OperatingSystem.IsBrowser() && BrowserContentCatalog.TryGetBinaryForPath(pngPath, out var bytes))
+        if (stream is null && BrowserContentCatalog.TryGetBinaryForPath(pngPath, out var bytes))
             stream = new MemoryStream(bytes, writable: false);
         if (stream is null) { levelData = string.Empty; return false; }
         using (stream) levelData = PngMapData.Read(stream, out _);
@@ -338,7 +338,8 @@ public static class CustomMapPngImporter
         MapLogicRuntimePatch.ApplyControlPointLogicLocks(roomObjects, mapEntities, logicGraph);
         MapTeleportRuntimePatch.ApplyExitLinks(roomObjects, mapEntities);
         MapDamageableRuntimePatch.ApplyHealWhenLinks(roomObjects, mapEntities, logicGraph);
-        visuals = AttachCustomSpriteResources(visuals, roomObjects, gameplayMessages, gameplaySounds, decodedResources);
+        DestructiblePropMetadata.ResolveLinks(roomObjects, mapLights, mapEntities);
+        visuals = AttachCustomSpriteResources(visuals, roomObjects, gameplayMessages, gameplaySounds, decodedResources, mapLights);
 
         return new GameMakerRoomMetadata(
             mapName,
@@ -446,14 +447,32 @@ public static class CustomMapPngImporter
         IReadOnlyList<RoomObjectMarker> roomObjects,
         IReadOnlyList<GameplayMessageMarker> gameplayMessages,
         IReadOnlyList<GameplaySoundMarker> gameplaySounds,
-        IReadOnlyDictionary<string, CustomMapBuilderResource> decodedResources)
+        IReadOnlyDictionary<string, CustomMapBuilderResource> decodedResources,
+        IReadOnlyList<MapLightMarker>? mapLights = null)
     {
         var spriteResources = new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
+        if (mapLights is not null)
+        {
+            // Light masks travel with the map like sprite images.
+            foreach (var light in mapLights)
+            {
+                if (!string.IsNullOrWhiteSpace(light.Mask))
+                {
+                    TryAttachSpriteResource(light.Mask, spriteResources, decodedResources);
+                }
+            }
+        }
+
         var soundResources = new Dictionary<string, CustomMapVisualResource>(StringComparer.OrdinalIgnoreCase);
         var jungleHitMasks = new Dictionary<int, ForegroundSpriteHitMask>();
         for (var index = 0; index < roomObjects.Count; index += 1)
         {
             var marker = roomObjects[index];
+            if (marker.Type == RoomObjectType.DamageableZone)
+            {
+                TryAttachSoundResource(marker.DestructionSettings.DestructionSound, soundResources, decodedResources);
+                TryAttachSoundResource(marker.DestructionSettings.RespawnSound, soundResources, decodedResources);
+            }
             if (marker.Type == RoomObjectType.CustomMapSprite)
             {
                 TryAttachSpriteResource(marker.CustomMapSprite.ImageResourceName, spriteResources, decodedResources);

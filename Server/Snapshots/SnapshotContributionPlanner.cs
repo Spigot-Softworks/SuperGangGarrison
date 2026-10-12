@@ -1673,12 +1673,12 @@ internal static class SnapshotContributionPlanner
 
     private static int EstimateVisualEventBytes(SnapshotVisualEvent state)
     {
-        return 34 + state.EffectName.Length;
+        return 35 + state.EffectName.Length;
     }
 
     private static int EstimateGibSpawnEventBytes(SnapshotGibSpawnEvent state)
     {
-        return 42 + state.SpriteName.Length;
+        return 43 + state.SpriteName.Length;
     }
 
     private static int EstimateKillFeedBytes(SnapshotKillFeedEntry entry)
@@ -1750,7 +1750,7 @@ internal static class SnapshotContributionPlanner
 
     private static int EstimatePlayerGibBytes(SnapshotPlayerGibState state)
     {
-        return 42 + state.SpriteName.Length;
+        return 43 + state.SpriteName.Length;
     }
 
     private static int EstimateRocketBytes(SnapshotRocketState state)

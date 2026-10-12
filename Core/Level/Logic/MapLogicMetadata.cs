@@ -31,6 +31,7 @@ public static class MapLogicMetadata
     public const string LogicInputPropertyKey = "logicInput";
     public const string LogicInput1PropertyKey = "logicInput1";
     public const string LogicInput2PropertyKey = "logicInput2";
+    public const string LogicInput3PropertyKey = "logicInput3";
     public const string LogicResetPropertyKey = "logicReset";
     public const string LogicSignalPropertyKey = "logicSignal";
     public const string LockedWhenLogicPropertyKey = "lockedWhenLogic";
@@ -113,6 +114,8 @@ public static class MapLogicMetadata
             || type.Equals(OscillatorEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            || type.Equals(ActivatorEntityType, StringComparison.OrdinalIgnoreCase)
+            || DamageableMetadata.IsDamageableEntityType(type)
             || DamageTriggerMetadata.IsDamageTriggerEntityType(type);
     }
 
@@ -632,13 +635,13 @@ public static class MapLogicMetadata
         };
     }
 
-    public static bool EvaluateGate(MapLogicGateType gateType, bool input1, bool input2)
+    public static bool EvaluateGate(MapLogicGateType gateType, bool input1, bool input2, bool input3 = true)
     {
         return gateType switch
         {
             MapLogicGateType.Or => input1 || input2,
             MapLogicGateType.Xor => input1 ^ input2,
-            _ => input1 && input2,
+            _ => input1 && input2 && input3,
         };
     }
 

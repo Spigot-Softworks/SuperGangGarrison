@@ -144,7 +144,8 @@ internal static class BrowserAssetBuildPipeline
         var mapsRoot = Path.Combine(context.RepoRoot.FullName, "Maps");
         if (Directory.Exists(mapsRoot))
         {
-            foreach (var directory in Directory.EnumerateDirectories(mapsRoot, "*", SearchOption.TopDirectoryOnly))
+            // Packages may be sorted into category/mode folders (Maps/Classic/koth/...).
+            foreach (var directory in OpenGarrison.Core.CustomMapDirectoryLayout.EnumeratePackageDirectories(mapsRoot))
             {
                 sourceDirectories.Add((directory, Path.GetFileName(directory)));
             }

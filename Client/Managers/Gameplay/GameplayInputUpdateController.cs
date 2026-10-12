@@ -78,7 +78,7 @@ public sealed class GameplayInputUpdateController
                 mouse.X,
                 mouse.Y);
             var aimOrigin = _context.GetGameplayInputAimOrigin();
-            if (_context._networkClient.IsLegacyGg2Connection)
+            if (_context._networkClient.Profile.MeasuresAimFromViewCenter)
             {
                 // GG2 encodes mouse angle and distance from the center of the
                 // current view, including the camera offset near map edges.

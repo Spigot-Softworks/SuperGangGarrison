@@ -15,8 +15,8 @@ public sealed class SuperGangGarrisonColdfrontPackageTests
             ContentRoot.Initialize(ProjectSourceLocator.FindDirectory(Path.Combine("Core", "Content"))!);
             SimpleLevelFactory.ClearCachedCatalog();
 
-            var packagePath = ProjectSourceLocator.FindFile(Path.Combine(
-                "Maps", "cp_coldfront_js", "cp_coldfront_js.json"));
+            Assert.True(CustomMapDirectoryLayout.TryFindPackageManifest(
+                ProjectSourceLocator.FindDirectory("Maps")!, "cp_coldfront_js", out var packagePath));
             var source = Assert.Single(
                 SimpleLevelFactory.GetAvailableSourceLevels(),
                 entry => string.Equals(entry.Name, "cp_coldfront_js", StringComparison.OrdinalIgnoreCase));

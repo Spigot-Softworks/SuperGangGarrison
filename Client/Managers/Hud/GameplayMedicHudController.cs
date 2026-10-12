@@ -68,6 +68,13 @@ public sealed class GameplayMedicHudController
             var iconColor = isUberDisabled ? new Color(128, 128, 128) : Color.White;
             var textColor = isUberDisabled ? new Color(108, 108, 92) : new Color(0xD9, 0xD9, 0xB7);
             _context.TryDrawScreenSprite("UberHudS", hudFrameIndex, iconPosition, iconColor, new Vector2(2f * hudScale, 2f * hudScale));
+            if (_context.UsesGg2Presentation)
+            {
+                // UberHud: "SUPERBURST" centred at (w - 70, h - 90).
+                _context.DrawHudTextCentered("SUPERBURST", TransformPoint(new Vector2(viewportWidth - 70f, viewportHeight - 90f)), Color.White, hudScale);
+                _context.UpdateHudElementBounds(HudElementId.ClassMedicUber, Rectangle.Union(iconBounds, uberRectangle));
+                return;
+            }
 
             // Draw SUPER / BURST (or CRIT / CRAZE for kritz) stacked left-aligned after the '+' icon
             var labelScale = 0.5f * hudScale;
@@ -133,6 +140,12 @@ public sealed class GameplayMedicHudController
             var value = healingTarget?.Health ?? MedicAssistDummyHealth;
             var maxValue = healingTarget?.MaxHealth ?? MedicAssistDummyHealth;
             var targetTeam = healingTarget?.Team ?? _context._world.LocalPlayer.Team;
+            if (_context.UsesGg2Presentation)
+            {
+                DrawGg2HealPanel(HudElementId.ClassMedicHealingTarget, label, value, maxValue, value, uberValue: null, uberMax: 0f);
+                return;
+            }
+
             DrawCenterStatusHud(HudElementId.ClassMedicHealingTarget, label, value, maxValue, 0.7f, targetTeam);
         }
 
@@ -151,6 +164,21 @@ public sealed class GameplayMedicHudController
 
             var label = healer is null ? "Healer: Medic" : $"Healer: {GetHudPlayerLabel(healer)}";
             var healerTeam = healer?.Team ?? _context._world.LocalPlayer.Team;
+            if (_context.UsesGg2Presentation)
+            {
+                var healerHealth = healer?.Health ?? MedicAssistDummyHealth;
+                var healerMaxHealth = healer?.MaxHealth ?? MedicAssistDummyHealth;
+                var uberValue = (float)MedicAssistDummyUberCharge;
+                var uberMax = (float)PlayerEntity.MedicUberMaxCharge;
+                if (healer is not null)
+                {
+                    healer.GetMedicUberHudMeter(out uberValue, out uberMax);
+                }
+
+                DrawGg2HealPanel(HudElementId.ClassMedicHealer, label, healerHealth, healerMaxHealth, healerHealth, uberValue, uberMax);
+                return;
+            }
+
             if (healer is not null)
             {
                 healer.GetMedicUberHudMeter(out var meterValue, out var meterMax);
@@ -328,6 +356,71 @@ public sealed class GameplayMedicHudController
             }
             _context.UpdateHudElementBounds(id, destination);
         }
+
+        /// <summary>
+        /// GG2's HealedHud / HealingHud panel: a team panel (HealedHudS) as wide as the label
+        /// + 20, the name centred 20 to the right of the element's centre, an HP box on the left
+        /// (HealedHudHPS over a 44x32 bottom-up white bar, the HP number on it), an end cap
+        /// (HealedHudCapS), and for the healer panel the medic's uber as a thin bar.
+        /// </summary>
+        private void DrawGg2HealPanel(string id, string label, float healthValue, float healthMax, int healthText, float? uberValue, float uberMax)
+        {
+            if (!_context.TryResolveHudElement(id, out var resolved))
+            {
+                return;
+            }
+
+            var s = resolved.Layout.Scale;
+            var mid = resolved.Origin.X;
+            var y = resolved.Origin.Y;
+            var width = _context.MeasureBitmapFontWidth(label, s) + (20f * s);
+            var frame = _context._world.LocalPlayer.Team == PlayerTeam.Blue ? 1 : 0;
+            var left = mid - (width / 2f);
+
+            DrawGg2StretchedSprite("HealedHudS", frame, left + (20f * s), y, width, 36f * s);
+            _context.DrawHudTextCentered(label, new Vector2(mid + (20f * s), y + (12f * s)), Color.White, s);
+            _context.DrawScreenHealthBar(
+                ToRectangle(left - (24f * s), y + (2f * s), 44f * s, 32f * s),
+                MathF.Max(0f, healthValue),
+                MathF.Max(1f, healthMax),
+                false,
+                Color.White,
+                Color.Black,
+                HudFillDirection.VerticalBottomToTop);
+            if (uberValue is { } uber)
+            {
+                _context.DrawScreenHealthBar(
+                    ToRectangle(left + (30f * s), y + (20f * s), width - (20f * s), 8f * s),
+                    MathF.Max(0f, uber),
+                    MathF.Max(1f, uberMax),
+                    false,
+                    Color.White,
+                    Color.Black);
+            }
+
+            DrawGg2StretchedSprite("HealedHudHPS", frame, left - (26f * s), y, 48f * s, 36f * s);
+            DrawGg2StretchedSprite("HealedHudCapS", frame, mid + (width / 2f) + (18f * s), y, 6f * s, 36f * s);
+            _context.DrawHudTextCentered(Math.Max(0, healthText).ToString(System.Globalization.CultureInfo.InvariantCulture), new Vector2(left - (2f * s), y + (18f * s)), Color.White, s);
+            _context.UpdateHudElementBounds(id, ToRectangle(left - (26f * s), y, width + (50f * s), 36f * s));
+        }
+
+        private void DrawGg2StretchedSprite(string spriteName, int frameIndex, float x, float y, float width, float height)
+        {
+            if (_context.GetResolvedSprite(spriteName) is not { Frames.Count: > 0 } sprite)
+            {
+                return;
+            }
+
+            var frame = sprite.Frames[Math.Clamp(frameIndex, 0, sprite.Frames.Count - 1)];
+            var scale = new Vector2(width / Math.Max(1, frame.Width), height / Math.Max(1, frame.Height));
+            _context.TryDrawScreenSprite(spriteName, frameIndex, new Vector2(x, y) + (sprite.Origin.ToVector2() * scale), Color.White, scale);
+        }
+
+        private static Rectangle ToRectangle(float x, float y, float width, float height) => new(
+            (int)MathF.Round(x),
+            (int)MathF.Round(y),
+            Math.Max(1, (int)MathF.Round(width)),
+            Math.Max(1, (int)MathF.Round(height)));
 
         public PlayerEntity? FindMedicHealingPlayer(int playerId)
         {

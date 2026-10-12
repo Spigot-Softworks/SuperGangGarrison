@@ -439,7 +439,8 @@ public partial class Game1
         Vector2 cameraPosition,
         float visibilityAlpha)
     {
-        if (_healingCrossParticles.Count == 0 || visibilityAlpha <= 0f || !player.IsAlive)
+        // GG2 has no healing crosses.
+        if (_healingCrossParticles.Count == 0 || visibilityAlpha <= 0f || !player.IsAlive || UsesGg2Presentation)
         {
             return;
         }

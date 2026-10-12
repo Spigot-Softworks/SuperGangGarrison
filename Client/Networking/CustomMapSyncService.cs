@@ -402,15 +402,9 @@ internal static class CustomMapSyncService
                 return false;
             }
 
-            foreach (var packageDirectory in Directory.EnumerateDirectories(mapsDirectory, "*", SearchOption.TopDirectoryOnly))
+            // Also finds packages sorted into group folders (Maps/Classic/koth/...).
+            if (CustomMapDirectoryLayout.TryFindPackageManifest(mapsDirectory, levelName, out manifestPath))
             {
-                if (!Path.GetFileName(packageDirectory).Equals(levelName, StringComparison.OrdinalIgnoreCase)
-                    || !CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out manifestPath)
-                    || !Path.GetFileNameWithoutExtension(manifestPath).Equals(levelName, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
                 return true;
             }
         }
@@ -441,11 +435,7 @@ internal static class CustomMapSyncService
                 return false;
             }
 
-            mapPath = Directory
-                .EnumerateFiles(mapsDirectory, "*.png", SearchOption.TopDirectoryOnly)
-                .FirstOrDefault(path => Path.GetFileNameWithoutExtension(path).Equals(levelName, StringComparison.OrdinalIgnoreCase))
-                ?? string.Empty;
-            return mapPath.Length > 0;
+            return CustomMapDirectoryLayout.TryFindLegacyPngMap(mapsDirectory, levelName, out mapPath);
         }
         catch (IOException)
         {

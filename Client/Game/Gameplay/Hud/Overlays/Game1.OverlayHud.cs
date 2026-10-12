@@ -36,6 +36,11 @@ public partial class Game1
 
     private void DrawScorePanelHud()
     {
+        if (UsesGg2Presentation && TryDrawGg2ScorePanelHud())
+        {
+            return;
+        }
+
         if (_world.MatchRules.Mode == GameModeKind.Arena)
         {
             DrawArenaHud();
@@ -47,7 +52,7 @@ public partial class Game1
             return;
         }
 
-        if (_world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+        if (_world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest)
         {
             DrawKothHud();
             return;
@@ -97,7 +102,13 @@ public partial class Game1
             DrawFallbackScorePanelHud(panelOrigin, panelScale);
         }
 
-        if (_world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
+        if (UsesGg2Presentation)
+        {
+            // CTFHUD: caps in black at 2x.
+            DrawHudTextCentered(_world.RedCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(-135f, -30f), Color.Black, 2f * panelScale);
+            DrawHudTextCentered(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(130f, -30f), Color.Black, 2f * panelScale);
+        }
+        else if (_world.MatchRules.Mode == GameModeKind.CaptureTheFlag)
         {
             DrawBuildHudTextCenteredWithShadow(_world.RedCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(-135f, -30f), CtfBuildScoreTextColor, 2f * panelScale);
             DrawBuildHudTextCenteredWithShadow(_world.BlueCaps.ToString(CultureInfo.InvariantCulture), PanelPoint(130f, -30f), CtfBuildScoreTextColor, 2f * panelScale);
@@ -113,5 +124,30 @@ public partial class Game1
         DrawIntelPanelElement(_world.ObjectiveRules.RedIntel, PanelPoint(-65f, -50f), panelScale);
         DrawIntelPanelElement(_world.ObjectiveRules.BlueIntel, PanelPoint(60f, -50f), panelScale);
         DrawMatchTimerHud(ViewportWidth / 2f);
+    }
+
+    /// <summary>GG2 mode: the objective HUDs that differ from ours; CTF falls through.</summary>
+    private bool TryDrawGg2ScorePanelHud()
+    {
+        switch (_world.MatchRules.Mode)
+        {
+            case GameModeKind.Arena:
+                DrawGg2ArenaHud();
+                return true;
+            case GameModeKind.ControlPoint or GameModeKind.Vip:
+                DrawGg2ControlPointHud();
+                return true;
+            case GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest:
+                DrawGg2KothHud();
+                return true;
+            case GameModeKind.Generator:
+                DrawGg2GeneratorHud();
+                return true;
+            case GameModeKind.TeamDeathmatch or GameModeKind.Scr:
+                DrawGg2TeamDeathmatchHud();
+                return true;
+            default:
+                return false;
+        }
     }
 }

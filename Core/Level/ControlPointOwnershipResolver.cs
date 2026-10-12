@@ -15,6 +15,11 @@ public static class ControlPointOwnershipResolver
 {
     public static PlayerTeam? ResolveInitialTeam(RoomObjectMarker marker, in ControlPointOwnershipContext context)
     {
+        if (context.GameMode == GameModeKind.Conquest)
+        {
+            return null;
+        }
+
         if (context.OverrideInitialOwnership
             && marker.InitialOwnership != ControlPointInitialOwnership.ModeDefault)
         {
@@ -41,6 +46,11 @@ public static class ControlPointOwnershipResolver
 
     public static PlayerTeam? ResolveModeDefaultTeam(in ControlPointOwnershipContext context)
     {
+        if (context.GameMode == GameModeKind.Conquest)
+        {
+            return null;
+        }
+
         if (context.TotalPoints <= 0)
         {
             return null;
@@ -131,6 +141,11 @@ public static class ControlPointOwnershipResolver
         bool controlPointSetupMode = false,
         bool overrideInitialOwnership = false)
     {
+        if (builderMode == CustomMapBuilderGameMode.Conquest)
+        {
+            return null;
+        }
+
         var ownership = ParseEntityInitialOwnership(entity);
         if (overrideInitialOwnership && ownership != ControlPointInitialOwnership.ModeDefault)
         {
@@ -225,6 +240,7 @@ public static class ControlPointOwnershipResolver
             CustomMapBuilderGameMode.AttackDefenseControlPoint => GameModeKind.ControlPoint,
             CustomMapBuilderGameMode.KingOfTheHill => GameModeKind.KingOfTheHill,
             CustomMapBuilderGameMode.DualKingOfTheHill => GameModeKind.DoubleKingOfTheHill,
+            CustomMapBuilderGameMode.Conquest => GameModeKind.Conquest,
             CustomMapBuilderGameMode.Arena => GameModeKind.Arena,
             CustomMapBuilderGameMode.Generator => GameModeKind.Generator,
             CustomMapBuilderGameMode.Scr => GameModeKind.Scr,

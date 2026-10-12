@@ -204,9 +204,12 @@ public interface IGameplayContext
     void DrawGameplayWorld(Microsoft.Xna.Framework.Vector2 cameraPosition, int viewportWidth, int viewportHeight, Microsoft.Xna.Framework.Rectangle worldRectangle, Microsoft.Xna.Framework.Rectangle playerRectangle, Microsoft.Xna.Framework.Rectangle centerLine, Microsoft.Xna.Framework.Rectangle centerColumn, Microsoft.Xna.Framework.Rectangle worldTopBorder, Microsoft.Xna.Framework.Rectangle worldBottomBorder, Microsoft.Xna.Framework.Rectangle worldLeftBorder, Microsoft.Xna.Framework.Rectangle worldRightBorder, Microsoft.Xna.Framework.Rectangle spawnRectangle, Nullable<int> skippedDeadBodySourcePlayerId = default);
     bool DrawLastToDieDeathFocusOverlay(int viewportWidth, int viewportHeight);
     void DrawLoadedSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame, Microsoft.Xna.Framework.Rectangle destinationRectangle, Microsoft.Xna.Framework.Color tint);
+    OpenGarrison.Client.LoadedSpriteFrame GetBloodSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame);
+    OpenGarrison.Client.LoadedSpriteFrame GetTeamFireSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame, OpenGarrison.Core.PlayerTeam team);
+    bool UsesTeamFireColor(OpenGarrison.Core.PlayerTeam team);
     void DrawLoadedSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame, Microsoft.Xna.Framework.Vector2 position, Nullable<Microsoft.Xna.Framework.Rectangle> sourceRectangle, Microsoft.Xna.Framework.Color tint, float rotation, Microsoft.Xna.Framework.Vector2 origin, Microsoft.Xna.Framework.Vector2 scale, Microsoft.Xna.Framework.Graphics.SpriteEffects effects, float layerDepth);
     void DrawLoadingOverlay();
-    void DrawProceduralFlameParticles(Dictionary<ValueTuple<int, int>, float> cells, Microsoft.Xna.Framework.Vector2 cameraPosition, bool topOutlineOnly = false, float drawAlpha = 1f);
+    void DrawProceduralFlameParticles(Dictionary<ValueTuple<int, int>, float> cells, Microsoft.Xna.Framework.Vector2 cameraPosition, bool topOutlineOnly = false, float drawAlpha = 1f, OpenGarrison.Core.PlayerTeam team = OpenGarrison.Core.PlayerTeam.Neutral);
     void DrawSoftwareMenuCursor(Microsoft.Xna.Framework.Input.MouseState mouse);
     void DrawStabAnimation(OpenGarrison.Core.StabAnimEntity stabAnimation, Microsoft.Xna.Framework.Vector2 cameraPosition);
     void DrawStartupSplash();

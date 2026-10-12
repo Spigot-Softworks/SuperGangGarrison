@@ -612,6 +612,77 @@
                 api.clearPendingPump();
                 return true;
             },
+            // Gamepad API polling: the game reads the first connected pad (standard mapping)
+            // as player one. Only changes are sent, so an idle pad costs nothing.
+            lastGamepadKey: "",
+            pollGamepad: function (host) {
+                const api = window.OpenGarrisonBrowserHost;
+                if (!host || typeof navigator.getGamepads !== "function") {
+                    return;
+                }
+
+                let pads;
+                try {
+                    pads = navigator.getGamepads() || [];
+                } catch (error) {
+                    return;
+                }
+
+                let pad = null;
+                for (let index = 0; index < pads.length; index += 1) {
+                    const candidate = pads[index];
+                    if (candidate && candidate.connected) {
+                        if (candidate.mapping === "standard") {
+                            pad = candidate;
+                            break;
+                        }
+
+                        if (!pad) {
+                            pad = candidate;
+                        }
+                    }
+                }
+
+                let args;
+                if (!pad) {
+                    args = [false, 0, 0, 0, 0, 0, 0, 0];
+                } else {
+                    let mask = 0;
+                    const count = Math.min(pad.buttons.length, 17);
+                    for (let index = 0; index < count; index += 1) {
+                        const button = pad.buttons[index];
+                        if (button && (button.pressed || button.value > 0.5)) {
+                            mask |= (1 << index);
+                        }
+                    }
+
+                    const axis = function (index) {
+                        const value = pad.axes.length > index ? pad.axes[index] : 0;
+                        return Number.isFinite(value) ? Math.round(value * 1000) / 1000 : 0;
+                    };
+                    const trigger = function (index) {
+                        const button = pad.buttons.length > index ? pad.buttons[index] : null;
+                        return button ? Math.round(button.value * 1000) / 1000 : 0;
+                    };
+                    args = [true, mask, axis(0), axis(1), axis(2), axis(3), trigger(6), trigger(7)];
+                }
+
+                const key = args.join(",");
+                if (key === api.lastGamepadKey) {
+                    return;
+                }
+
+                api.lastGamepadKey = key;
+                try {
+                    if (typeof host.invokeMethod === "function") {
+                        host.invokeMethod("HandleBrowserGamepad", ...args);
+                    } else {
+                        host.invokeMethodAsync("HandleBrowserGamepad", ...args);
+                    }
+                } catch (error) {
+                    host.invokeMethodAsync("HandleBrowserGamepad", ...args).catch(function () { });
+                }
+            },
             startGameLoop: function (host) {
                 const api = window.OpenGarrisonBrowserHost;
                 api.stopGameLoop();
@@ -630,6 +701,7 @@
                         return;
                     }
 
+                    api.pollGamepad(api.gameLoopHost);
                     api.gameLoopPending = true;
                     api.gameLoopPendingStartedAt = performance.now();
                     const pumpStartedAt = performance.now();

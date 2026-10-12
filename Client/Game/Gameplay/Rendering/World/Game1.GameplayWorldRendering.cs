@@ -51,6 +51,9 @@ public partial class Game1
         DrawCustomMapGameplaySprites(cameraPosition, CustomMapSpriteLayerKind.Bg);
         DrawSpritesheets(cameraPosition, CustomMapSpriteLayerKind.Bg);
         DrawFallbackLevelSolids(cameraPosition, hasLevelBackground, viewportWidth, viewportHeight);
+        // Painted light pixels are map artwork; players, props and foreground cover them.
+        DrawGameplayPaintedMaskEmission(cameraPosition);
+        DrawLightPropFragments(cameraPosition);
         DrawMovingPlatforms(cameraPosition);
         // Settled blood sits on the map layer; gameplay FX / characters draw above it.
         if (AreBloodVisualsEnabled && _gameplayManager.RuntimeSettings.BloodRenderMode == 0)
@@ -616,6 +619,7 @@ public partial class Game1
         }
 
         EndCharacterLighting();
+        DrawPlayerHealGlow(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection, shouldDrawWeapon);
         DrawHealingCrossParticles(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha);
         _gameplayWeaponRenderController.DrawCivvieUmbrellaShieldBlockVisuals(_world.LocalPlayer, cameraPosition, visibilityAlpha, bodySelection);
         DrawExperimentalCryoOverlays(_world.LocalPlayer, renderPosition, cameraPosition, visibilityAlpha, bodySelection);

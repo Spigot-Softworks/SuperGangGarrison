@@ -700,6 +700,7 @@ public partial class Game1
             GameModeKind.Generator => "Gen",
             GameModeKind.KingOfTheHill => "KOTH",
             GameModeKind.DoubleKingOfTheHill => "DKOTH",
+            GameModeKind.Conquest => "Conquest",
             GameModeKind.TeamDeathmatch => "TDM",
             GameModeKind.Scr => "SCR",
             GameModeKind.Vip => "VIP",

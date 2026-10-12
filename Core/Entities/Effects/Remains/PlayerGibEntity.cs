@@ -27,9 +27,10 @@ public sealed class PlayerGibEntity : SimulationEntity
         float bloodChance = DefaultBloodChance,
         bool experimentalCryoTinted = false,
         bool flipHorizontally = false,
-        float authoredRenderScale = 2f) : base(id)
+        float authoredRenderScale = 2f, PlayerTeam team = PlayerTeam.Neutral) : base(id)
     {
         SpriteName = spriteName;
+        Team = team;
         FrameIndex = frameIndex;
         X = x;
         Y = y;
@@ -48,6 +49,7 @@ public sealed class PlayerGibEntity : SimulationEntity
     }
 
     public string SpriteName { get; }
+    public PlayerTeam Team { get; }
 
     public int FrameIndex { get; }
 

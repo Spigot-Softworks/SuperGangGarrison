@@ -136,7 +136,7 @@ public static class MapLogicEntityReference
             for (var index = 0; index < entities.Count; index += 1)
             {
                 var entity = entities[index];
-                if (!entity.Type.Equals(entityType, StringComparison.OrdinalIgnoreCase))
+                if (!EntityTypesMatch(entity.Type, entityType))
                 {
                     continue;
                 }
@@ -161,6 +161,11 @@ public static class MapLogicEntityReference
         {
             return true;
         }
+
+        // The generic builder entity becomes controlPoint1/2/3 after its index is imported.
+        if (entityType.Equals("controlPoint", StringComparison.OrdinalIgnoreCase)
+            && marker.Type == RoomObjectType.ControlPoint)
+            return true;
 
         if (entityType.Equals(PlayerTriggerMetadata.PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             && marker.Type == RoomObjectType.PlayerTriggerZone)
@@ -239,7 +244,7 @@ public static class MapLogicEntityReference
         for (var index = 0; index < importedEntities.Count; index += 1)
         {
             var entity = importedEntities[index];
-            if (!entity.Type.Equals(entityType, StringComparison.OrdinalIgnoreCase))
+            if (!EntityTypesMatch(entity.Type, entityType))
             {
                 continue;
             }
@@ -324,7 +329,7 @@ public static class MapLogicEntityReference
         for (var index = 0; index < entities.Count; index += 1)
         {
             var entity = entities[index];
-            if (!entity.Type.Equals(entityType, StringComparison.OrdinalIgnoreCase))
+            if (!EntityTypesMatch(entity.Type, entityType))
             {
                 continue;
             }
@@ -350,6 +355,20 @@ public static class MapLogicEntityReference
         entityIndex = bestIndex;
         return true;
     }
+
+    // Export expands the editor's controlPoint type to controlPoint1/2/3, while
+    // stable-ID references keep the editor type. Loading into the editor reverses it.
+    private static bool EntityTypesMatch(string candidateType, string referenceType)
+    {
+        if (candidateType.Equals(referenceType, StringComparison.OrdinalIgnoreCase)) return true;
+        return candidateType.Equals("controlPoint", StringComparison.OrdinalIgnoreCase) && IsIndexedControlPoint(referenceType)
+            || referenceType.Equals("controlPoint", StringComparison.OrdinalIgnoreCase) && IsIndexedControlPoint(candidateType);
+    }
+
+    private static bool IsIndexedControlPoint(string type) =>
+        type.StartsWith("controlPoint", StringComparison.OrdinalIgnoreCase)
+        && int.TryParse(type["controlPoint".Length..], NumberStyles.None, CultureInfo.InvariantCulture, out var index)
+        && index > 0;
 
     private static readonly Dictionary<string, string> EmptyProperties =
         new(StringComparer.OrdinalIgnoreCase);

@@ -437,4 +437,18 @@ public sealed class MapWeatherTests : IDisposable
             Rectangles.Add(new XnaRectangle(x, y, width, height));
         }
     }
+
+    [Fact]
+    public void IndoorRoofStopsWeatherWithoutCountingAsASurface()
+    {
+        var mask = WeatherSkyMask.Build(
+            [new LevelSolid(0f, 80f, 100f, 20f)],
+            new WorldBounds(100f, 100f),
+            [new IndoorRegionMarker(20f, 40f, 40f, 40f)]);
+
+        Assert.Equal(40f, mask.GroundAt(30f));      // rain stops at the indoor region's top
+        Assert.True(mask.GroundIsIndoorRoofAt(30f)); // ...but there is nothing to splash on
+        Assert.Equal(80f, mask.GroundAt(10f));      // outside it, the floor is a real surface
+        Assert.False(mask.GroundIsIndoorRoofAt(10f));
+    }
 }

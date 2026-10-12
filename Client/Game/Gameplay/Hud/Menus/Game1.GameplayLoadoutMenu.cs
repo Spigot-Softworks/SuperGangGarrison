@@ -16,7 +16,7 @@ public partial class Game1
 {
     public bool CanOpenGameplayLoadoutMenu()
     {
-        if (_networkClient.IsLegacyGg2Connection)
+        if (!_networkClient.Profile.OffersLoadouts)
         {
             return false;
         }

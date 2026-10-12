@@ -424,7 +424,7 @@ public sealed class BotBrainChatBubbleController
         PlayerTeam team,
         out BotBrainChatBubbleReaction reaction)
     {
-        if (world.MatchRules.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Arena))
+        if (world.MatchRules.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest or GameModeKind.Arena))
         {
             reaction = default;
             return false;

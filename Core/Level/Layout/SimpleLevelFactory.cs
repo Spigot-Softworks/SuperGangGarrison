@@ -302,11 +302,16 @@ public static class SimpleLevelFactory
         return DetectMode(metadata);
     }
 
-    private static GameModeKind DetectMode(GameMakerRoomMetadata metadata)
+    internal static GameModeKind DetectMode(GameMakerRoomMetadata metadata)
     {
         if (metadata.ExplicitGameMode is GameModeKind explicitMode)
         {
             return explicitMode;
+        }
+
+        if (metadata.Name.StartsWith("cq_", StringComparison.OrdinalIgnoreCase))
+        {
+            return GameModeKind.Conquest;
         }
 
         if (metadata.LogicScoreTriggers.HasTriggers)
@@ -376,12 +381,10 @@ public static class SimpleLevelFactory
         // and copied into the shipped Maps directory by the client/package
         // build. Include that source package during source-tree tools/tests so
         // it resolves exactly like the packaged map.
+        // Packages may sit in group folders (Maps/Super Gang Garrison/cp/Docking/...).
         var packageDirectories = RuntimePaths.MapSearchDirectories
             .Where(Directory.Exists)
-            .SelectMany(customMapsDirectory => Directory.EnumerateDirectories(
-                customMapsDirectory,
-                "*",
-                SearchOption.TopDirectoryOnly))
+            .SelectMany(CustomMapDirectoryLayout.EnumeratePackageDirectories)
             .ToList();
         var canonicalDockingDirectory = ProjectSourceLocator.FindDirectory("Docking");
         if (!string.IsNullOrWhiteSpace(canonicalDockingDirectory))
@@ -436,9 +439,7 @@ public static class SimpleLevelFactory
                 continue;
             }
 
-            foreach (var mapFile in Directory
-                .EnumerateFiles(customMapsDirectory, "*.png", SearchOption.TopDirectoryOnly)
-                .OrderBy(static path => path, StringComparer.OrdinalIgnoreCase))
+            foreach (var mapFile in CustomMapDirectoryLayout.EnumerateLegacyPngMaps(customMapsDirectory))
             {
                 var mapName = Path.GetFileNameWithoutExtension(mapFile);
                 if (string.IsNullOrWhiteSpace(mapName))
@@ -763,7 +764,8 @@ public static class SimpleLevelFactory
             foreach (var mapDirectoryName in EnumerateDefinitionNames(definition))
             {
                 var packageDirectory = Path.Combine(mapsDirectory, mapDirectoryName);
-                if (CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out var manifestPath))
+                if (CustomMapPackageImporter.TryFindManifestInDirectory(packageDirectory, out var manifestPath)
+                    || CustomMapDirectoryLayout.TryFindPackageManifest(mapsDirectory, mapDirectoryName, out manifestPath))
                 {
                     return manifestPath;
                 }
@@ -786,8 +788,7 @@ public static class SimpleLevelFactory
         {
             foreach (var mapName in EnumerateDefinitionNames(definition))
             {
-                var bundledMapPath = Path.Combine(mapsDirectory, $"{mapName}.png");
-                if (File.Exists(bundledMapPath))
+                if (CustomMapDirectoryLayout.TryFindLegacyPngMap(mapsDirectory, mapName, out var bundledMapPath))
                 {
                     return bundledMapPath;
                 }
@@ -849,6 +850,7 @@ public static class SimpleLevelFactory
             || trimmed.StartsWith("vip_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("gen_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("koth_", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("cq_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("dkoth_", StringComparison.OrdinalIgnoreCase)
             || trimmed.StartsWith("tdm_", StringComparison.OrdinalIgnoreCase))
         {

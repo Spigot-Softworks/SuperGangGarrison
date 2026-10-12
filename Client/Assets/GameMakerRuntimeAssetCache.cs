@@ -298,9 +298,42 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
         }
     }
 
+    /// <summary>Set each frame from the GG2 presentation switch; see <see cref="Gg2SoundCatalog"/>.</summary>
+    public bool Gg2SoundsActive { get; set; }
+
+    /// <summary>
+    /// The asset a requested sound plays as. Null means silent. A GG2 original that isn't in
+    /// the baked manifest yet falls back to the name without its prefix, then to the request.
+    /// </summary>
+    private string? ResolveSoundAssetName(string soundName)
+    {
+        var resolved = Gg2SoundCatalog.Resolve(soundName, Gg2SoundsActive);
+        if (resolved is null || _manifest.Sounds.ContainsKey(resolved))
+        {
+            return resolved;
+        }
+
+        if (resolved.StartsWith(Gg2SoundCatalog.OriginalPrefix, StringComparison.Ordinal))
+        {
+            var unprefixed = resolved[Gg2SoundCatalog.OriginalPrefix.Length..];
+            if (_manifest.Sounds.ContainsKey(unprefixed))
+            {
+                return unprefixed;
+            }
+        }
+
+        return soundName;
+    }
+
     public SoundEffect? GetSound(string soundName)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (ResolveSoundAssetName(soundName) is not { } assetName)
+        {
+            return null;
+        }
+
+        soundName = assetName;
 
         if (_sounds.TryGetValue(soundName, out var cached))
         {
@@ -402,6 +435,12 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
     internal bool IsDesktopSoundPermanentlyUnavailable(string soundName)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (ResolveSoundAssetName(soundName) is not { } assetName)
+        {
+            return true;
+        }
+
+        soundName = assetName;
 
         if (OperatingSystem.IsBrowser() || _sounds.ContainsKey(soundName))
         {

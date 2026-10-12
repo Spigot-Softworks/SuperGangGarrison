@@ -108,6 +108,7 @@ public partial class Game1
         var residual = GetWorldPassCameraResidual();
         foreach (var (roomObjectIndex, marker) in GetCachedCustomMapSprites(layer))
         {
+            DrawPropFragments(cameraPosition, roomObjectIndex, false);
             if (!_world.Level.IsRoomObjectActive(roomObjectIndex))
             {
                 continue;
@@ -147,9 +148,11 @@ public partial class Game1
                 continue;
             }
 
+            texture = GetCurrentCustomMapFrame(texture);
+
             var tint = Color.White * (layer == CustomMapSpriteLayerKind.Fg
                 ? ApplyCoveredPlayerForegroundOpacity(1f, destination, cameraPosition)
-                : 1f);
+                : 1f) * GetDestructiblePropOpacity(marker.DestructibleZoneIndex);
             if (marker.CustomMapSprite.Tile)
             {
                 var tileWidth = MathF.Max(1f, texture.Width * marker.CustomMapSprite.Scale);
@@ -167,6 +170,7 @@ public partial class Game1
             {
                 _spriteBatch.Draw(texture, destination, tint);
             }
+            DrawPropRespawnWarp(texture, texture.Bounds, destination, Color.White, marker.DestructibleZoneIndex);
         }
     }
 

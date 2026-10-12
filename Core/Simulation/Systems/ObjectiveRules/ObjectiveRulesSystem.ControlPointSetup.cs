@@ -47,6 +47,12 @@ internal sealed partial class ObjectiveRulesSystem
 
     internal void ResetControlPointStateForNewRound()
     {
+        if (_host.MatchRules.Mode == GameModeKind.Conquest)
+        {
+            ResetConquestStateForNewRound();
+            return;
+        }
+
         if (IsKothMode(_host.MatchRules.Mode))
         {
             ResetKothStateForNewRound();

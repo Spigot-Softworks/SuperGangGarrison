@@ -250,7 +250,7 @@ public partial class Game1
             return false;
         }
 
-        if (_networkClient.IsLegacyGg2Connection && !binding.BindsLegacyPlayerClass)
+        if (_networkClient.Profile.StockClassesOnly && !binding.BindsLegacyPlayerClass)
         {
             _menuStatusMessage = "This class is unavailable on a GG2 server.";
             return false;
@@ -372,7 +372,7 @@ public partial class Game1
 
     private string[] GetClassSelectDescription(int hoverIndex)
     {
-        if (_networkClient.IsLegacyGg2Connection)
+        if (_networkClient.Profile.StockClassesOnly)
         {
             if (hoverIndex == 4)
             {

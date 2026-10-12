@@ -4,6 +4,20 @@ namespace OpenGarrison.Core;
 
 public static class CustomMapBuilderResourceCodec
 {
+    /// <summary>Property imports get their own resource instead of replacing an asset shared by clones.</summary>
+    public static string CreateUnusedName(string suggestedName, IReadOnlyDictionary<string, CustomMapBuilderResource> resources)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(suggestedName);
+        var name = suggestedName.Trim();
+        var used = new HashSet<string>(resources.Keys, StringComparer.OrdinalIgnoreCase);
+        if (!used.Contains(name)) return name;
+        for (var suffix = 2; ; suffix++)
+        {
+            var candidate = $"{name}_{suffix}";
+            if (!used.Contains(candidate)) return candidate;
+        }
+    }
+
     public static CustomMapBuilderResource FromFile(
         string name,
         string sourcePath,

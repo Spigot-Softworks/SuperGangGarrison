@@ -17,12 +17,24 @@ public sealed class MapLogicActivator
         MapLogicActivatorBehavior behavior,
         bool activateOnStart,
         int nodePriority = 0)
+        : this(inputNodeIndex, targetRoomObjectIndex, behavior, activateOnStart, nodePriority, -1)
+    {
+    }
+
+    public MapLogicActivator(
+        int inputNodeIndex,
+        int targetRoomObjectIndex,
+        MapLogicActivatorBehavior behavior,
+        bool activateOnStart,
+        int nodePriority,
+        int externalPulseNodeIndex)
     {
         InputNodeIndex = inputNodeIndex;
         TargetRoomObjectIndex = targetRoomObjectIndex;
         Behavior = behavior;
         ActivateOnStart = activateOnStart;
         NodePriority = nodePriority;
+        ExternalPulseNodeIndex = externalPulseNodeIndex;
     }
 
     public int InputNodeIndex { get; }
@@ -34,6 +46,8 @@ public sealed class MapLogicActivator
     public bool ActivateOnStart { get; }
 
     public int NodePriority { get; }
+
+    public int ExternalPulseNodeIndex { get; }
 }
 
 public sealed class MapLogicActivatorSet

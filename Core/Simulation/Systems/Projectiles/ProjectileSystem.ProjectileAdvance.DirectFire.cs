@@ -64,7 +64,7 @@ public sealed partial class ProjectileSystem
                 if (hitResult.HitPlayer is not null)
                 {
                     var targetWasGrounded = hitResult.HitPlayer.IsGrounded;
-                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, team: hitResult.HitPlayer.Team);
                     if (sourceSentry is not null && owner is not null)
                     {
                         ApplyExperimentalSentryPlayerHit(
@@ -227,7 +227,7 @@ public sealed partial class ProjectileSystem
                     if (hitResult.HitPlayer is not null)
                     {
                         var targetWasGrounded = hitResult.HitPlayer.IsGrounded;
-                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6);
+                        RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, 6, team: hitResult.HitPlayer.Team);
                         if (!hitResult.HitPlayer.IsUbered)
                         {
                             hitResult.HitPlayer.AddImpulse(
@@ -374,7 +374,7 @@ public sealed partial class ProjectileSystem
                 }
                 else if (hitResult.HitPlayer is not null)
                 {
-                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                    RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, team: hitResult.HitPlayer.Team);
                     var arrowPayload = needle as ArrowProjectileEntity;
                     var capturedDamageMultiplier = arrowPayload?.LastToDieGhostDamageMultiplier ?? 1f;
                     var executesFromDecapitator = arrowPayload is
@@ -797,7 +797,7 @@ public sealed partial class ProjectileSystem
             RegisterBloodEffect(
                 target.X,
                 target.Y,
-                DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, team: target.Team);
             if (!resolution.WasFatal)
             {
                 ApplyLastToDieRevolverOnHitEffects(shot, target);

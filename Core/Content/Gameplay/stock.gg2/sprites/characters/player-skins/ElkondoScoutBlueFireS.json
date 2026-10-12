@@ -1,0 +1,12 @@
+{
+  "id": "ElkondoScoutBlueFireS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoScoutBlueFireS/0.png",
+    "assets/characters/player-skins/ElkondoScoutBlueFireS/1.png",
+    "assets/characters/player-skins/ElkondoScoutBlueFireS/2.png",
+    "assets/characters/player-skins/ElkondoScoutBlueFireS/3.png",
+    "assets/characters/player-skins/ElkondoScoutBlueFireS/4.png"
+  ],
+  "originX": 32,
+  "originY": 44
+}

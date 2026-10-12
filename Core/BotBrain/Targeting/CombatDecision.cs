@@ -720,7 +720,7 @@ public static class CombatDecisionResolver
 
     private static bool ShouldSpyDecloakForObjectiveCapture(SimulationWorld world, PlayerEntity self)
     {
-        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Scr)
+        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest or GameModeKind.Scr)
             || self.ClassId != PlayerClass.Spy
             || !self.IsSpyCloaked)
         {
@@ -737,7 +737,7 @@ public static class CombatDecisionResolver
 
     private static bool ShouldSpyStayUncloakedForObjectiveCapture(SimulationWorld world, PlayerEntity self)
     {
-        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Scr)
+        if (world.MatchRules.Mode is not (GameModeKind.Arena or GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest or GameModeKind.Scr)
             || self.ClassId != PlayerClass.Spy)
         {
             return false;

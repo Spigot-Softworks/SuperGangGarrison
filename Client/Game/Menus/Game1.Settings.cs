@@ -24,6 +24,12 @@ public partial class Game1
         _gameplayManager.RuntimeSettings.KillCamEnabled = _clientSettings.KillCamEnabled;
         _gameplayManager.RuntimeSettings.ParticleMode = Math.Clamp(_clientSettings.ParticleMode, 0, 2);
         _gameplayManager.RuntimeSettings.FlameRenderMode = Math.Clamp(_clientSettings.FlameRenderMode, 0, 1);
+        _gameplayManager.RuntimeSettings.ClassicVisualsEnabled = _clientSettings.ClassicVisualsEnabled;
+        _gameplayManager.RuntimeSettings.MapLightingEnabled = _clientSettings.MapLightingEnabled;
+        _gameplayManager.RuntimeSettings.LightsFollowJukeboxEnabled = _clientSettings.LightsFollowJukeboxEnabled;
+        _gameplayManager.RuntimeSettings.CharacterBrightmapsEnabled = _clientSettings.CharacterBrightmapsEnabled;
+        _gameplayManager.RuntimeSettings.WeatherEnabled = _clientSettings.WeatherEnabled;
+        _gameplayManager.RuntimeSettings.LightingIntensityPercent = OpenGarrisonPreferencesDocument.NormalizeLightingIntensityPercent(_clientSettings.LightingIntensityPercent);
         _gameplayManager.RuntimeSettings.BloodRenderMode = Math.Clamp(_clientSettings.BloodRenderMode, 0, 1);
         _gameplayManager.RuntimeSettings.DynamicRagdollEnabled = _clientSettings.DynamicRagdollEnabled;
         _gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled = _clientSettings.BurnCharredCorpsesEnabled;
@@ -55,6 +61,7 @@ public partial class Game1
         _hudManager.RuntimeSettings.ShowPlayerNamesEnabled = _clientSettings.ShowPlayerNamesEnabled;
         _gameplayManager.RuntimeSettings.PositionSmoothingEnabled = _clientSettings.PositionSmoothingEnabled;
         _gameplayManager.RuntimeSettings.EnablePrediction = _clientSettings.EnablePrediction;
+        _gameplayManager.RuntimeSettings.Gg2PredictionEnabled = _clientSettings.Gg2PredictionEnabled;
         _gameplayManager.RuntimeSettings.CameraPanningEnabled = _clientSettings.CameraPanningEnabled;
         _gameplayManager.RuntimeSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_clientSettings.SmoothCameraMultiplier);
         if (_gameplayManager.RuntimeSettings.SmoothCameraMultiplier <= 0f)
@@ -107,15 +114,22 @@ public partial class Game1
         _clientSettings.KillCamEnabled = _gameplayManager.RuntimeSettings.KillCamEnabled;
         _clientSettings.ParticleMode = Math.Clamp(_gameplayManager.RuntimeSettings.ParticleMode, 0, 2);
         _clientSettings.FlameRenderMode = Math.Clamp(_gameplayManager.RuntimeSettings.FlameRenderMode, 0, 1);
-        _clientSettings.BloodRenderMode = Math.Clamp(_gameplayManager.RuntimeSettings.BloodRenderMode, 0, 1);
-        _clientSettings.DynamicRagdollEnabled = _gameplayManager.RuntimeSettings.DynamicRagdollEnabled;
-        _clientSettings.BurnCharredCorpsesEnabled = _gameplayManager.RuntimeSettings.BurnCharredCorpsesEnabled;
+        // Save the player's own gore choices, not what Classic visuals is forcing.
+        _clientSettings.ClassicVisualsEnabled = _gameplayManager.RuntimeSettings.StoredClassicVisualsEnabled;
+        _clientSettings.MapLightingEnabled = _gameplayManager.RuntimeSettings.MapLightingEnabled;
+        _clientSettings.LightsFollowJukeboxEnabled = _gameplayManager.RuntimeSettings.LightsFollowJukeboxEnabled;
+        _clientSettings.CharacterBrightmapsEnabled = _gameplayManager.RuntimeSettings.CharacterBrightmapsEnabled;
+        _clientSettings.WeatherEnabled = _gameplayManager.RuntimeSettings.WeatherEnabled;
+        _clientSettings.LightingIntensityPercent = OpenGarrisonPreferencesDocument.NormalizeLightingIntensityPercent(_gameplayManager.RuntimeSettings.LightingIntensityPercent);
+        _clientSettings.BloodRenderMode = Math.Clamp(_gameplayManager.RuntimeSettings.StoredBloodRenderMode, 0, 1);
+        _clientSettings.DynamicRagdollEnabled = _gameplayManager.RuntimeSettings.StoredDynamicRagdollEnabled;
+        _clientSettings.BurnCharredCorpsesEnabled = _gameplayManager.RuntimeSettings.StoredBurnCharredCorpsesEnabled;
         _clientSettings.BloodPersistenceSeconds = Math.Clamp(_gameplayManager.RuntimeSettings.BloodPersistenceSeconds, 1, 120);
-        _clientSettings.CorpseFadeMode = OpenGarrisonPreferencesDocument.NormalizeCorpseFadeMode(_gameplayManager.RuntimeSettings.CorpseFadeMode);
+        _clientSettings.CorpseFadeMode = OpenGarrisonPreferencesDocument.NormalizeCorpseFadeMode(_gameplayManager.RuntimeSettings.StoredCorpseFadeMode);
         _clientSettings.MenuBackgroundMode = _gameplayManager.RuntimeSettings.MenuBackgroundMode;
         _clientSettings.GibLevel = Math.Clamp(_gameplayManager.RuntimeSettings.GibLevel, 0, 3);
         _clientSettings.BloodAmountLevel = Math.Clamp(_gameplayManager.RuntimeSettings.BloodAmountLevel, 1, 5);
-        _clientSettings.CorpseDurationMode = Math.Clamp(_gameplayManager.RuntimeSettings.CorpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
+        _clientSettings.CorpseDurationMode = Math.Clamp(_gameplayManager.RuntimeSettings.StoredCorpseDurationMode, ClientSettings.CorpseDurationDefault, ClientSettings.CorpseDurationInfinite);
         _clientSettings.HealerRadarEnabled = _hudManager.RuntimeSettings.HealerRadarEnabled;
         _clientSettings.ShowHealerEnabled = _hudManager.RuntimeSettings.ShowHealerEnabled;
         _clientSettings.ShowHealingEnabled = _hudManager.RuntimeSettings.ShowHealingEnabled;
@@ -132,6 +146,7 @@ public partial class Game1
         _clientSettings.ShowPlayerNamesEnabled = _hudManager.RuntimeSettings.ShowPlayerNamesEnabled;
         _clientSettings.PositionSmoothingEnabled = _gameplayManager.RuntimeSettings.PositionSmoothingEnabled;
         _clientSettings.EnablePrediction = _gameplayManager.RuntimeSettings.EnablePrediction;
+        _clientSettings.Gg2PredictionEnabled = _gameplayManager.RuntimeSettings.Gg2PredictionEnabled;
         _clientSettings.CameraPanningEnabled = _gameplayManager.RuntimeSettings.CameraPanningEnabled;
         _clientSettings.SmoothCameraMultiplier = NormalizeSmoothCameraMultiplier(_gameplayManager.RuntimeSettings.SmoothCameraMultiplier);
         _clientSettings.SpriteDropShadowEnabled = _gameplayManager.RuntimeSettings.SpriteDropShadowEnabled;

@@ -24,7 +24,8 @@ public sealed partial class SimulationWorld : IMatchPhaseHost
             || MatchRules.Mode is GameModeKind.ControlPoint
                 or GameModeKind.Scr
                 or GameModeKind.KingOfTheHill
-                or GameModeKind.DoubleKingOfTheHill)
+                or GameModeKind.DoubleKingOfTheHill
+                or GameModeKind.Conquest)
         {
             return;
         }

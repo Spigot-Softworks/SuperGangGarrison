@@ -11,17 +11,28 @@ using System.Threading;
 using System.Threading.Tasks;
 using OpenGarrison.Core;
 using OpenGarrison.Protocol;
+using OpenGarrison.Protocol.Gg2;
 
 namespace OpenGarrison.Client;
 
-/// <summary>Translates a stock GG2 TCP session into SGG's existing client messages.</summary>
+/// <summary>
+/// A stock GG2 TCP session. The handshake (hello, password, map download, slot
+/// reservation) reads the socket directly; after joining, every server message is framed
+/// by the GG2 codec (<see cref="Gg2ServerMessageReader"/>) before anything interprets it,
+/// so a message the session can't fully apply never desynchronises the stream. The
+/// session then turns GG2 state into SGG client messages.
+/// </summary>
 internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTransport
 {
+    private const int ReceiveChunkBytes = 16 * 1024;
+
     private readonly TcpClient _client;
     private readonly NetworkStream _stream;
     private readonly object _sendLock = new();
     private readonly ConcurrentQueue<byte[]> _inbound = new();
     private readonly Dictionary<ControlCommandKind, uint> _lastControlCommandSequences = new();
+    private readonly TaskCompletionSource<string> _passwordSubmission = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly Gg2InputAckEstimator _inputAcks = new();
     private readonly string _host;
     private readonly int _port;
     private readonly string? _mapCacheDirectory;
@@ -37,6 +48,9 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
     private string _currentMapHash = string.Empty;
     private bool _wasSecondaryHeld;
     private bool _wasDropIntelHeld;
+    private bool _welcomed;
+    private byte _localSlot;
+    private bool _joinMapApplied;
 
     private LegacyGg2NetworkClientTransport(TcpClient client, string host, int port, string? mapCacheDirectory)
     {
@@ -53,6 +67,9 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
     public int ReceiveTimeoutMilliseconds => 15000;
     internal string CurrentMapName => Volatile.Read(ref _currentMapName);
     internal string CurrentMapHash => Volatile.Read(ref _currentMapHash);
+
+    /// <summary>Messages the session could not apply and skipped (the stream stayed in sync).</summary>
+    internal int SkippedMessageCount { get; private set; }
 
     public static bool TryConnect(string host, int port, out INetworkClientMessageTransport? transport, out string error)
         => TryConnect(host, port, null, out transport, out error);
@@ -111,6 +128,9 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
                 case HelloMessage hello when Interlocked.Exchange(ref _helloStarted, 1) == 0:
                     _ = Task.Run(() => ReadServerLoop(hello.Name));
                     break;
+                case PasswordSubmitMessage submit:
+                    _passwordSubmission.TrySetResult(submit.Password ?? string.Empty);
+                    break;
                 case InputStateMessage input when Volatile.Read(ref _joined) != 0:
                     if (input.BundledControlCommands is { } bundledCommands)
                     {
@@ -121,7 +141,10 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
                     }
 
                     SendStockInputEdges(input);
-                    WriteRaw(LegacyGg2Wire.CreateInputState(input));
+                    SendChatBubble(input.ChatBubbleFrameIndex);
+                    var wire = LegacyGg2Wire.CreateInputState(input);
+                    WriteRaw(wire);
+                    _inputAcks.RecordSent(input.Sequence, wire[1]);
                     break;
                 case ControlCommandMessage command when Volatile.Read(ref _joined) != 0:
                     SendControl(command);
@@ -138,6 +161,7 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
         {
             Interlocked.CompareExchange(ref _disconnectReason, $"GG2 connection closed: {ex.Message}", null);
             Interlocked.Exchange(ref _disposed, 1);
+            _passwordSubmission.TrySetCanceled();
             _client.Dispose();
         }
     }
@@ -149,6 +173,7 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
             return;
         }
 
+        _passwordSubmission.TrySetCanceled();
         if (Volatile.Read(ref _joined) != 0)
         {
             try { WriteRaw([LegacyGg2Wire.PlayerLeave]); }
@@ -166,17 +191,7 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
         {
             using var reader = new BinaryReader(_stream, Encoding.Latin1, leaveOpen: true);
             WriteRaw(LegacyGg2Wire.CreateHello());
-            var firstByte = reader.ReadByte();
-            if (firstByte == LegacyGg2Wire.PasswordRequest)
-            {
-                throw new NotSupportedException("Password-protected GG2 servers are not supported yet.");
-            }
-
-            if (firstByte == LegacyGg2Wire.IncompatibleProtocol)
-            {
-                throw new InvalidDataException("The server uses a different GG2 protocol UUID.");
-            }
-
+            var firstByte = ReadHelloReply(reader);
             var hello = LegacyGg2Wire.ReadServerHello(reader, firstByte);
             Volatile.Write(ref _currentMapName, hello.MapName);
             Volatile.Write(ref _currentMapHash, hello.MapMd5);
@@ -211,71 +226,9 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
             }
 
             WriteRaw([LegacyGg2Wire.PlayerJoin]);
-            session.ReadLiveJoinState(reader);
-
-            var welcomed = false;
-            byte localSlot = 0;
-            while (Volatile.Read(ref _disposed) == 0)
-            {
-                var messageType = reader.ReadByte();
-                if (messageType == LegacyGg2ChatWire.PluginPacket)
-                {
-                    ReadPluginPacket(reader, session);
-                    continue;
-                }
-
-                session.ApplyLiveMessage(reader, messageType);
-                if (messageType == LegacyGg2Wire.ChangeMap)
-                {
-                    var changedLevelName = string.IsNullOrEmpty(session.LegacyMapHash)
-                        ? null
-                        : DownloadChangedMap(session.LegacyMapName, session.LegacyMapHash);
-                    session.ActivateLiveMapChange(changedLevelName);
-                    Volatile.Write(ref _currentMapName, session.LegacyMapName);
-                    Volatile.Write(ref _currentMapHash, session.LegacyMapHash);
-                }
-                if (!welcomed && session.LocalPlayerIndex >= 0 && session.PlayerCount > session.LocalPlayerIndex)
-                {
-                    localSlot = session.GetLocalPlayerSlot();
-                    UpdateLocalStockState(session);
-                    if (Volatile.Read(ref _chatPluginId) is var pluginId and >= 0)
-                    {
-                        WriteRaw(LegacyGg2ChatWire.CreateHello(checked((byte)pluginId)));
-                    }
-
-                    Volatile.Write(ref _joined, 1);
-                    welcomed = true;
-                    Enqueue(session.CreateWelcomeMessage(localSlot));
-                    Enqueue(session.CreateSnapshotMessage());
-
-                    continue;
-                }
-
-                if (!welcomed)
-                {
-                    continue;
-                }
-
-                if (session.LocalPlayerIndex < 0)
-                {
-                    throw new InvalidDataException("GG2 server removed the local player.");
-                }
-
-                var currentSlot = session.GetLocalPlayerSlot();
-                UpdateLocalStockState(session);
-                if (currentSlot != localSlot)
-                {
-                    localSlot = currentSlot;
-                    Enqueue(new SessionSlotChangedMessage(localSlot));
-                }
-
-                if (ReDsmReplayTransport.ReDsmReplayTranslator.LegacyReplaySession.IsLiveSnapshotBoundary(messageType))
-                {
-                    Enqueue(session.CreateSnapshotMessage());
-                }
-            }
+            ReceiveFramedMessages(session);
         }
-        catch (Exception ex) when (ex is IOException or SocketException or EndOfStreamException or InvalidDataException or NotSupportedException or ObjectDisposedException or UnauthorizedAccessException or OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or SocketException or EndOfStreamException or InvalidDataException or NotSupportedException or ObjectDisposedException or UnauthorizedAccessException or OperationCanceledException or InvalidOperationException)
         {
             if (Volatile.Read(ref _disposed) == 0)
             {
@@ -287,10 +240,234 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
             lock (_sendLock)
             {
                 Interlocked.Exchange(ref _disposed, 1);
+                _passwordSubmission.TrySetCanceled();
                 _client.Dispose();
             }
         }
     }
+
+    /// <summary>
+    /// The first byte of the server's reply to HELLO. A password-protected server asks
+    /// first: the client's password prompt answers through <see cref="PasswordSubmitMessage"/>,
+    /// and the server then either says hello or PASSWORD_WRONG.
+    /// </summary>
+    private byte ReadHelloReply(BinaryReader reader)
+    {
+        var firstByte = reader.ReadByte();
+        if (firstByte == LegacyGg2Wire.IncompatibleProtocol)
+        {
+            throw new InvalidDataException("The server uses a different GG2 protocol UUID.");
+        }
+
+        if (firstByte != LegacyGg2Wire.PasswordRequest)
+        {
+            return firstByte;
+        }
+
+        Enqueue(new PasswordRequestMessage());
+        string password;
+        try
+        {
+            // The prompt waits on the player; the socket's own timeout doesn't apply here.
+            password = _passwordSubmission.Task.WaitAsync(TimeSpan.FromMinutes(5)).GetAwaiter().GetResult();
+        }
+        catch (TimeoutException)
+        {
+            throw new InvalidDataException("No GG2 server password was entered.");
+        }
+        catch (TaskCanceledException)
+        {
+            throw new OperationCanceledException("GG2 connection closed while waiting for a password.");
+        }
+
+        WriteRaw(Gg2ClientMessages.Password(password));
+        var reply = reader.ReadByte();
+        if (reply == LegacyGg2Wire.PasswordWrong)
+        {
+            Enqueue(new PasswordResultMessage(false, "Incorrect GG2 server password."));
+            throw new InvalidDataException("Incorrect GG2 server password.");
+        }
+
+        Enqueue(new PasswordResultMessage(true, string.Empty));
+        return reply;
+    }
+
+    private void ReceiveFramedMessages(ReDsmReplayTransport.ReDsmReplayTranslator.LegacyReplaySession session)
+    {
+        var framer = new Gg2ServerMessageReader();
+        var buffer = new byte[ReceiveChunkBytes * 4];
+        var length = 0;
+        while (Volatile.Read(ref _disposed) == 0)
+        {
+            if (buffer.Length - length < ReceiveChunkBytes)
+            {
+                Array.Resize(ref buffer, Math.Max(buffer.Length * 2, length + ReceiveChunkBytes));
+            }
+
+            var read = _stream.Read(buffer, length, ReceiveChunkBytes);
+            if (read <= 0)
+            {
+                throw new EndOfStreamException("The GG2 server closed the connection.");
+            }
+
+            length += read;
+            var offset = 0;
+            while (offset < length && Volatile.Read(ref _disposed) == 0)
+            {
+                if (framer.TryRead(buffer.AsSpan(offset, length - offset), out var message, out var consumed) == Gg2ReadStatus.NeedMoreData)
+                {
+                    break;
+                }
+
+                HandleServerMessage(session, framer, message!, buffer, offset, consumed);
+                offset += consumed;
+            }
+
+            if (offset > 0)
+            {
+                Buffer.BlockCopy(buffer, offset, buffer, 0, length - offset);
+                length -= offset;
+            }
+        }
+    }
+
+    private void HandleServerMessage(
+        ReDsmReplayTransport.ReDsmReplayTranslator.LegacyReplaySession session,
+        Gg2ServerMessageReader framer,
+        Gg2ServerMessage message,
+        byte[] buffer,
+        int offset,
+        int length)
+    {
+        switch (message)
+        {
+            case Gg2PluginPacketMessage plugin:
+                HandlePluginPacket(plugin, session);
+                return;
+            case Gg2KickMessage kick:
+                throw new InvalidDataException(DescribeKick(kick.Reason));
+            case Gg2SignalMessage { SignalType: Gg2Protocol.ServerFull }:
+                throw new InvalidDataException("GG2 server is full.");
+            case Gg2SignalMessage { SignalType: Gg2Protocol.Ping or Gg2Protocol.ReserveSlot }:
+            case Gg2RewardChallengeMessage:
+                // GG2 clients without a reward key never answer challenges.
+                return;
+        }
+
+        ApplyToSession(session, message.Type, buffer, offset, length);
+        if (message is Gg2ChangeMapMessage)
+        {
+            if (!_joinMapApplied)
+            {
+                // The join state repeats the map the hello named; it is already loaded.
+                _joinMapApplied = true;
+            }
+            else
+            {
+                var changedLevelName = string.IsNullOrEmpty(session.LegacyMapHash)
+                    ? null
+                    : DownloadChangedMap(session.LegacyMapName, session.LegacyMapHash);
+                session.ActivateLiveMapChange(changedLevelName);
+                Volatile.Write(ref _currentMapName, session.LegacyMapName);
+                Volatile.Write(ref _currentMapHash, session.LegacyMapHash);
+            }
+
+            framer.SetMapLayout(Gg2MapLayoutResolver.Resolve(session.GameMode, session.CurrentLevel));
+        }
+
+        AfterSessionMessage(session, message.Type);
+    }
+
+    /// <summary>
+    /// Hands one framed message to the session. Roster and movement messages must apply or
+    /// the session no longer matches the server, so their failures end the connection; a
+    /// failure anywhere else (an event or a HUD block the session reads differently) skips
+    /// just that message.
+    /// </summary>
+    private void ApplyToSession(
+        ReDsmReplayTransport.ReDsmReplayTranslator.LegacyReplaySession session,
+        byte type,
+        byte[] buffer,
+        int offset,
+        int length)
+    {
+        try
+        {
+            using var payload = new MemoryStream(buffer, offset + 1, length - 1, writable: false);
+            using var payloadReader = new BinaryReader(payload, Encoding.Latin1, leaveOpen: false);
+            session.ApplyLiveMessage(payloadReader, type);
+        }
+        catch (InvalidDataException) when (!MustApply(type))
+        {
+            SkippedMessageCount += 1;
+        }
+    }
+
+    private static bool MustApply(byte type)
+        => type is Gg2Protocol.JoinUpdate
+            or Gg2Protocol.ChangeMap
+            or Gg2Protocol.PlayerJoin
+            or Gg2Protocol.PlayerLeave
+            or Gg2Protocol.PlayerChangeTeam
+            or Gg2Protocol.PlayerChangeClass
+            or Gg2Protocol.Balance
+            or Gg2Protocol.InputState
+            or Gg2Protocol.QuickUpdate;
+
+    private void AfterSessionMessage(ReDsmReplayTransport.ReDsmReplayTranslator.LegacyReplaySession session, byte type)
+    {
+        if (!_welcomed)
+        {
+            if (session.LocalPlayerIndex < 0 || session.PlayerCount <= session.LocalPlayerIndex)
+            {
+                return;
+            }
+
+            _localSlot = session.GetLocalPlayerSlot();
+            UpdateLocalStockState(session);
+            if (Volatile.Read(ref _chatPluginId) is var pluginId and >= 0)
+            {
+                WriteRaw(LegacyGg2ChatWire.CreateHello(checked((byte)pluginId)));
+            }
+
+            Volatile.Write(ref _joined, 1);
+            _welcomed = true;
+            Enqueue(session.CreateWelcomeMessage(_localSlot, localPredictionEnabled: true));
+            Enqueue(session.CreateSnapshotMessage());
+            return;
+        }
+
+        if (session.LocalPlayerIndex < 0)
+        {
+            throw new InvalidDataException("GG2 server removed the local player.");
+        }
+
+        var currentSlot = session.GetLocalPlayerSlot();
+        UpdateLocalStockState(session);
+        if (currentSlot != _localSlot)
+        {
+            _localSlot = currentSlot;
+            Enqueue(new SessionSlotChangedMessage(_localSlot));
+        }
+
+        if (type == Gg2Protocol.InputState && session.LocalPlayerHasCharacter)
+        {
+            _inputAcks.ObserveEcho(session.LocalPlayerKeyState);
+        }
+
+        if (ReDsmReplayTransport.ReDsmReplayTranslator.LegacyReplaySession.IsLiveSnapshotBoundary(type))
+        {
+            Enqueue(session.CreateSnapshotMessage(_inputAcks.GetAcknowledgedSequence()));
+        }
+    }
+
+    private static string DescribeKick(byte reason) => reason switch
+    {
+        Gg2Protocol.KickName => "Kicked by the GG2 server: name exploit.",
+        Gg2Protocol.KickBadPluginPacket => "Kicked by the GG2 server: invalid plugin packet.",
+        Gg2Protocol.KickMultiClient => "Kicked by the GG2 server: too many connections from your IP.",
+        _ => "Kicked by the GG2 server.",
+    };
 
     private string DownloadChangedMap(string mapName, string mapHash)
     {
@@ -305,6 +482,12 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
         using var mapReader = new BinaryReader(mapStream, Encoding.Latin1, leaveOpen: true);
         mapStream.Write(LegacyGg2Wire.CreateHello());
         var firstByte = mapReader.ReadByte();
+        if (firstByte == LegacyGg2Wire.PasswordRequest && _passwordSubmission.Task.IsCompletedSuccessfully)
+        {
+            mapStream.Write(Gg2ClientMessages.Password(_passwordSubmission.Task.Result));
+            firstByte = mapReader.ReadByte();
+        }
+
         if (firstByte != LegacyGg2Wire.Hello)
         {
             throw new InvalidDataException($"GG2 rejected the map download connection (0x{firstByte:X2}).");
@@ -321,32 +504,30 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
             mapReader, payload => mapStream.Write(payload), mapName, mapHash, _mapCacheDirectory);
     }
 
-    private void ReadPluginPacket(BinaryReader reader, ReDsmReplayTransport.ReDsmReplayTranslator.LegacyReplaySession session)
+    private void HandlePluginPacket(Gg2PluginPacketMessage packet, ReDsmReplayTransport.ReDsmReplayTranslator.LegacyReplaySession session)
     {
-        var packetLength = reader.ReadUInt16();
-        if (packetLength == 0)
-        {
-            throw new InvalidDataException("GG2 plugin packet is empty.");
-        }
-
-        var packet = reader.ReadBytes(packetLength);
-        if (packet.Length != packetLength)
-        {
-            throw new EndOfStreamException("GG2 plugin packet was truncated.");
-        }
-
-        if (packet[0] != Volatile.Read(ref _chatPluginId) || packetLength <= 1)
+        if (packet.PluginId != Volatile.Read(ref _chatPluginId) || packet.Data.Length == 0)
         {
             return;
         }
 
         // Vote packets are part of the chat plugin but do not carry chat text.
-        if (packet[1] is >= 200 and <= 204)
+        if (packet.Data[0] is >= 200 and <= 204)
         {
             return;
         }
 
-        var chat = LegacyGg2ChatWire.ReadChatMessage(packet.AsSpan(1));
+        LegacyGg2ChatMessage chat;
+        try
+        {
+            chat = LegacyGg2ChatWire.ReadChatMessage(packet.Data);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException)
+        {
+            SkippedMessageCount += 1;
+            return;
+        }
+
         var senderName = chat.Sender < 200 ? session.GetPlayerName(chat.Sender) : "Server";
         var senderSlot = chat.Sender < 127 ? checked((byte)(chat.Sender + 1)) : (byte)0;
         Enqueue(new ChatRelayMessage(chat.Team, senderName, chat.Text, chat.Team != 0, senderSlot));
@@ -414,6 +595,18 @@ internal sealed class LegacyGg2NetworkClientTransport : INetworkClientMessageTra
 
         _wasSecondaryHeld = secondaryHeld;
         _wasDropIntelHeld = dropIntelHeld;
+    }
+
+    /// <summary>GG2's CHAT_BUBBLE command for stock bubbles; SGG's custom bubbles have no GG2 form.</summary>
+    private void SendChatBubble(int frameIndex)
+    {
+        if (frameIndex is < 0 or > byte.MaxValue
+            || ChatBubbleFrameCatalog.TryGetCustomBubbleSlot(frameIndex, out _))
+        {
+            return;
+        }
+
+        WriteRaw(Gg2ClientMessages.ChatBubble((byte)frameIndex));
     }
 
     private void UpdateLocalStockState(ReDsmReplayTransport.ReDsmReplayTranslator.LegacyReplaySession session)

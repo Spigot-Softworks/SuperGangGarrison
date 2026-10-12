@@ -11,6 +11,7 @@ namespace OpenGarrison.Client;
 
 public partial class Game1 : IPluginContext
 {
+    OpenGarrison.Core.PlayerEntity? IPluginContext.FindPlayerById(int playerId) => FindPlayerById(playerId);
     GameplayRuntimeSettings IPluginContext.GameplayRuntimeSettings { get => _gameplayManager.RuntimeSettings; }
     Game1.GameplayHudCanvas IPluginContext.CreateGameplayHudCanvas(Microsoft.Xna.Framework.Vector2 cameraTopLeft)
         => new(this, cameraTopLeft);

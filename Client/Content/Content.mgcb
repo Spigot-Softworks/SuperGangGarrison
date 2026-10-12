@@ -48,3 +48,8 @@
 /processor:EffectProcessor
 /build:RimLight.fx
 
+
+#begin LightBands.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/build:LightBands.fx

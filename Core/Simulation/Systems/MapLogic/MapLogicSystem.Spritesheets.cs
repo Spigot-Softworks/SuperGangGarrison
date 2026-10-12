@@ -17,6 +17,7 @@ internal sealed partial class MapLogicSystem
 
     internal void TickSpritesheetPlayback()
     {
+        TickMapLightLogic();
         if (!_host.Level.SpritesheetPlaybackSet.HasEntries)
         {
             return;
@@ -30,8 +31,35 @@ internal sealed partial class MapLogicSystem
         SpritesheetPlaybackRuntime.TickAutoplay(_host.Level, (float)_host.Config.FixedDeltaSeconds);
     }
 
+    private void ApplyMapLogicPresentationSignals()
+    {
+        // Damage impulses can be consumed by another graph evaluation in the same tick.
+        // Latch their effects now, without advancing animation time a second time.
+        var level = _host.Level;
+        level.MapLightState.Tick(level.MapLights, level.LogicGraph, 0f);
+        if (level.SpritesheetPlaybackSet.HasEntries)
+            SpritesheetPlaybackRuntime.ApplyControlSignals(level, level.LogicGraph,
+                level.SpritesheetPlaybackSet, _host.MapRuntime.SpritesheetPlaybackRuntimeState);
+    }
+
+    /// <summary>
+    /// Placed lights listening to logic (power, colour) and their on/off transitions. Runs
+    /// wherever spritesheet playback runs: on the server and on predicting clients.
+    /// </summary>
+    private void TickMapLightLogic()
+    {
+        var level = _host.Level;
+        if (level.MapLights.Count == 0)
+        {
+            return;
+        }
+
+        level.MapLightState.Tick(level.MapLights, level.LogicGraph, (float)_host.Config.FixedDeltaSeconds);
+    }
+
     private void ResetSpritesheetPlaybackRuntime()
     {
+        _host.Level.MapLightState.Reset(_host.Level.MapLights);
         _host.MapRuntime.SpritesheetPlaybackRuntimeState.Reset();
         SpritesheetPlaybackRuntime.Reset(_host.Level);
     }

@@ -1753,12 +1753,15 @@ public partial class Game1
     {
         public const int LifetimeTicks = 4;
 
-        public BloodVisual(float x, float y)
+        public BloodVisual(float x, float y, PlayerTeam team = PlayerTeam.Neutral)
         {
             X = x;
+            Team = team;
             Y = y;
             TicksRemaining = LifetimeTicks;
         }
+
+        public PlayerTeam Team { get; }
 
         public float X { get; }
 
@@ -1933,15 +1936,18 @@ public partial class Game1
 
     public sealed class BloodSprayVisual
     {
-        public BloodSprayVisual(float x, float y, float velocityX, float velocityY, int initialTicks)
+        public BloodSprayVisual(float x, float y, float velocityX, float velocityY, int initialTicks, PlayerTeam team = PlayerTeam.Neutral)
         {
             X = x;
+            Team = team;
             Y = y;
             VelocityX = velocityX;
             VelocityY = velocityY;
             InitialTicks = Math.Max(1, initialTicks);
             TicksRemaining = InitialTicks;
         }
+
+        public PlayerTeam Team { get; }
 
         public float X { get; set; }
 
@@ -1967,9 +1973,10 @@ public partial class Game1
             int seed,
             int lifetimeTicks,
             bool experimentalCryoTinted,
-            bool heavy)
+            bool heavy, PlayerTeam team = PlayerTeam.Neutral)
         {
             X = x;
+            Team = team;
             Y = y;
             VelocityX = velocityX;
             VelocityY = velocityY;
@@ -1979,6 +1986,8 @@ public partial class Game1
             ExperimentalCryoTinted = experimentalCryoTinted;
             Heavy = heavy;
         }
+
+        public PlayerTeam Team { get; }
 
         public float X { get; set; }
 
@@ -2001,6 +2010,7 @@ public partial class Game1
 
     public sealed class SettledBloodCell
     {
+        public PlayerTeam Team = PlayerTeam.Neutral;
         public float Amount;
         public float DripProgress;
         public int Age;

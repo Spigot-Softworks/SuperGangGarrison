@@ -43,6 +43,11 @@ internal sealed class MapLifecycleSystem
     public void SetTimeLimitMinutes(int timeLimitMinutes)
     {
         _host.MatchSettings.TimeLimitMinutes = Math.Clamp(timeLimitMinutes, 1, 255);
+        if (_host.MatchRules.Mode == GameModeKind.Conquest)
+        {
+            return;
+        }
+
         var previousTimeLimitTicks = _host.MatchRules.TimeLimitTicks;
         var nextTimeLimitTicks = _host.MatchSettings.TimeLimitMinutes * _host.Config.TicksPerSecond * 60;
         var elapsedTicks = Math.Max(0, previousTimeLimitTicks - _host.MatchState.TimeRemainingTicks);
@@ -69,7 +74,7 @@ internal sealed class MapLifecycleSystem
         _host.MatchSettings.CapLimit = Math.Clamp(capLimit, 1, 255);
         _host.MatchRules = _host.MatchRules with
         {
-            CapLimit = _host.MatchSettings.CapLimit,
+            CapLimit = _host.MatchRules.Mode == GameModeKind.Conquest ? ConquestRules.ScoreLimit : _host.MatchSettings.CapLimit,
         };
     }
 
@@ -378,6 +383,12 @@ internal sealed class MapLifecycleSystem
     internal MatchRules CreateDefaultMatchRules(GameModeKind mode)
     {
         var settings = _host.MatchSettings;
+        if (mode == GameModeKind.Conquest)
+        {
+            return new MatchRules(mode, ConquestRules.TimeLimitMinutes,
+                ConquestRules.TimeLimitMinutes * _host.Config.TicksPerSecond * 60, ConquestRules.ScoreLimit);
+        }
+
         var timeLimitTicks = settings.TimeLimitMinutes * _host.Config.TicksPerSecond * 60;
         var capLimit = mode == GameModeKind.TeamDeathmatch && settings.CapLimit == DefaultCapLimit
             ? DefaultTeamDeathmatchKillLimit

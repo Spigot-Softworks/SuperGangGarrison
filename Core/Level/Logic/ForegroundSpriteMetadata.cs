@@ -33,6 +33,21 @@ public readonly record struct ForegroundSpriteConfiguration(
     float TileAreaHeight)
 {
     public bool HasImage => !string.IsNullOrWhiteSpace(ImageResourceName);
+
+    /// <summary>Fixed playback rate for an animated image; null plays it at its own timing, 0 holds frame 0.</summary>
+    public float? AnimationFramesPerSecond { get; init; }
+
+    /// <summary>When set, the sprite stays opaque while it covers a player (GG2 "fade:false").</summary>
+    public bool NoCoverFade { get; init; }
+
+    /// <summary>Opacity for a non-jungle sprite (GG2 "opacity"); null means fully opaque.</summary>
+    public float? FixedOpacity { get; init; }
+
+    /// <summary>
+    /// For a jungle: let map and gameplay lights shine on it. Off by default, so foliage
+    /// only takes the map's ambient light and lamps, flames and player lights stay behind it.
+    /// </summary>
+    public bool OverlapLights { get; init; }
 }
 
 public sealed class ForegroundSpriteHitMask
@@ -73,6 +88,7 @@ public static class ForegroundSpriteMetadata
     public const string OutsideOpacityPropertyKey = "outsideOpacity";
     public const string InsideOpacityPropertyKey = "insideOpacity";
     public const string BoundaryPropertyKey = "boundary";
+    public const string OverlapLightsPropertyKey = "overlapLights";
     public const string LayerBgPropertyValue = "bg";
     public const string LayerFgPropertyValue = "fg";
     public const string BoundaryBoxPropertyValue = "box";
@@ -101,7 +117,8 @@ public static class ForegroundSpriteMetadata
     {
         return key.Equals(OutsideOpacityPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(InsideOpacityPropertyKey, StringComparison.OrdinalIgnoreCase)
-            || key.Equals(BoundaryPropertyKey, StringComparison.OrdinalIgnoreCase);
+            || key.Equals(BoundaryPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(OverlapLightsPropertyKey, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool ShouldShowJungleDependentProperty(
@@ -160,6 +177,11 @@ public static class ForegroundSpriteMetadata
             properties[BoundaryPropertyKey] = BoundaryBoxPropertyValue;
         }
 
+        if (!properties.ContainsKey(OverlapLightsPropertyKey))
+        {
+            properties[OverlapLightsPropertyKey] = "false";
+        }
+
         MapSpriteTileMetadata.EnsurePlacementDefaults(properties);
     }
 
@@ -190,6 +212,7 @@ public static class ForegroundSpriteMetadata
         properties.TryGetValue(OutsideOpacityPropertyKey, out var outsideOpacity);
         properties.TryGetValue(InsideOpacityPropertyKey, out var insideOpacity);
         properties.TryGetValue(BoundaryPropertyKey, out var boundary);
+        properties.TryGetValue(OverlapLightsPropertyKey, out var overlapLights);
         properties.TryGetValue(MapSpriteTileMetadata.TilePropertyKey, out var tile);
         properties.TryGetValue(MapSpriteTileMetadata.TileAnchorPropertyKey, out var tileAnchor);
         properties.TryGetValue(MapSpriteTileMetadata.TileAreaWidthPropertyKey, out var tileAreaWidth);
@@ -206,7 +229,11 @@ public static class ForegroundSpriteMetadata
             MapSpriteTileMetadata.ParseTile(tile),
             MapSpriteTileMetadata.ParseTileAnchor(tileAnchor),
             MapSpriteTileMetadata.ParseTileAreaDimension(tileAreaWidth),
-            MapSpriteTileMetadata.ParseTileAreaDimension(tileAreaHeight));
+            MapSpriteTileMetadata.ParseTileAreaDimension(tileAreaHeight))
+        {
+            // Same true/1 spelling as the jungle flag.
+            OverlapLights = ParseJungle(overlapLights),
+        };
     }
 
     public static ForegroundSpriteLayerKind ParseLayer(string? value)

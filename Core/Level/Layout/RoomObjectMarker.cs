@@ -25,6 +25,8 @@ public readonly record struct RoomObjectMarker(
     SpritesheetConfiguration Spritesheet = default,
     CatapultConfiguration Catapult = default)
 {
+    public int DestructibleZoneIndex { get; init; } = -1;
+    public DestructiblePropSettings DestructionSettings { get; init; } = new(TransitionSeconds: 0.5f);
     public float Left => X;
 
     public float Top => Y;

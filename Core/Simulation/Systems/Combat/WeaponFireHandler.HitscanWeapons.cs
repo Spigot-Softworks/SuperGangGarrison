@@ -152,7 +152,7 @@ internal sealed partial class WeaponFireHandler
                     weaponOrigin.BaseX,
                     weaponOrigin.BaseY,
                     playerHit.Player.X,
-                    playerHit.Player.Y) - 180f);
+                    playerHit.Player.Y) - 180f, team: playerHit.Player.Team);
             var resolution = ResolveRiflePlayerDamage(
                 playerHit.Player,
                 damage,

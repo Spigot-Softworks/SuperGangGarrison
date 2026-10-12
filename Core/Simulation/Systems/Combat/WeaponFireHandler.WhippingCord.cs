@@ -117,7 +117,7 @@ internal sealed partial class WeaponFireHandler
                 result.HitPlayer.X,
                 result.HitPlayer.Y,
                 PointDirectionDegrees(anchorX, anchorY, result.HitPlayer.X, result.HitPlayer.Y) - 180f,
-                count: 1);
+                count: 1, team: result.HitPlayer.Team);
             if (!result.HitPlayer.IsUbered)
             {
                 result.HitPlayer.AddImpulse(

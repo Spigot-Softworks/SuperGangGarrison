@@ -5,6 +5,7 @@ using OpenGarrison.GameplayModding;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Collections.Generic;
 
 namespace OpenGarrison.Client;
 
@@ -1033,9 +1034,97 @@ public partial class Game1
         WriteGameplayRenderTrace("effects done");
     }
 
+    /// <summary>Bullets ease from the drawn barrel onto their real path over this distance.</summary>
+    private const float ShotMuzzleConvergeDistance = 64f;
+
+    /// <summary>Largest sideways correction, so a stale or odd muzzle never drags a bullet far.</summary>
+    private const float ShotMuzzleMaxOffset = 24f;
+
+    private sealed class ShotMuzzleOffset
+    {
+        public Vector2 Start;
+        public Vector2 Offset;
+        public double LastSeen;
+    }
+
+    private readonly Dictionary<int, ShotMuzzleOffset> _shotMuzzleOffsets = new();
+    private readonly List<int> _staleShotMuzzleOffsets = new();
+    private double _shotMuzzleOffsetsLastPrune;
+
+    /// <summary>
+    /// Gameplay fires bullets along a line set for the old weapon art (the minigun's sits
+    /// several pixels below the new barrel). Purely visually, a fresh bullet starts on the
+    /// drawn barrel's line and slides onto its real path as it travels, so it still lands
+    /// where the server says it does. Only the sideways part is corrected, never the range.
+    /// </summary>
+    private Vector2 GetShotMuzzleConvergenceOffset(ShotProjectileEntity shot, Vector2 renderPosition)
+    {
+        if (shot.SourceSentryId.HasValue || !IsFiniteVector(renderPosition))
+        {
+            return Vector2.Zero;
+        }
+
+        var now = _weatherClock.Elapsed.TotalSeconds;
+        if (!_shotMuzzleOffsets.TryGetValue(shot.Id, out var state))
+        {
+            state = new ShotMuzzleOffset { Start = renderPosition, Offset = Vector2.Zero };
+            var velocity = new Vector2(shot.VelocityX, shot.VelocityY);
+            if (shot.TicksRemaining >= ShotProjectileEntity.LifetimeTicks - 3
+                && velocity.LengthSquared() > 0.0001f
+                && FindPlayerById(shot.OwnerId) is { IsAlive: true } owner
+                && _gameplayWeaponRenderController.TryGetWeaponMuzzle(owner, out var muzzle, out _)
+                && IsFiniteVector(muzzle))
+            {
+                var direction = Vector2.Normalize(velocity);
+                var delta = muzzle - renderPosition;
+                var sideways = delta - (direction * Vector2.Dot(delta, direction));
+                if (sideways.LengthSquared() <= ShotMuzzleMaxOffset * ShotMuzzleMaxOffset)
+                {
+                    state.Offset = sideways;
+                }
+            }
+
+            _shotMuzzleOffsets[shot.Id] = state;
+        }
+
+        state.LastSeen = now;
+        PruneShotMuzzleOffsets(now);
+        if (state.Offset == Vector2.Zero)
+        {
+            return Vector2.Zero;
+        }
+
+        var remaining = 1f - (Vector2.Distance(renderPosition, state.Start) / ShotMuzzleConvergeDistance);
+        return remaining <= 0f ? Vector2.Zero : state.Offset * remaining;
+    }
+
+    private void PruneShotMuzzleOffsets(double now)
+    {
+        if (now - _shotMuzzleOffsetsLastPrune < 1d)
+        {
+            return;
+        }
+
+        _shotMuzzleOffsetsLastPrune = now;
+        _staleShotMuzzleOffsets.Clear();
+        foreach (var (id, state) in _shotMuzzleOffsets)
+        {
+            if (now - state.LastSeen > 1d)
+            {
+                _staleShotMuzzleOffsets.Add(id);
+            }
+        }
+
+        foreach (var id in _staleShotMuzzleOffsets)
+        {
+            _shotMuzzleOffsets.Remove(id);
+        }
+    }
+
     private void DrawShotProjectile(ShotProjectileEntity shot, Vector2 cameraPosition, Color blueColor, Color redColor)
     {
         var renderPosition = GetRenderPosition(shot.Id, shot.X, shot.Y);
+        renderPosition += GetShotMuzzleConvergenceOffset(shot, renderPosition);
         var shotColor = shot.IsBoomstickPellet
             ? shot.Team == PlayerTeam.Blue ? new Color(35, 125, 255) : new Color(255, 40, 40)
             : ResolveProjectileTint(shot.Team, blueColor, redColor, new Color(235, 228, 210));
@@ -1356,7 +1445,7 @@ public partial class Game1
 
         foreach (var flame in _world.Flames)
         {
-            if (flame.IsCritical)
+            if (flame.IsCritical || UsesTeamFireColor(flame.Team))
             {
                 var critCells = flame.Team == PlayerTeam.Blue ? criticalBlueCells : criticalRedCells;
                 AccumulateFlameParticle(critCells, flame, visibleCellBounds);
@@ -1426,33 +1515,7 @@ public partial class Game1
             Color pixelColor;
             if (useCriticalColors)
             {
-                // Critical flames/flares use team colors with fire-like gradients
-                if (criticalTeam == PlayerTeam.Blue)
-                {
-                    if (hasOutline)
-                        pixelColor = new Color(0, 80, 200);      // deep blue outline
-                    else if (retainedAlpha < 0.75f)
-                        pixelColor = new Color(20, 100, 220);    // blue
-                    else if (retainedAlpha < 1.30f)
-                        pixelColor = new Color(80, 150, 255);    // bright blue
-                    else if (retainedAlpha < 2.10f)
-                        pixelColor = new Color(150, 200, 255);   // light blue
-                    else
-                        pixelColor = new Color(220, 240, 255);   // white-blue core
-                }
-                else // Red team
-                {
-                    if (hasOutline)
-                        pixelColor = new Color(180, 0, 0);       // deep red outline
-                    else if (retainedAlpha < 0.75f)
-                        pixelColor = new Color(220, 20, 20);     // red
-                    else if (retainedAlpha < 1.30f)
-                        pixelColor = new Color(255, 80, 80);     // bright red
-                    else if (retainedAlpha < 2.10f)
-                        pixelColor = new Color(255, 150, 150);   // light red
-                    else
-                        pixelColor = new Color(255, 220, 220);   // white-red core
-                }
+                pixelColor = TeamFireLighting.ResolveFlameColor(criticalTeam, retainedAlpha, hasOutline);
             }
             else if (useFlareColors)
             {
@@ -1495,9 +1558,11 @@ public partial class Game1
         System.Collections.Generic.Dictionary<(int, int), float> cells,
         Vector2 cameraPosition,
         bool topOutlineOnly = false,
-        float drawAlpha = 1f)
+        float drawAlpha = 1f,
+        PlayerTeam team = PlayerTeam.Neutral)
     {
-        DrawProceduralFlameCells(cells, cameraPosition, topOutlineOnly, useFlareColors: false, useCriticalColors: false, drawAlpha: drawAlpha);
+        DrawProceduralFlameCells(cells, cameraPosition, topOutlineOnly, useFlareColors: false,
+            useCriticalColors: UsesTeamFireColor(team), criticalTeam: team, drawAlpha: drawAlpha);
     }
 
     private void AccumulateFlameParticle(
@@ -1906,7 +1971,7 @@ public partial class Game1
 
             // Draw main sprite
             DrawLoadedSpriteFrame(
-                flameSprite.Frames[frameIndex],
+                GetTeamFireSpriteFrame(flameSprite.Frames[frameIndex], flame.Team),
                 position,
                 null,
                 flameColor,
@@ -1936,6 +2001,7 @@ public partial class Game1
         var fallbackColor = flame.IsAttached
             ? new Color(255, 120, 60)
             : new Color(255, 170, 90);
+        if (UsesTeamFireColor(flame.Team)) fallbackColor = TeamFireLighting.RecolorSpritePixel(flame.Team, fallbackColor);
         var flameRectangle = new Rectangle(
             (int)(renderPosition.X - flameSize / 2f - cameraPosition.X),
             (int)(renderPosition.Y - flameSize / 2f - cameraPosition.Y),
@@ -2042,14 +2108,15 @@ public partial class Game1
         }
 
         // Draw main sprite
-        if (!TryDrawSprite("FlareS", 0, renderPosition.X, renderPosition.Y, cameraPosition, Color.White, rotation))
+        if (!TryDrawTeamFireSprite("FlareS", 0, renderPosition.X, renderPosition.Y, cameraPosition, flare.Team, rotation))
         {
             var flareRectangle = new Rectangle(
                 (int)(renderPosition.X - 4f - cameraPosition.X),
                 (int)(renderPosition.Y - 2f - cameraPosition.Y),
                 8,
                 4);
-            _spriteBatch.Draw(_pixel, flareRectangle, Color.White);
+            _spriteBatch.Draw(_pixel, flareRectangle, UsesTeamFireColor(flare.Team)
+                ? TeamFireLighting.RecolorSpritePixel(flare.Team, Color.White) : Color.White);
             if (flare.IsCritical)
             {
                 var overlayColor = GetCriticalProjectileOverlayColor(flare.Team) * 0.3f;
@@ -2089,6 +2156,11 @@ public partial class Game1
             ? GetCriticalProjectileOverlayColor(flare.Team)
             : new Color(188, 67, 24)) * alpha;
         var coreColor = new Color(255, 210, 74) * alpha;
+        if (UsesTeamFireColor(flare.Team))
+        {
+            outerColor = TeamFireLighting.RecolorSpritePixel(flare.Team, outerColor);
+            coreColor = TeamFireLighting.RecolorSpritePixel(flare.Team, coreColor);
+        }
         var pixelOrigin = new Vector2(0.5f, 0.5f);
         _spriteBatch.Draw(
             _pixel,
@@ -2120,7 +2192,8 @@ public partial class Game1
             ? bounds
             : (FlameCellBounds?)null;
         AccumulateFlareParticle(cells, flare, visibleCellBounds);
-        DrawProceduralFlameCells(cells, cameraPosition, useFlareColors: !flare.IsCritical, useCriticalColors: flare.IsCritical, criticalTeam: flare.Team);
+        DrawProceduralFlameCells(cells, cameraPosition, useFlareColors: !flare.IsCritical,
+            useCriticalColors: flare.IsCritical || UsesTeamFireColor(flare.Team), criticalTeam: flare.Team);
     }
 
     private void AccumulateFlareParticle(
@@ -2247,21 +2320,98 @@ public partial class Game1
         }
     }
 
+    /// <summary>How long your own new mine flashes, and how fast, so you can spot it in a fight.</summary>
+    private const double MineOwnerFlashSeconds = 1.0d;
+    private const double MineOwnerFlashInterval = 0.1d;
+
+    private readonly Dictionary<int, MineSpinState> _mineSpinStates = new();
+    private readonly List<int> _staleMineSpinIds = new();
+
+    /// <summary>Client-side look of one mine: its tumble while flying and when it first appeared.</summary>
+    private sealed class MineSpinState
+    {
+        public float Angle;
+        public float Rate;
+        public double FirstSeen;
+        public double LastTime;
+    }
+
+    /// <summary>
+    /// MineS frames: 0 red, 1 red flash, 2 blue, 3 blue flash. A mine tumbles at its own random
+    /// rate while flying and keeps whatever angle it lands at, so mines on the ground do not all
+    /// face the same way. Your own mine alternates with its flash frame for a second after it
+    /// is fired.
+    /// </summary>
+    private (int Frame, float Rotation) GetMinePresentation(MineProjectileEntity mine)
+    {
+        var now = _weatherClock.Elapsed.TotalSeconds;
+        if (!_mineSpinStates.TryGetValue(mine.Id, out var state))
+        {
+            if (_mineSpinStates.Count > 128)
+            {
+                PruneMineSpinStates(now);
+            }
+
+            var hash = unchecked((uint)mine.Id * 2654435761u);
+            state = new MineSpinState
+            {
+                Angle = (hash % 360u) * (MathF.PI / 180f),
+                Rate = (7f + ((hash >> 11) % 9u)) * (((hash >> 5) & 1u) == 0u ? 1f : -1f),
+                FirstSeen = now,
+                LastTime = now,
+            };
+            _mineSpinStates[mine.Id] = state;
+        }
+
+        var elapsed = (float)Math.Clamp(now - state.LastTime, 0d, 0.1d);
+        state.LastTime = now;
+        if (!mine.IsStickied)
+        {
+            state.Angle = (state.Angle + (state.Rate * elapsed)) % MathF.Tau;
+        }
+
+        var frame = mine.Team == PlayerTeam.Blue ? 2 : 0;
+        var age = now - state.FirstSeen;
+        if (mine.OwnerId == _world.LocalPlayer.Id
+            && age < MineOwnerFlashSeconds
+            && ((int)(age / MineOwnerFlashInterval) % 2) == 0)
+        {
+            frame += 1;
+        }
+
+        return (frame, state.Angle);
+    }
+
+    private void PruneMineSpinStates(double now)
+    {
+        _staleMineSpinIds.Clear();
+        foreach (var pair in _mineSpinStates)
+        {
+            if (now - pair.Value.LastTime > 2d)
+            {
+                _staleMineSpinIds.Add(pair.Key);
+            }
+        }
+
+        foreach (var id in _staleMineSpinIds)
+        {
+            _mineSpinStates.Remove(id);
+        }
+    }
+
     private void DrawMineProjectile(MineProjectileEntity mine, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(mine.Id, mine.X, mine.Y);
-        // Keep flying mines dark as well as stickied mines.  The lit frames
-        // disappear into light map backgrounds during fights.
-        var frameIndex = mine.Team == PlayerTeam.Blue ? 3 : 1;
+        var (frameIndex, rotation) = GetMinePresentation(mine);
 
         // Draw outline first (behind sprite) if critical
         if (mine.IsCritical)
         {
-            DrawCriticalProjectileOutline("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, mine.Team);
+            DrawCriticalProjectileOutline("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, mine.Team, rotation);
         }
 
         // Draw main sprite
-        if (!TryDrawSprite("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, Color.White))
+        if (!TryDrawSprite("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, Color.White, rotation))
         {
             var mineRectangle = new Rectangle(
                 (int)(renderPosition.X - 5f - cameraPosition.X),
@@ -2290,7 +2440,7 @@ public partial class Game1
         else if (mine.IsCritical)
         {
             // Draw screen blend overlay on top
-            DrawCriticalProjectileOverlay("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, mine.Team);
+            DrawCriticalProjectileOverlay("MineS", frameIndex, renderPosition.X, renderPosition.Y, cameraPosition, mine.Team, rotation);
         }
     }
 
@@ -2337,6 +2487,8 @@ public partial class Game1
 
             return;
         }
+
+        DrawSpriteTeamGlow(spriteName, FrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, rotation, grenade.Team, GrenadeGlowLevel);
 
         if (grenade.IsCritical)
         {

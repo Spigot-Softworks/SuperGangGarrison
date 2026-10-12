@@ -11,8 +11,20 @@ public partial class Game1
 {
     public readonly Lazy<PlayerSkinCatalog> _playerSkins = new(PlayerSkinCatalog.Load);
 
+    /// <summary>True when players draw with the original GG2 sprites and animations (GG2 servers, or the Classic GG2 Visuals option).</summary>
+    internal bool UsesClassicPlayerVisuals =>
+        _networkClient.Profile.ForcesClassicPlayerVisuals || _gameplayManager.RuntimeSettings.ClassicVisualsEnabled;
+
+    /// <summary>
+    /// GG2 mode for in-match presentation: on GG2 servers, with Classic GG2 Visuals, and in
+    /// the limited editions. HUD, effects and world drawing follow GG2 Modern while it is on;
+    /// menus stay SGG. Check this, not the connection or the setting, for anything visual.
+    /// </summary>
+    internal bool UsesGg2Presentation => UsesClassicPlayerVisuals;
+
+    // Classic look: no skins, except Quote, who has no stock GG2 sprite.
     public PlayerSkinDefinition? GetPlayerSkin(PlayerEntity player) =>
-        _networkClient.IsLegacyGg2Connection
+        UsesClassicPlayerVisuals
             ? player.ClassId == PlayerClass.Quote
                 ? _playerSkins.Value.Find("quote", player.Team)
                 : null
@@ -268,6 +280,10 @@ public partial class Game1
             SingleTeamFrames = true,
             PoseFrameIndex = pose,
             DrawBehindBody = weapon.DrawBehindBody,
+            AbilitySpriteName = weapon.AbilitySprite is null ? null : skin.SpriteForTeam(weapon.AbilitySprite, player.Team),
+            AbilityDurationSeconds = Math.Max(0, weapon.AbilityDurationSourceTicks) / (float)LegacyMovementModel.SourceTicksPerSecond,
+            RecoilLoopStartFrame = weapon.FireLoopStart,
+            RecoilFramesPerSecond = weapon.FireLoopStart >= 0 ? MathF.Max(1f, weapon.FireFramesPerSecond) : 0f,
             MuzzleOffset = weapon.Muzzle.Length == 2
                 ? new Vector2(weapon.Muzzle[0] - weapon.Pivot[0], weapon.Muzzle[1] - weapon.Pivot[1]) * skin.PixelScale
                 : null,

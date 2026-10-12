@@ -172,7 +172,7 @@ public sealed class LevelCatalogCollisionTests
         Assert.NotNull(solutionPath);
         var repositoryRoot = Path.GetDirectoryName(solutionPath!);
         Assert.False(string.IsNullOrWhiteSpace(repositoryRoot));
-        var manifestPath = Path.Combine(repositoryRoot!, "Maps", "koth_eureka", "koth_eureka.json");
+        var manifestPath = Path.Combine(repositoryRoot!, "Maps", CustomMapDirectoryLayout.ClassicCategory, "koth", "koth_eureka", "koth_eureka.json");
         Assert.True(File.Exists(manifestPath), manifestPath);
         var packageDirectory = Path.GetDirectoryName(manifestPath!);
         Assert.False(string.IsNullOrWhiteSpace(packageDirectory));

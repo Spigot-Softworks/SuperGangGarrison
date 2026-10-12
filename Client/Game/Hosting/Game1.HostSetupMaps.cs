@@ -34,6 +34,7 @@ public partial class Game1
             GameModeKind.Generator => "Gen",
             GameModeKind.KingOfTheHill => "KOTH",
             GameModeKind.DoubleKingOfTheHill => "DKOTH",
+            GameModeKind.Conquest => "Conquest",
             GameModeKind.TeamDeathmatch => "TDM",
             GameModeKind.Scr => "SCR",
             GameModeKind.Vip => "VIP",
@@ -51,6 +52,7 @@ public partial class Game1
             GameModeKind.ControlPoint,
             GameModeKind.KingOfTheHill,
             GameModeKind.DoubleKingOfTheHill,
+            GameModeKind.Conquest,
             GameModeKind.TeamDeathmatch,
             GameModeKind.Generator,
             GameModeKind.Scr,
@@ -347,7 +349,7 @@ public partial class Game1
                     rowTextScale);
             }
 
-            var modeReserve = showMode ? MeasureBitmapFontWidth("DKOTH", rowTextScale) + 16f : 0f;
+            var modeReserve = showMode ? MeasureBitmapFontWidth(GetHostSetupMapModeShortLabel(entry.Mode), rowTextScale) + 16f : 0f;
             var nameMaxWidth = Math.Max(40f, rowBounds.Width - namePaddingLeft - 8f - modeReserve);
             var trimmedName = TrimBitmapMenuText(displayName, nameMaxWidth, rowTextScale);
             var nameColor = inPlaylist ? new Color(122, 118, 112) : Color.White;

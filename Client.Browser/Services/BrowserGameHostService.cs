@@ -304,6 +304,12 @@ public sealed class BrowserGameHostService : IDisposable, IAsyncDisposable
         }
     }
 
+    [JSInvokable("HandleBrowserGamepad")]
+    public void HandleBrowserGamepad(bool connected, int buttons, float leftX, float leftY, float rightX, float rightY, float leftTrigger, float rightTrigger)
+    {
+        OpenGarrison.Client.BrowserGamepadBridge.SetState(connected, buttons, leftX, leftY, rightX, rightY, leftTrigger, rightTrigger);
+    }
+
     [JSInvokable("HandleBrowserFocus")]
     public void HandleBrowserFocus(bool focused)
     {

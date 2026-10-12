@@ -36,6 +36,7 @@ internal static partial class ServerHelpers
             GameModeKind.Generator => "gen",
             GameModeKind.KingOfTheHill => "koth",
             GameModeKind.DoubleKingOfTheHill => "dkoth",
+            GameModeKind.Conquest => "cq",
             GameModeKind.TeamDeathmatch => "tdm",
             _ => "ctf",
         };

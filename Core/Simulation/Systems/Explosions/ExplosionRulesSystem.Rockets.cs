@@ -250,7 +250,7 @@ internal sealed partial class ExplosionRulesSystem
             {
                 appliedDamage *= rocket.SelfDamageMultiplier;
             }
-            _host.WorldEffects.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3);
+            _host.WorldEffects.RegisterBloodEffect(player.X, player.Y, SimulationMath.PointDirectionDegrees(rocket.X, rocket.Y, player.X, player.Y) - 180f, 3, team: player.Team);
             hitEnemyPlayer |= player.Team != rocket.Team;
             var umbrellaDrainTicks = ReferenceEquals(player, directHitPlayer)
                 ? PlayerEntity.CivvieUmbrellaRocketDirectHitSplashDrainTicks

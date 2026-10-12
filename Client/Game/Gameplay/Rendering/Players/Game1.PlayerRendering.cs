@@ -89,7 +89,11 @@ public partial class Game1
         string? TorsoSpriteName = null,
         string? TorsoRecoilSpriteName = null,
         bool RotateMeleeHitboxWithAim = false,
-        bool DrawBehindBody = false)
+        bool DrawBehindBody = false,
+        string? AbilitySpriteName = null,
+        float AbilityDurationSeconds = 0f,
+        int RecoilLoopStartFrame = -1,
+        float RecoilFramesPerSecond = 0f)
     {
         public bool HasCompanionTorso => !string.IsNullOrWhiteSpace(TorsoSpriteName);
 

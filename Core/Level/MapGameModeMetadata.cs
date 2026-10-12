@@ -16,6 +16,7 @@ public static class MapGameModeMetadata
     public const string ArenaPropertyValue = "arena";
     public const string GeneratorPropertyValue = "generator";
     public const string TeamDeathmatchPropertyValue = "tdm";
+    public const string ConquestPropertyValue = "cq";
 
     public static bool IsEditableMapMetadataKey(string key)
     {
@@ -26,6 +27,7 @@ public static class MapGameModeMetadata
     {
         return mode switch
         {
+            GameModeKind.Conquest => ConquestPropertyValue,
             GameModeKind.Scr => ScrPropertyValue,
             GameModeKind.CaptureTheFlag => CaptureTheFlagPropertyValue,
             GameModeKind.ControlPoint => ControlPointPropertyValue,
@@ -38,6 +40,7 @@ public static class MapGameModeMetadata
     {
         return mode switch
         {
+            CustomMapBuilderGameMode.Conquest => ConquestPropertyValue,
             CustomMapBuilderGameMode.Scr => ScrPropertyValue,
             CustomMapBuilderGameMode.CaptureTheFlag => CaptureTheFlagPropertyValue,
             CustomMapBuilderGameMode.ControlPoint => ControlPointPropertyValue,
@@ -56,6 +59,12 @@ public static class MapGameModeMetadata
         {
             mode = default;
             return false;
+        }
+
+        if (value.Equals(ConquestPropertyValue, StringComparison.OrdinalIgnoreCase))
+        {
+            mode = GameModeKind.Conquest;
+            return true;
         }
 
         if (value.Equals(ScrPropertyValue, StringComparison.OrdinalIgnoreCase))
@@ -93,6 +102,12 @@ public static class MapGameModeMetadata
         {
             mode = CustomMapBuilderGameMode.Free;
             return false;
+        }
+
+        if (value.Equals(ConquestPropertyValue, StringComparison.OrdinalIgnoreCase))
+        {
+            mode = CustomMapBuilderGameMode.Conquest;
+            return true;
         }
 
         if (value.Equals(ScrPropertyValue, StringComparison.OrdinalIgnoreCase))
@@ -163,6 +178,14 @@ public static class MapGameModeMetadata
         IReadOnlyDictionary<string, string>? metadata,
         IReadOnlyList<CustomMapBuilderEntity> entities)
     {
+        return ResolveBuilderGameMode(metadata, entities, mapName: null);
+    }
+
+    public static CustomMapBuilderGameMode ResolveBuilderGameMode(
+        IReadOnlyDictionary<string, string>? metadata,
+        IReadOnlyList<CustomMapBuilderEntity> entities,
+        string? mapName)
+    {
         if (metadata is not null
             && metadata.TryGetValue(GameModePropertyKey, out var rawValue)
             && TryParseBuilderGameMode(rawValue, out var explicitMode))
@@ -170,7 +193,9 @@ public static class MapGameModeMetadata
             return explicitMode;
         }
 
-        return CustomMapBuilderValidator.InferGameMode(entities);
+        return mapName?.StartsWith("cq_", StringComparison.OrdinalIgnoreCase) == true
+            ? CustomMapBuilderGameMode.Conquest
+            : CustomMapBuilderValidator.InferGameMode(entities);
     }
 }
-
+

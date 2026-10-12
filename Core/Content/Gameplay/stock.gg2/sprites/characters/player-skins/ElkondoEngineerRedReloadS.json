@@ -1,0 +1,14 @@
+{
+  "id": "ElkondoEngineerRedReloadS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoEngineerRedReloadS/0.png",
+    "assets/characters/player-skins/ElkondoEngineerRedReloadS/1.png",
+    "assets/characters/player-skins/ElkondoEngineerRedReloadS/2.png",
+    "assets/characters/player-skins/ElkondoEngineerRedReloadS/3.png",
+    "assets/characters/player-skins/ElkondoEngineerRedReloadS/4.png",
+    "assets/characters/player-skins/ElkondoEngineerRedReloadS/5.png",
+    "assets/characters/player-skins/ElkondoEngineerRedReloadS/6.png"
+  ],
+  "originX": 28,
+  "originY": 42
+}

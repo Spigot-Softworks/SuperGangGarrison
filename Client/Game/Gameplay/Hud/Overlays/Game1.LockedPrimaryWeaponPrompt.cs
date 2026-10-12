@@ -10,7 +10,7 @@ public partial class Game1
     private void DrawLockedPrimaryWeaponSwapPrompt(Vector2 cameraPosition)
     {
         var player = _world.LocalPlayer;
-        if (_networkClient.IsLegacyGg2Connection
+        if (!_networkClient.Profile.OffersLoadouts
             || IsLocalSpectatorPresentationActive()
             || !player.IsAlive
             || !player.HasAlternatePrimaryWeapons

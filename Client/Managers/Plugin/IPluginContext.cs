@@ -8,6 +8,7 @@ namespace OpenGarrison.Client;
 
 public interface IPluginContext
 {
+    OpenGarrison.Core.PlayerEntity? FindPlayerById(int playerId);
     Game1.GameplayHudCanvas CreateGameplayHudCanvas(Microsoft.Xna.Framework.Vector2 cameraTopLeft);
     Game1.ClientPluginStateView CreateClientPluginStateView();
     GameplayRuntimeSettings GameplayRuntimeSettings { get; }

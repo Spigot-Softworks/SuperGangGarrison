@@ -126,7 +126,7 @@ internal sealed partial class SnapshotApplySystem
                 e.HorizontalFriction,
                 e.RotationFriction,
                 e.LifetimeTicks,
-                e.BloodChance);
+                e.BloodChance, team: (PlayerTeam)e.Team);
             _host.WorldObjects.PlayerGibs.Add(gib);
             _host.EntityStore.Add(gib);
         }

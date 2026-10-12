@@ -78,9 +78,9 @@ public sealed partial class SimulationWorld : IMatchObjectiveHost
 
     void IMatchObjectiveHost.ApplyControlPointSetupMatchRules() => ObjectiveRules.ApplyControlPointSetupMatchRules();
 
-    void IMatchObjectiveHost.UpdateKothState() => ObjectiveRules.UpdateKothState();
+    void IMatchObjectiveHost.UpdatePointScoringState() => ObjectiveRules.UpdatePointScoringState();
 
-    void IMatchObjectiveHost.AdvanceKothMatchStateCore() => ObjectiveRules.AdvanceKothMatchStateCore();
+    void IMatchObjectiveHost.AdvancePointScoringMatchState() => ObjectiveRules.AdvancePointScoringMatchState();
 
     bool IMatchObjectiveHost.ShouldDeferVipObjectiveResolution() => VipRules.ShouldDeferVipObjectiveResolution();
 

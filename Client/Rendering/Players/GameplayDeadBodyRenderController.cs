@@ -213,7 +213,7 @@ public sealed class GameplayDeadBodyRenderController
 
         public void SyncRetainedDeadBodies()
         {
-            if (_game._networkClient.IsLegacyGg2Connection
+            if (!_game._networkClient.Profile.AllowsRetainedCorpses
                 || _game.GameplayRuntimeSettings.CorpseDurationMode != ClientSettings.CorpseDurationInfinite)
             {
                 ResetRetainedDeadBodies();
@@ -335,7 +335,8 @@ public sealed class GameplayDeadBodyRenderController
                 return;
             }
 
-            _game.GameplayManager.GoreEffects.SpawnImmediateFatalDamageVisuals(damageEvent.X, damageEvent.Y, damageEvent.Amount);
+            _game.GameplayManager.GoreEffects.SpawnImmediateFatalDamageVisuals(damageEvent.X, damageEvent.Y, damageEvent.Amount,
+                _game.FindPlayerById(damageEvent.TargetEntityId)?.Team ?? PlayerTeam.Neutral);
 
             var targetPlayer = _game.FindPlayerById(damageEvent.TargetEntityId);
             if (targetPlayer is not null
@@ -718,7 +719,7 @@ public sealed class GameplayDeadBodyRenderController
             }
 
             var tint = Color.White * fadeAlpha;
-            var spriteName = _game._networkClient.IsLegacyGg2Connection && classId == PlayerClass.Quote
+            var spriteName = _game._networkClient.Profile.QuoteAppearsAsImpostor && classId == PlayerClass.Quote
                 ? $"Impostor{(team == PlayerTeam.Blue ? "Blue" : "Red")}DeadS"
                 : _game.GetDeadBodySpriteName(gameplayClassId, classId, team, animationKind);
             if (spriteName is not null)

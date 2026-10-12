@@ -156,8 +156,21 @@ public partial class Game1
     private GamePadState GetCurrentControllerGamePadState(bool windowActive, out bool selectedControllerChanged)
     {
         selectedControllerChanged = false;
-        if (OperatingSystem.IsBrowser() || !windowActive)
+        if (!windowActive)
         {
+            ClearCurrentControllerPlayerIndex(out selectedControllerChanged);
+            return default;
+        }
+
+        if (OperatingSystem.IsBrowser())
+        {
+            // The page polls the Gamepad API and forwards the first connected pad.
+            if (BrowserGamepadBridge.TryGetState(out var browserState))
+            {
+                SelectCurrentControllerPlayerIndex(PlayerIndex.One, out selectedControllerChanged);
+                return browserState;
+            }
+
             ClearCurrentControllerPlayerIndex(out selectedControllerChanged);
             return default;
         }

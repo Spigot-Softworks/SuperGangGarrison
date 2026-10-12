@@ -10,6 +10,27 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class SimulationWorldSnapshotPresentationTests
 {
     [Fact]
+    public void BloodAndGibReplicationPreservesTheVictimsTeam()
+    {
+        var world = new SimulationWorld();
+        var local = CreatePlayerState(1, 101, "Local", PlayerTeam.Red, PlayerClass.Scout, isAlive: true, gibDeaths: 0);
+        world.WorldEffects.RegisterBloodEffect(128, 96, 45, team: PlayerTeam.Blue);
+        var bloodEvent = Assert.Single(world.PendingVisualEvents);
+        Assert.Equal(PlayerTeam.Blue, bloodEvent.SourceTeam);
+        Assert.NotEmpty(world.BloodDrops);
+        Assert.All(world.BloodDrops, drop => Assert.Equal(PlayerTeam.Blue, drop.Team));
+        var snapshot = CreateSnapshot(world, frame: 80, localPlayer: local) with
+        {
+            VisualEvents = [world.Snapshots.ToSnapshotVisualEvent(bloodEvent, 9001)],
+            GibSpawnEvents = [new SnapshotGibSpawnEvent("GibS", 0, 128, 96, 1, 2, 3, 0.4f, 0.5f, 250, 1.8f, 9002, Team: (byte)PlayerTeam.Blue)],
+        };
+        Assert.Equal((byte)PlayerTeam.Blue, Assert.Single(snapshot.VisualEvents).SourceTeam);
+        var client = new SimulationWorld();
+        Assert.True(client.SnapshotApply.ApplySnapshot(snapshot, localPlayerSlot: 1));
+        Assert.Equal(PlayerTeam.Blue, Assert.Single(client.PlayerGibs).Team);
+    }
+
+    [Fact]
     public void SnapshotProducerAndWorldPreserveBulletDamageKnockbackAndLifetime()
     {
         var world = new SimulationWorld();

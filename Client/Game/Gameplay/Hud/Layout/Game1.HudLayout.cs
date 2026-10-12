@@ -44,6 +44,7 @@ public partial class Game1
 
     public bool TryResolveHudElement(string id, out HudResolvedElement resolved)
     {
+        _hudLayoutProfile.UseGg2Defaults = UsesGg2Presentation;
         if (!_hudLayoutProfile.TryResolve(id, ViewportWidth, ViewportHeight, out resolved))
         {
             return false;
@@ -57,6 +58,7 @@ public partial class Game1
 
     public bool TryResolveHudElementEvenIfHidden(string id, out HudResolvedElement resolved)
     {
+        _hudLayoutProfile.UseGg2Defaults = UsesGg2Presentation;
         return _hudLayoutProfile.TryResolveEvenIfHidden(id, ViewportWidth, ViewportHeight, out resolved);
     }
 

@@ -12,6 +12,7 @@ namespace OpenGarrison.Client;
 public partial class Game1 : IRenderContext
 {
     HudRuntimeSettings IRenderContext.HudRuntimeSettings { get => _hudManager.RuntimeSettings; }
+    bool IRenderContext.UsesGg2Presentation => UsesGg2Presentation;
     GameplayManager IRenderContext.GameplayManager => _gameplayManager;
 
     GameplayPlayerRenderController IRenderContext.GameplayPlayerRenderer => _gameplayPlayerRenderController;
@@ -195,6 +196,8 @@ public partial class Game1 : IRenderContext
 
     void IRenderContext.TryDrawAdditionalHealthBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha) => TryDrawAdditionalHealthBar(player, cameraPosition, visibilityAlpha);
 
+    void IRenderContext.DrawGg2OverheadHealthBar(PlayerEntity player, Vector2 cameraPosition) => DrawGg2OverheadHealthBar(player, cameraPosition);
+
     void IRenderContext.TryDrawCivvieUmbrellaShieldBar(PlayerEntity player, Vector2 cameraPosition, float visibilityAlpha) => TryDrawCivvieUmbrellaShieldBar(player, cameraPosition, visibilityAlpha);
 
     bool IRenderContext.TryDrawClientPluginDeadBody(Vector2 cameraTopLeft, ClientDeadBodyRenderState deadBody) => TryDrawClientPluginDeadBody(cameraTopLeft, deadBody);
@@ -222,6 +225,8 @@ public partial class Game1 : IRenderContext
     void IRenderContext.BeginCharacterLighting(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha) => BeginCharacterLighting(player, renderPosition, cameraPosition, visibilityAlpha);
 
     void IRenderContext.EndCharacterLighting() => EndCharacterLighting();
+
+    void IRenderContext.DrawPlayerHealGlow(PlayerEntity player, Vector2 renderPosition, Vector2 cameraPosition, float visibilityAlpha, Game1.PlayerBodySpriteSelection bodySelection, bool drawWeapon) => DrawPlayerHealGlow(player, renderPosition, cameraPosition, visibilityAlpha, bodySelection, drawWeapon);
 
     bool IRenderContext.TryGetLastToDieHaxtonSpriteName(PlayerEntity player, out string spriteName) => TryGetLastToDieHaxtonSpriteName(player, out spriteName);
 

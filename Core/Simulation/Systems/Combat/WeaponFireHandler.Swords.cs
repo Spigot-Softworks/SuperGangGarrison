@@ -128,7 +128,7 @@ internal sealed partial class WeaponFireHandler
                 result.HitPlayer.X,
                 result.HitPlayer.Y,
                 PointDirectionDegrees(anchorX, anchorY, result.HitPlayer.X, result.HitPlayer.Y) - 180f,
-                count: attacker.IsExperimentalDemoknightCharging ? 2 : 1);
+                count: attacker.IsExperimentalDemoknightCharging ? 2 : 1, team: result.HitPlayer.Team);
             if (!result.HitPlayer.IsUbered)
             {
                 result.HitPlayer.AddImpulse(directionX * 2.5f * LegacyMovementModel.SourceTicksPerSecond, -1.5f * LegacyMovementModel.SourceTicksPerSecond);

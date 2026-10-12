@@ -575,7 +575,8 @@ public sealed class CustomMapPngExporterTests
         Assert.Equal(1, result.CopiedStockPackageCount);
         Assert.False(File.Exists(Path.Combine(destinationMapsDirectory, "legacy_template.png")));
         Assert.NotNull(CustomMapPackageImporter.Import(Path.Combine(destinationMapsDirectory, "legacy_template", "legacy_template.json")));
-        Assert.NotNull(CustomMapPackageImporter.Import(Path.Combine(destinationMapsDirectory, "Harvest", "Harvest.json")));
+        Assert.True(CustomMapDirectoryLayout.TryFindPackageManifest(destinationMapsDirectory, "Harvest", out var harvestManifest));
+        Assert.NotNull(CustomMapPackageImporter.Import(harvestManifest));
     }
 
     [Fact]

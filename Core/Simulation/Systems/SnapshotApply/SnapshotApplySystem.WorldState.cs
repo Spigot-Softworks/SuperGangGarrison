@@ -74,6 +74,10 @@ internal sealed partial class SnapshotApplySystem
         _host.ObjectiveRules.ApplySnapshotControlPoints(snapshot);
         _host.ObjectiveRules.ApplySnapshotKoth(snapshot);
         _host.ObjectiveRules.ApplySnapshotGenerators(snapshot);
+        // Objective synchronization may reset the graph for a new setup phase. Apply
+        // authoritative light state afterwards so that reset cannot erase its colours.
+        ApplySnapshotMapLights(snapshot);
+        _host.MapLogic.ApplyAuthoritativeDamageableZones(snapshot.DamageableZoneStates);
         _host.RedIntel.ApplyNetworkState(
             snapshot.RedIntel.X,
             snapshot.RedIntel.Y,
@@ -86,6 +90,23 @@ internal sealed partial class SnapshotApplySystem
             snapshot.BlueIntel.IsAtBase,
             snapshot.BlueIntel.IsDropped,
             snapshot.BlueIntel.ReturnTicksRemaining);
+    }
+
+    /// <summary>The server's light power and colour state (it also sees server-only logic events).</summary>
+    private void ApplySnapshotMapLights(SnapshotMessage snapshot)
+    {
+        var states = snapshot.MapLightStates;
+        if (states.Count == 0)
+        {
+            return;
+        }
+
+        var level = _host.Level;
+        level.MapLightState.Bind(level.MapLights, level.LogicGraph);
+        for (var index = 0; index < states.Count; index += 1)
+        {
+            level.MapLightState.ApplyNetworkState(states[index].Index, states[index].State);
+        }
     }
 
     private void ApplySnapshotArena(SnapshotMessage snapshot)

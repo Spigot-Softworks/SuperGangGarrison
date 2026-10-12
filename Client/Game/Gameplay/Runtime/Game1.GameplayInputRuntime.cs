@@ -155,7 +155,7 @@ public partial class Game1
         gameplayInput = ApplyClientPerformanceForcedInput(gameplayInput);
         networkInput = ApplyClientPerformanceForcedInput(networkInput);
 
-        if (_networkClient.IsLegacyGg2Connection)
+        if (_networkClient.Profile.SendsStockInputOnly)
         {
             networkInput = LegacyGg2Wire.KeepStockInput(networkInput);
         }

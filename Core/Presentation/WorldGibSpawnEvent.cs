@@ -11,4 +11,4 @@ public readonly record struct WorldGibSpawnEvent(
     float HorizontalFriction,
     float RotationFriction,
     int LifetimeTicks,
-    float BloodChance);
+    float BloodChance, PlayerTeam Team = PlayerTeam.Neutral);

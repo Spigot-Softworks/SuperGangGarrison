@@ -114,7 +114,8 @@ public partial class Game1
         var winnerTeam = _world.MatchState.WinnerTeam!.Value;
         var entries = EnsurePostGameMvpEntriesLocked(winnerTeam);
         var layout = GetPostGameMvpLayout();
-        var drawArt = _hudManager.RuntimeSettings.PostGameMvpArtEnabled && !_postGameMvpArtHidden;
+        // GG2's win board has no character art.
+        var drawArt = _hudManager.RuntimeSettings.PostGameMvpArtEnabled && !_postGameMvpArtHidden && !UsesGg2Presentation;
 
         if (drawArt)
         {

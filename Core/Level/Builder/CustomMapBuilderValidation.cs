@@ -34,7 +34,9 @@ public static class CustomMapBuilderValidator
     {
         ArgumentNullException.ThrowIfNull(document);
         var normalized = document.NormalizeForEditing();
-        var effectiveMode = mode == CustomMapBuilderGameMode.Free ? InferGameMode(normalized.Entities) : mode;
+        var effectiveMode = mode == CustomMapBuilderGameMode.Free
+            ? MapGameModeMetadata.ResolveBuilderGameMode(normalized.Metadata, normalized.Entities, normalized.Name)
+            : mode;
         var issues = new List<CustomMapBuilderValidationIssue>();
         ValidateRequiredSpawns(normalized.Entities, issues);
         ValidateObjectiveAreas(normalized.Entities, effectiveMode, issues);
@@ -198,6 +200,10 @@ public static class CustomMapBuilderValidator
             case CustomMapBuilderGameMode.CaptureTheFlag:
                 RequireExactly(entities, issues, "redintel", 1, "ctf_red_intel", "CTF needs exactly one redintel.");
                 RequireExactly(entities, issues, "blueintel", 1, "ctf_blue_intel", "CTF needs exactly one blueintel.");
+                break;
+            case CustomMapBuilderGameMode.Conquest:
+                RequireControlPoints(entities, issues, minimum: ConquestRules.PointCount, maximum: ConquestRules.PointCount, code: "cq_points", message: "Conquest needs exactly three control points.");
+                RequireAtLeast(entities, issues, "CapturePoint", 3, "cq_capture_zones", "Conquest needs a CapturePoint zone for each of its three points.");
                 break;
             case CustomMapBuilderGameMode.ControlPoint:
                 RequireControlPoints(entities, issues, minimum: 1, maximum: 5, code: "cp_points", message: "CP needs 1-5 control points.");

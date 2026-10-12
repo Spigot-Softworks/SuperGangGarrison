@@ -11,7 +11,11 @@ public readonly record struct DamageableZoneConfiguration(
     bool BlockPlayers,
     bool DisableWhenDestroyed,
     bool SentryTarget,
-    bool Stabbable)
+    bool Stabbable,
+    float RespawnSeconds = 0f,
+    int OnRedDestroyedNodeIndex = -1,
+    int OnBlueDestroyedNodeIndex = -1,
+    int OnDestroyedNodeIndex = -1)
 {
     public bool IsConfigured => MaxHealth > 0f;
 }
@@ -27,6 +31,10 @@ public static class DamageableMetadata
     public const string DisableWhenDestroyedPropertyKey = "disableWhenDestroyed";
     public const string SentryTargetPropertyKey = "sentryTarget";
     public const string StabbablePropertyKey = "stabbable";
+    public const string RespawnPropertyKey = "respawnTime";
+    public const string OnRedDestroyedPropertyKey = "onRedDestroyed";
+    public const string OnBlueDestroyedPropertyKey = "onBlueDestroyed";
+    public const string OnDestroyedPropertyKey = "onDestroyed";
 
     public const float DefaultZoneWidth = 42f;
     public const float DefaultZoneHeight = 42f;
@@ -142,7 +150,15 @@ public static class DamageableMetadata
             ParseBlockPlayers(properties),
             ParseDisableWhenDestroyed(properties),
             ParseSentryTarget(properties),
-            ParseStabbable(properties));
+            ParseStabbable(properties),
+            DestructiblePropMetadata.ParseNumber(properties?.GetValueOrDefault(RespawnPropertyKey), 0f, 3600f));
+    }
+
+    public static string NormalizeEntityReference(string? entityRef)
+    {
+        var value = entityRef?.Trim() ?? string.Empty;
+        return value.Length > 0 && !value.StartsWith("entity:", StringComparison.OrdinalIgnoreCase)
+            ? MapLogicEntityReference.FormatEntityRef(DamageableEntityType, value) : value;
     }
 
     public static bool TryResolveRoomObjectIndex(
@@ -151,6 +167,8 @@ public static class DamageableMetadata
         out int roomObjectIndex)
     {
         roomObjectIndex = -1;
+        // Older property editors allowed entering the visible builder ID directly.
+        entityRef = NormalizeEntityReference(entityRef);
         if (!MapLogicEntityReference.TryParseEntityRef(entityRef, out var entityType, out var x, out var y, out var mapEntityId))
         {
             return false;

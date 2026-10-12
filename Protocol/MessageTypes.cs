@@ -1786,7 +1786,7 @@ public sealed record SnapshotPlayerGibState(
     float RotationDegrees,
     float RotationSpeedDegrees,
     int TicksRemaining,
-    float BloodChance);
+    float BloodChance, byte Team = 3);
 
 /// <summary>The snapshot gib spawn event.</summary>
 /// <param name="SpriteName">The sprite name.</param>
@@ -1813,7 +1813,7 @@ public sealed record SnapshotGibSpawnEvent(
     float RotationFriction,
     int LifetimeTicks,
     float BloodChance,
-    ulong EventId);
+    ulong EventId, byte Team = 3);
 
 public sealed record SnapshotBloodDropState(
     int Id,
@@ -1823,7 +1823,8 @@ public sealed record SnapshotBloodDropState(
     float VelocityY,
     bool IsStuck,
     int TicksRemaining,
-    float Scale);
+    float Scale,
+    byte Team = 3);
 
 /// <summary>The snapshot death cam state.</summary>
 /// <param name="FocusX">The focus X coordinate.</param>
@@ -1910,7 +1911,8 @@ public sealed record SnapshotVisualEvent(
     float DirectionDegrees,
     int Count,
     ulong EventId = 0,
-    ulong SourceFrame = 0);
+    ulong SourceFrame = 0,
+    byte SourceTeam = 3);
 
 /// <summary>The snapshot damage event.</summary>
 /// <param name="Amount">The amount.</param>
@@ -2062,6 +2064,9 @@ public enum SnapshotEntityCollectionCompletenessFlags : ushort
         | Grenades,
 }
 
+/// <summary>Logic state of one placed light (index into the map's lights; bit 0 power, bits 1-2 colour state, bits 3-4 colour cycle step).</summary>
+public readonly record struct SnapshotMapLightState(ushort Index, byte State);
+
 /// <summary>The snapshot message.</summary>
 /// <param name="Frame">The frame.</param>
 /// <param name="TickRate">The tick rate.</param>
@@ -2177,6 +2182,9 @@ public sealed record SnapshotMessage(
     public int CompetitiveReadyUpTicksRemaining { get; init; }
     /// <summary>Gets the cap limit.</summary>
     public int CapLimit { get; init; }
+    /// <summary>Gets the logic state of the map's logic-driven lights (always the full list).</summary>
+    public IReadOnlyList<SnapshotMapLightState> MapLightStates { get; init; } = Array.Empty<SnapshotMapLightState>();
+    public IReadOnlyList<SnapshotDamageableZoneState> DamageableZoneStates { get; init; } = Array.Empty<SnapshotDamageableZoneState>();
 
     /// <summary>Gets the baseline frame.</summary>
     public ulong BaselineFrame { get; init; }

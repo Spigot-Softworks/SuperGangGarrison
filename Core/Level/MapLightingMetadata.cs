@@ -61,6 +61,16 @@ public readonly record struct MapLightingColor(byte R, byte G, byte B)
 /// <param name="RimOpacity">Strength of the rim blend, 0-100.</param>
 /// <param name="SkyReach">How far down the map the sky light holds before fading into the ground tint, 0-100% of the map height (0 = a fade over the whole height).</param>
 /// <param name="Banded">Retro stepped light falloff instead of smooth gradients.</param>
+/// <param name="BandSteps">Retro bands across the full light range: fewer steps make wider bands.</param>
+/// <param name="BandPixel">Retro light pixel size in world pixels: bigger makes chunkier band edges.</param>
+/// <param name="BandClip">Retro bands only where the map art is; the sky and backdrop keep smooth light.</param>
+/// <param name="MuzzleFlash">Strength of the soft light at a gun's muzzle when it fires, 0-100.</param>
+/// <param name="MuzzleFlashSize">Muzzle flash radius, 0-200% (100 is normal).</param>
+/// <param name="MuzzleFlashLength">How long a muzzle flash lasts, in game ticks (30 per second).</param>
+/// <param name="MedicBeamLight">Strength of the light medic beams cast along their length, 0-100.</param>
+/// <param name="HealGlow">Strength of the team-coloured glow (on the art and as light) on players being healed or ubered, 0-100.</param>
+/// <param name="BuildingGlow">Strength of the team-coloured glow (on the art and as light) on engineer buildings, 0-100.</param>
+/// <param name="BeamHaze">How visible searchlight and laser beams are in the air, 0-100 (0 = only where they land; damaging lasers always show their core).</param>
 /// <param name="PlayerRange">Radius of the player light, as a percentage of its normal size.</param>
 /// <param name="EffectRange">Radius of gameplay effect lights, as a percentage of their normal size.</param>
 /// <param name="RimLight">Rim light on characters' light-facing edges (0 = off).</param>
@@ -153,7 +163,22 @@ public sealed record MapLighting(
     bool UberRim = false,
     int SkyReach = 0,
     MapRimBlendMode RimBlend = MapRimBlendMode.Normal,
-    int RimOpacity = 100)
+    int RimOpacity = 100,
+    int BandSteps = MapLightingMetadata.DefaultBandSteps,
+    int BandPixel = MapLightingMetadata.DefaultBandPixel,
+    bool BandClip = false,
+    int MuzzleFlash = 60,
+    int MuzzleFlashSize = 100,
+    int MuzzleFlashLength = MapLightingMetadata.DefaultMuzzleFlashLength,
+    int MedicBeamLight = 45,
+    int HealGlow = MapLightingMetadata.DefaultHealGlow,
+    int BuildingGlow = 100,
+    int BeamHaze = 0,
+    MapLightingColor? BloodColor = null,
+    bool BloodTeamColor = false,
+    int BloodGlow = 0,
+    bool FireTeamColor = false,
+    bool PlayerTeamColor = false)
 {
     /// <summary>True when the rim always comes from the sky.</summary>
     public bool RimFromSky => RimSource == MapRimLightSource.Sky;
@@ -220,6 +245,30 @@ public static class MapLightingMetadata
     public const string SkyReachKey = "lightSkyReach";
     public const string RimBlendKey = "lightRimBlend";
     public const string RimOpacityKey = "lightRimOpacity";
+    public const string BandStepsKey = "lightBandSteps";
+    public const string BandPixelKey = "lightBandPixel";
+    public const string BandClipKey = "lightBandClip";
+    public const int MinBandSteps = 2;
+    public const int MaxBandSteps = 16;
+    public const int DefaultBandSteps = 8;
+    public const int MinBandPixel = 1;
+    public const int MaxBandPixel = 16;
+    public const int DefaultBandPixel = 2;
+    public const string MuzzleFlashKey = "lightMuzzleFlash";
+    public const string MuzzleFlashSizeKey = "lightMuzzleSize";
+    public const string MuzzleFlashLengthKey = "lightMuzzleLength";
+    public const string MedicBeamLightKey = "lightMedicBeams";
+    public const string HealGlowKey = "lightHealGlow";
+    public const int DefaultHealGlow = 35;
+    public const string BuildingGlowKey = "lightBuildingGlow";
+    public const string BloodColorKey = "lightBloodColor";
+    public const string BloodGlowKey = "lightBloodGlow";
+    public const string FireTeamColorKey = "lightFireTeamColor";
+    public const string PlayerTeamColorKey = "lightPlayerTeamColor";
+    public const string BeamHazeKey = "lightBeamHaze";
+    public const int MinMuzzleFlashLength = 1;
+    public const int MaxMuzzleFlashLength = 12;
+    public const int DefaultMuzzleFlashLength = 3;
 
     /// <summary>Sky reach stops short of the bottom so there is always some fade to the ground tint.</summary>
     public const int MaxSkyReach = 95;
@@ -258,6 +307,20 @@ public static class MapLightingMetadata
         RimBlendKey,
         RimOpacityKey,
         StyleKey,
+        BandStepsKey,
+        BandPixelKey,
+        BandClipKey,
+        MuzzleFlashKey,
+        MuzzleFlashSizeKey,
+        MuzzleFlashLengthKey,
+        MedicBeamLightKey,
+        HealGlowKey,
+        BuildingGlowKey,
+        BloodColorKey,
+        BloodGlowKey,
+        FireTeamColorKey,
+        PlayerTeamColorKey,
+        BeamHazeKey,
         RimKey,
         RimWidthKey,
         RimWrapKey,
@@ -380,6 +443,18 @@ public static class MapLightingMetadata
             Pulse = ReadPercent(metadata, PulseKey, lighting.Pulse),
             SkyReach = ReadValue(metadata, SkyReachKey, lighting.SkyReach, MaxSkyReach),
             RimOpacity = ReadPercent(metadata, RimOpacityKey, lighting.RimOpacity),
+            BandSteps = Math.Max(MinBandSteps, ReadValue(metadata, BandStepsKey, lighting.BandSteps, MaxBandSteps)),
+            BandPixel = Math.Max(MinBandPixel, ReadValue(metadata, BandPixelKey, lighting.BandPixel, MaxBandPixel)),
+            MuzzleFlash = ReadPercent(metadata, MuzzleFlashKey, lighting.MuzzleFlash),
+            MuzzleFlashSize = ReadValue(metadata, MuzzleFlashSizeKey, lighting.MuzzleFlashSize, MaxScale),
+            MuzzleFlashLength = Math.Max(MinMuzzleFlashLength, ReadValue(metadata, MuzzleFlashLengthKey, lighting.MuzzleFlashLength, MaxMuzzleFlashLength)),
+            MedicBeamLight = ReadPercent(metadata, MedicBeamLightKey, lighting.MedicBeamLight),
+            HealGlow = ReadPercent(metadata, HealGlowKey, lighting.HealGlow),
+            BuildingGlow = ReadPercent(metadata, BuildingGlowKey, lighting.BuildingGlow),
+            BloodGlow = ReadPercent(metadata, BloodGlowKey, lighting.BloodGlow),
+            FireTeamColor = ReadEnabled(metadata, FireTeamColorKey),
+            PlayerTeamColor = ReadEnabled(metadata, PlayerTeamColorKey),
+            BeamHaze = ReadPercent(metadata, BeamHazeKey, lighting.BeamHaze),
             PlayerRange = ReadValue(metadata, PlayerRangeKey, lighting.PlayerRange, MaxScale),
             EffectRange = ReadValue(metadata, EffectRangeKey, lighting.EffectRange, MaxScale),
             RimLight = ReadPercent(metadata, RimKey, lighting.RimLight),
@@ -422,8 +497,26 @@ public static class MapLightingMetadata
             lighting = lighting with { Banded = style.Trim().Equals(BandedStyleValue, StringComparison.OrdinalIgnoreCase) };
         }
 
+        if (metadata.TryGetValue(BandClipKey, out var bandClip))
+        {
+            lighting = lighting with { BandClip = bandClip.Trim().Equals(OnValue, StringComparison.OrdinalIgnoreCase) };
+        }
+
+        if (metadata.TryGetValue(BloodColorKey, out var bloodColor))
+        {
+            lighting = lighting with
+            {
+                BloodTeamColor = bloodColor.Trim().Equals("team", StringComparison.OrdinalIgnoreCase),
+                BloodColor = MapLightingColor.TryParse(bloodColor, out var parsedBloodColor) ? parsedBloodColor : null,
+            };
+        }
+
         return lighting;
     }
+
+    private static bool ReadEnabled(IReadOnlyDictionary<string, string> metadata, string key) =>
+        metadata.TryGetValue(key, out var value) && (value.Trim().Equals(OnValue, StringComparison.OrdinalIgnoreCase)
+            || value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase) || value.Trim() == "1");
 
     /// <summary>
     /// Writes every lighting key (or removes them all when lighting is off) so the saved
@@ -454,6 +547,20 @@ public static class MapLightingMetadata
         metadata[RimBlendKey] = ToRimBlendValue(lighting.RimBlend);
         metadata[RimOpacityKey] = Clamp(lighting.RimOpacity).ToString(CultureInfo.InvariantCulture);
         metadata[StyleKey] = lighting.Banded ? BandedStyleValue : SmoothStyleValue;
+        metadata[BandStepsKey] = Math.Clamp(lighting.BandSteps, MinBandSteps, MaxBandSteps).ToString(CultureInfo.InvariantCulture);
+        metadata[BandPixelKey] = Math.Clamp(lighting.BandPixel, MinBandPixel, MaxBandPixel).ToString(CultureInfo.InvariantCulture);
+        metadata[BandClipKey] = lighting.BandClip ? OnValue : OffValue;
+        metadata[MuzzleFlashKey] = Clamp(lighting.MuzzleFlash).ToString(CultureInfo.InvariantCulture);
+        metadata[MuzzleFlashSizeKey] = ClampScale(lighting.MuzzleFlashSize).ToString(CultureInfo.InvariantCulture);
+        metadata[MuzzleFlashLengthKey] = Math.Clamp(lighting.MuzzleFlashLength, MinMuzzleFlashLength, MaxMuzzleFlashLength).ToString(CultureInfo.InvariantCulture);
+        metadata[MedicBeamLightKey] = Clamp(lighting.MedicBeamLight).ToString(CultureInfo.InvariantCulture);
+        metadata[HealGlowKey] = Clamp(lighting.HealGlow).ToString(CultureInfo.InvariantCulture);
+        metadata[BuildingGlowKey] = Clamp(lighting.BuildingGlow).ToString(CultureInfo.InvariantCulture);
+        metadata[BloodGlowKey] = Clamp(lighting.BloodGlow).ToString(CultureInfo.InvariantCulture);
+        metadata[FireTeamColorKey] = lighting.FireTeamColor ? OnValue : OffValue;
+        metadata[PlayerTeamColorKey] = lighting.PlayerTeamColor ? OnValue : OffValue;
+        metadata[BloodColorKey] = lighting.BloodTeamColor ? "team" : lighting.BloodColor?.ToHex() ?? "original";
+        metadata[BeamHazeKey] = Clamp(lighting.BeamHaze).ToString(CultureInfo.InvariantCulture);
         metadata[PlayerRangeKey] = ClampScale(lighting.PlayerRange).ToString(CultureInfo.InvariantCulture);
         metadata[EffectRangeKey] = ClampScale(lighting.EffectRange).ToString(CultureInfo.InvariantCulture);
         metadata[RimKey] = Clamp(lighting.RimLight).ToString(CultureInfo.InvariantCulture);

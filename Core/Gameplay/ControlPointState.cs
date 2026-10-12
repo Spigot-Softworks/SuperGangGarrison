@@ -21,6 +21,11 @@ public sealed class ControlPointState
 
     public PlayerTeam? Team { get; set; }
 
+    // Authoritative ownership accrual; capture progress and team scores replicate separately.
+    internal int ConquestOwnedTicks { get; set; }
+
+    internal PlayerTeam? ConquestScoringTeam { get; set; }
+
     public PlayerTeam? CappingTeam { get; set; }
 
     public float CappingTicks { get; set; }

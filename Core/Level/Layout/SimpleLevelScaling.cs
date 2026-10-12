@@ -89,7 +89,11 @@ internal static class SimpleLevelScaling
         marker.AreaExtension,
         marker.DamageableZone,
         marker.ForegroundSprite,
-        marker.Spritesheet);
+        marker.Spritesheet)
+    {
+        DestructibleZoneIndex = marker.DestructibleZoneIndex,
+        DestructionSettings = marker.DestructionSettings,
+    };
 
     private static LevelSolid Scale(LevelSolid solid, float scale) => new(solid.X * scale, solid.Y * scale, solid.Width * scale, solid.Height * scale);
 
@@ -179,7 +183,9 @@ internal static class SimpleLevelScaling
         marker.OnEndTeleportExitRef,
         marker.OnEndTriggerRef,
         marker.OnEndTriggerNodeIndex,
-        marker.TriggerNodeIndex);
+        marker.TriggerNodeIndex,
+        marker.Placement,
+        marker.SoundScope);
 
     private static GameplaySoundMarker Scale(GameplaySoundMarker marker, float scale) => new(
         marker.X * scale,

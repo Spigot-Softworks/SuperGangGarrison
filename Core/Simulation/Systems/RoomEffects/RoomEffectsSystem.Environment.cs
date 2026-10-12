@@ -189,5 +189,7 @@ internal sealed partial class RoomEffectsSystem
                     break;
             }
         }
+
+        ApplyLaserHazards(player);
     }
 }

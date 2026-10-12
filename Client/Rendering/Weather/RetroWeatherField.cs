@@ -454,7 +454,7 @@ internal sealed class RetroWeatherField
                     }
                     else
                     {
-                        ground = skyMask.GroundAt(headX);
+                        ground = GroundAt(skyMask, headX);
                     }
 
                     if (headY < ground)
@@ -469,7 +469,8 @@ internal sealed class RetroWeatherField
                         {
                             // Where the drop actually hit, rewound along its path.
                             var landX = headX - (fallen * slant);
-                            if (skyMask is null || MathF.Abs(skyMask.GroundAt(landX) - ground) < 2f)
+                            if (skyMask is null
+                                || (MathF.Abs(GroundAt(skyMask, landX) - ground) < 2f && !IsIndoorRoofGround(skyMask, landX)))
                             {
                                 DrawRainSplash(ref sink, landX, ground, fallen / splashDistance, color, clip);
                             }
@@ -572,7 +573,7 @@ internal sealed class RetroWeatherField
                     }
                     else
                     {
-                        ground = skyMask.GroundAt(flakeX);
+                        ground = GroundAt(skyMask, flakeX);
                     }
 
                     var flakeBottom = flakeY + extent;
@@ -608,8 +609,8 @@ internal sealed class RetroWeatherField
                                 + (GustOffset(time) - GustOffset(time - landedAgo)) * gustScale
                                 + sway * (Math.Sin((spec.SwayFrequency * time) + phase)
                                     - Math.Sin((spec.SwayFrequency * (time - landedAgo)) + phase)));
-                            var landGround = skyMask?.GroundAt(landX) ?? ground;
-                            if (MathF.Abs(landGround - ground) < 2f)
+                            var landGround = skyMask is null ? ground : GroundAt(skyMask, landX);
+                            if (MathF.Abs(landGround - ground) < 2f && (skyMask is null || !IsIndoorRoofGround(skyMask, landX)))
                             {
                                 var progress = fallen / settleDistance;
                                 if (style == DriftStyle.Leaves)
@@ -1136,6 +1137,49 @@ internal sealed class RetroWeatherField
             width,
             height,
             color);
+    }
+
+    /// <summary>
+    /// Moving shelters for this frame (an open Civilian umbrella): world pixel column to
+    /// the top of the shelter there. Weather stops on them like on ground.
+    /// </summary>
+    private readonly Dictionary<int, float> _dynamicRoofs = new();
+
+    public void ClearDynamicRoofs() => _dynamicRoofs.Clear();
+
+    /// <summary>Adds a shelter top for one world pixel column (the highest one wins).</summary>
+    public void AddDynamicRoof(int worldColumn, float top)
+    {
+        if (!float.IsFinite(top))
+        {
+            return;
+        }
+
+        if (!_dynamicRoofs.TryGetValue(worldColumn, out var existing) || top < existing)
+        {
+            _dynamicRoofs[worldColumn] = top;
+        }
+    }
+
+    /// <summary>Where weather at x stops: the level's ground, or a shelter above it.</summary>
+    private float GroundAt(WeatherSkyMask skyMask, float x)
+    {
+        var ground = skyMask.GroundAt(x);
+        if (_dynamicRoofs.Count > 0
+            && _dynamicRoofs.TryGetValue((int)MathF.Floor(x), out var roof)
+            && roof < ground
+            && roof >= skyMask.SkyStartAt(x))
+        {
+            return roof;
+        }
+
+        return ground;
+    }
+
+    /// <summary>True when weather at x stops on an invisible indoor roof (nothing to splash on).</summary>
+    private bool IsIndoorRoofGround(WeatherSkyMask skyMask, float x)
+    {
+        return skyMask.GroundIsIndoorRoofAt(x) && GroundAt(skyMask, x) >= skyMask.GroundAt(x);
     }
 
     private static bool IsInsideAny(IReadOnlyList<IndoorRegionMarker> regions, float x, float y, int width, int height)

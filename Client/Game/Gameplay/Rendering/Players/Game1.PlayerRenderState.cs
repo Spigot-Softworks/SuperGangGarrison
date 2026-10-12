@@ -32,6 +32,9 @@ public partial class Game1
         CivvieUmbrellaHold,
         CivvieUmbrellaClosing,
         StrongDrinkThrow,
+
+        /// <summary>A class ability strip on the weapon (Pyro airblast).</summary>
+        Ability,
     }
 
     public sealed class PlayerRenderState
@@ -69,6 +72,8 @@ public partial class Game1
         public int PreviousQuoteBladesOut { get; set; }
 
         public int PreviousQuoteBubbleCount { get; set; }
+
+        public int PreviousAbilityCooldownTicks { get; set; }
 
         internal WhippingCordPresentationTrack WhippingCordPresentation { get; } = new();
 
@@ -341,6 +346,7 @@ public partial class Game1
             renderState.PreviousReloadTicks = GetRenderWeaponReloadTicks(player);
             renderState.PreviousQuoteBladesOut = GetPlayerPredictedPresentationState(player).QuoteBladesOut;
             renderState.PreviousQuoteBubbleCount = GetPlayerPredictedPresentationState(player).QuoteBubbleCount;
+            renderState.PreviousAbilityCooldownTicks = GetPlayerPredictedPresentationState(player).PyroAirblastCooldownTicks;
         }
 
         if (renderState.WeaponAnimationMode != WeaponAnimationMode.Idle && elapsedSeconds > 0f)
@@ -402,7 +408,7 @@ public partial class Game1
             currentAmmoCount,
             renderState.PreviousCooldownTicks,
             currentCooldownTicks);
-        if (_networkClient.IsLegacyGg2Connection
+        if (_networkClient.Profile.StartsFireAnimationsFromSounds
             && _pendingLegacyGg2FireAnimationPlayerIds.Remove(player.Id))
         {
             shotStarted = true;
@@ -419,7 +425,7 @@ public partial class Game1
                 renderState.PreviousCooldownTicks,
                 currentCooldownTicks);
         }
-        if (presentationPlayer.IsQuoteCurly && !_networkClient.IsLegacyGg2Connection)
+        if (presentationPlayer.IsQuoteCurly && !_networkClient.Profile.QuoteAppearsAsImpostor)
         {
             // Quote's bubble and blade actions share cooldown/ammo state. Only
             // a new bubble may start the primary recoil presentation; blade
@@ -477,6 +483,32 @@ public partial class Game1
             return;
         }
 
+        // Class ability strip (Pyro airblast): starts when the ability's cooldown is set
+        // again, and plays to the end unless the weapon fires.
+        var currentAbilityCooldownTicks = presentationPlayer.PyroAirblastCooldownTicks;
+        if (weaponRenderDefinition.AbilitySpriteName is not null
+            && currentAbilityCooldownTicks > renderState.PreviousAbilityCooldownTicks)
+        {
+            StartWeaponAnimation(renderState, WeaponAnimationMode.Ability, weaponRenderDefinition.AbilityDurationSeconds);
+        }
+
+        renderState.PreviousAbilityCooldownTicks = currentAbilityCooldownTicks;
+        if (renderState.WeaponAnimationMode == WeaponAnimationMode.Ability)
+        {
+            if (renderState.WeaponAnimationTimeRemainingSeconds > 0f && !shotStarted)
+            {
+                renderState.FiredThisUpdate = false;
+                renderState.PreviousAmmoCount = currentAmmoCount;
+                renderState.PreviousCooldownTicks = currentCooldownTicks;
+                renderState.PreviousReloadTicks = currentReloadTicks;
+                renderState.PreviousQuoteBladesOut = currentQuoteBladesOut;
+                renderState.PreviousQuoteBubbleCount = currentQuoteBubbleCount;
+                return;
+            }
+
+            StopWeaponAnimation(renderState);
+        }
+
         var pendingImmediateShotConfirmationSeconds = renderState.PendingImmediateShotConfirmationSeconds;
         shotStarted = ResolvePredictedWeaponAnimationStart(
             shotStarted,
@@ -485,9 +517,13 @@ public partial class Game1
             ref pendingImmediateShotConfirmationSeconds);
         renderState.PendingImmediateShotConfirmationSeconds = pendingImmediateShotConfirmationSeconds;
         renderState.FiredThisUpdate = shotStarted;
+        if (shotStarted)
+        {
+            NoteWeaponFired(player, weaponStats.Kind);
+        }
         var ammoIncreased = currentAmmoCount > renderState.PreviousAmmoCount;
         var shellReloaded = ammoIncreased && currentAmmoCount < maxAmmoCount;
-        var legacyShellInserted = _networkClient.IsLegacyGg2Connection
+        var legacyShellInserted = _networkClient.Profile.InsertsShellsOneAtATime
             && ammoIncreased && weaponStats.AutoReloads && !weaponStats.RefillsAllAtOnce
             && maxAmmoCount > 1;
         var preserveRecoilLoop = weaponRenderDefinition.LoopRecoilWhileActive
@@ -557,7 +593,7 @@ public partial class Game1
                         StartWeaponAnimation(renderState, WeaponAnimationMode.Reload, weaponRenderDefinition.ReloadDurationSeconds);
                     }
                     else if (!ShouldShowReloadAnimation(player, weaponStats, weaponRenderDefinition, currentAmmoCount, maxAmmoCount, currentReloadTicks, currentCooldownTicks)
-                        && !(_networkClient.IsLegacyGg2Connection
+                        && !(_networkClient.Profile.InsertsShellsOneAtATime
                             && weaponStats.AutoReloads && !weaponStats.RefillsAllAtOnce
                             && currentAmmoCount >= maxAmmoCount
                             && renderState.WeaponAnimationTimeRemainingSeconds > 0f))

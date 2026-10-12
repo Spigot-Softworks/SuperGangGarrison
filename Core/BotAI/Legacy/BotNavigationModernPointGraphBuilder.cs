@@ -756,6 +756,7 @@ public static class BotNavigationModernPointGraphBuilder
     {
         return mode is GameModeKind.KingOfTheHill
             or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest
             or GameModeKind.ControlPoint
             or GameModeKind.Arena;
     }

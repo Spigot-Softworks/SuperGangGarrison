@@ -37,7 +37,8 @@ public static class BotNavigationAssetValidator
             or GameModeKind.ControlPoint
             or GameModeKind.Arena
             or GameModeKind.KingOfTheHill
-            or GameModeKind.DoubleKingOfTheHill;
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest;
     }
 
     public static BotNavigationValidationResult Validate(SimpleLevel level, BotNavigationAsset asset)
@@ -262,6 +263,7 @@ public static class BotNavigationAssetValidator
             GameModeKind.Arena => GetArenaObjectives(level),
             GameModeKind.KingOfTheHill => GetControlPointObjectives(level),
             GameModeKind.DoubleKingOfTheHill => GetControlPointObjectives(level),
+            GameModeKind.Conquest => GetControlPointObjectives(level),
             _ => GetFallbackObjectives(level),
         };
     }

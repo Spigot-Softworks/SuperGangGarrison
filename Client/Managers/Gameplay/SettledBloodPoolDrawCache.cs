@@ -4,7 +4,7 @@ using Microsoft.Xna.Framework;
 
 namespace OpenGarrison.Client;
 
-internal readonly record struct SettledBloodRenderCell(int X, int Y, Color Color);
+internal readonly record struct SettledBloodRenderCell(int X, int Y, Color Color, OpenGarrison.Core.PlayerTeam Team = OpenGarrison.Core.PlayerTeam.Neutral);
 
 /// <summary>
 /// Holds the ordered, camera-independent output for settled blood rendering.
@@ -64,7 +64,8 @@ internal sealed class SettledBloodPoolDrawCache
             if (expected.X != entry.Key.X
                 || expected.Y != entry.Key.Y
                 || expected.AmountBits != BitConverter.SingleToInt32Bits(entry.Value.Amount)
-                || expected.Cryo != entry.Value.ExperimentalCryoTinted)
+                || expected.Cryo != entry.Value.ExperimentalCryoTinted
+                || expected.Team != entry.Value.Team)
             {
                 return false;
             }
@@ -92,13 +93,13 @@ internal sealed class SettledBloodPoolDrawCache
     internal void CaptureSourceCell(
         (int X, int Y) key,
         float amount,
-        bool cryo)
+        bool cryo, OpenGarrison.Core.PlayerTeam team = OpenGarrison.Core.PlayerTeam.Neutral)
     {
         _sourceCells.Add(new SourceCellSnapshot(
             key.X,
             key.Y,
             BitConverter.SingleToInt32Bits(amount),
-            cryo));
+            cryo, team));
     }
 
     internal void CompleteBuild()
@@ -107,5 +108,5 @@ internal sealed class SettledBloodPoolDrawCache
         BuildCount += 1;
     }
 
-    private readonly record struct SourceCellSnapshot(int X, int Y, int AmountBits, bool Cryo);
+    private readonly record struct SourceCellSnapshot(int X, int Y, int AmountBits, bool Cryo, OpenGarrison.Core.PlayerTeam Team);
 }

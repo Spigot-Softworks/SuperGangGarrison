@@ -29,7 +29,7 @@ public sealed class GameMakerRuntimeSoundResolutionTests
     {
         var path = Path.Combine(Path.GetTempPath(), "og2-missing-sound", "ChaingunSnd.wav");
         var probeCount = 0;
-        using var assets = CreateAssetCache("ChaingunSnd", path, _ =>
+        using var assets = CreateAssetCache("MissingTestSnd", path, _ =>
         {
             probeCount += 1;
             return false;
@@ -39,7 +39,7 @@ public sealed class GameMakerRuntimeSoundResolutionTests
 
         for (var eventId = 1; eventId <= 8; eventId += 1)
         {
-            events.QueuePendingNetworkSoundEvent(new WorldSoundEvent("ChaingunSnd", 12f, 34f, EventId: (ulong)eventId));
+            events.QueuePendingNetworkSoundEvent(new WorldSoundEvent("MissingTestSnd", 12f, 34f, EventId: (ulong)eventId));
             events.PlayPendingSoundEvents();
             Assert.Equal(0, GetPendingNetworkSoundCount(events));
         }
@@ -49,7 +49,7 @@ public sealed class GameMakerRuntimeSoundResolutionTests
 
         Assert.Equal(0, GetPendingNetworkSoundCount(events));
         Assert.Equal(1, probeCount);
-        Assert.True(assets.IsDesktopSoundPermanentlyUnavailable("ChaingunSnd"));
+        Assert.True(assets.IsDesktopSoundPermanentlyUnavailable("MissingTestSnd"));
     }
 
     [Fact]

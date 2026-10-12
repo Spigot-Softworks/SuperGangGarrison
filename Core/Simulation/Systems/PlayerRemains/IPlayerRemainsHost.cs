@@ -8,6 +8,7 @@ internal interface IPlayerRemainsHost : ISimulationWorldState, ISimulationPlayer
     bool ClientPredictionMode { get; }
     EntityStore EntityStore { get; }
     bool LocalGoreEffectsEnabled { get; }
+    bool ClassicGoreEnabled { get; }
     PlayerDeathSystem PlayerDeaths { get; }
     PresentationEventLog PresentationEvents { get; }
     SimulationRandomStreams Randoms { get; }

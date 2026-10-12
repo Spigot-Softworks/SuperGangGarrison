@@ -210,7 +210,7 @@ public partial class Game1
 
         ResetLocalPredictionForAuthorityTransition();
         _networkClient.QueueTeamSelection(selectedTeam);
-        if (_networkClient.IsLegacyGg2Connection && _networkClient.IsSpectator)
+        if (_networkClient.Profile.AssignsTeamsThroughRoster && _networkClient.IsSpectator)
         {
             // GG2 can silently reject an unbalanced team. Wait for its roster
             // update to move our spectator slot before offering class selection.

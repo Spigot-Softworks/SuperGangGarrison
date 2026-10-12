@@ -1,0 +1,52 @@
+{
+  // Character brightmaps (experimental). Brighter = keeps more of its own colour in the dark.
+  // "frames" lists one image per frame of the sprite (null = none). With
+  // "reuseForMatchingFrames", frames without their own image borrow one from a frame with
+  // the same silhouette (as it is, or moved a few pixels).
+  // Images may be a whole fraction of the frame size (these are half size, like the art).
+  "brightmaps": [
+    {
+      "sprites": [ "ElkondoHeavyRedTorsoS", "ElkondoHeavyBlueTorsoS" ],
+      "frames": [ "heavy/heavy-legs-body.png" ],
+      "reuseForMatchingFrames": true
+    },
+    {
+      "sprites": [ "ElkondoHeavyRedLegsS", "ElkondoHeavyBlueLegsS" ],
+      "frames": [ "heavy/heavy-legs-idle.png" ],
+      "reuseForMatchingFrames": true
+    },
+    {
+      // Legs and torso in one sprite; the idle frame is the two brightmaps layered.
+      "sprites": [ "ElkondoHeavyRedBodyS", "ElkondoHeavyBlueBodyS" ],
+      "frames": [ "heavy/heavy-body-idle.png" ],
+      "reuseForMatchingFrames": true
+    },
+    {
+      "sprites": [ "ElkondoHeavyRedWeaponS", "ElkondoHeavyBlueWeaponS" ],
+      "frames": [ "heavy/minigun-idle.png" ],
+      "reuseForMatchingFrames": true
+    },
+    {
+      "sprites": [ "ElkondoHeavyRedFireS", "ElkondoHeavyBlueFireS" ],
+      "frames": [
+        "muzzleflash/minigun2.png", "muzzleflash/minigun3.png", "muzzleflash/minigun4.png", "muzzleflash/minigun5.png",
+        "muzzleflash/minigun6.png", "muzzleflash/minigun7.png", "muzzleflash/minigun8.png", "muzzleflash/minigun9.png"
+      ]
+    },
+    {
+      "sprites": [ "ElkondoPyroRedFireS", "ElkondoPyroBlueFireS" ],
+      "frames": [
+        "muzzleflash/flamer2.png", "muzzleflash/flamer3.png", "muzzleflash/flamer4.png", "muzzleflash/flamer5.png",
+        "muzzleflash/flamer6.png", "muzzleflash/flamer7.png", "muzzleflash/flamer8.png", "muzzleflash/flamer9.png",
+        "muzzleflash/flamer10.png"
+      ]
+    },
+    {
+      "sprites": [ "ElkondoEngineerRedFireS", "ElkondoEngineerBlueFireS" ],
+      "frames": [
+        "muzzleflash/shotgun_2.png", "muzzleflash/shotgun_3.png", "muzzleflash/shotgun_4.png", "muzzleflash/shotgun_5.png",
+        "muzzleflash/shotgun_6.png", "muzzleflash/shotgun_7.png", "muzzleflash/shotgun_8.png"
+      ]
+    }
+  ]
+}

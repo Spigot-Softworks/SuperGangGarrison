@@ -27,7 +27,7 @@ public partial class Game1
     {
         _gameplayAccountSessionTask = null;
         _pendingGameplayAccountAttachRequestId = 0;
-        if (_networkClient.IsReplayConnection || _networkClient.IsLegacyGg2Connection)
+        if (_networkClient.IsReplayConnection || !_networkClient.Profile.SupportsGameplayAccounts)
         {
             return;
         }
@@ -47,7 +47,7 @@ public partial class Game1
                 && _networkClient.IsConnected
                 && !_networkClient.IsAwaitingWelcome
                 && !_networkClient.IsReplayConnection
-                && !_networkClient.IsLegacyGg2Connection
+                && _networkClient.Profile.SupportsGameplayAccounts
                 && now >= _nextGameplayAccountAttachAttemptAt
                 && _gameplayAccountTokenExpiresAt <= now + GameplayAccountRefreshLeadTime)
             {

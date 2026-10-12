@@ -61,7 +61,7 @@ public readonly record struct MapWeather(
     MapFireflyStyle FireflyStyle = MapFireflyStyle.Fireflies,
     MapLightingColor RainColor = default)
 {
-    public static MapWeather None => default;
+    public static MapWeather None => new(MapWeatherKind.None);
 
     public bool IsActive => Kind != MapWeatherKind.None;
 

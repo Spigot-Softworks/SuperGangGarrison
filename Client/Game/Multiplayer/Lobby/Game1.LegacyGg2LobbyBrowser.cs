@@ -75,7 +75,8 @@ public partial class Game1
                 IsLobbyEntry = true,
                 IsPrivate = server.IsPrivate,
                 HasResponse = true,
-                CanJoinDirectly = server.IsCompatible && !server.IsPrivate,
+                // Desktop answers GG2's password prompt itself; the browser gateway can't yet.
+                CanJoinDirectly = server.IsCompatible && (!server.IsPrivate || !OperatingSystem.IsBrowser()),
                 HasTimedOut = false,
                 StatusText = server.IsPrivate ? "Password required"
                     : server.IsCompatible ? "Online" : "Different protocol",

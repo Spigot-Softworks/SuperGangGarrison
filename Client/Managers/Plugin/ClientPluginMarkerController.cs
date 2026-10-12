@@ -80,6 +80,7 @@ public sealed class ClientPluginMarkerController
                 case GameModeKind.Vip:
                 case GameModeKind.KingOfTheHill:
                 case GameModeKind.DoubleKingOfTheHill:
+                case GameModeKind.Conquest:
                     foreach (var point in _context._world.ControlPoints)
                     {
                         var progress = point.CapTimeTicks <= 0

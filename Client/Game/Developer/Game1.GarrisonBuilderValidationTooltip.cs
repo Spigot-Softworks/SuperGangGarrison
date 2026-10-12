@@ -27,7 +27,7 @@ public partial class Game1
             _builderValidationTooltipVisible = false;
             return;
         }
-        var sidebarWidth = GetModernGarrisonBuilderSidebarWidth();
+        var sidebarWidth = GetModernGarrisonBuilderPaletteWidth();
         var sidebar = new Rectangle(0, GetModernBuilderMenuBarHeight(), sidebarWidth,
             BuilderViewportHeight - GetModernBuilderMenuBarHeight() - GetModernGarrisonBuilderLayerStripHeight());
         TryGetModernGarrisonBuilderSidebarModeButtonBounds(sidebar, out var modeBounds);

@@ -486,13 +486,16 @@ public partial class Game1 : IGameplayContext
 
     bool IGameplayContext.DrawLastToDieDeathFocusOverlay(int viewportWidth, int viewportHeight) => DrawLastToDieDeathFocusOverlay(viewportWidth, viewportHeight);
 
+    LoadedSpriteFrame IGameplayContext.GetBloodSpriteFrame(LoadedSpriteFrame frame) => GetBloodSpriteFrame(frame);
+    LoadedSpriteFrame IGameplayContext.GetTeamFireSpriteFrame(LoadedSpriteFrame frame, PlayerTeam team) => GetTeamFireSpriteFrame(frame, team);
+    bool IGameplayContext.UsesTeamFireColor(PlayerTeam team) => UsesTeamFireColor(team);
     void IGameplayContext.DrawLoadedSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame, Microsoft.Xna.Framework.Rectangle destinationRectangle, Microsoft.Xna.Framework.Color tint) { DrawLoadedSpriteFrame(frame, destinationRectangle, tint); }
 
     void IGameplayContext.DrawLoadedSpriteFrame(OpenGarrison.Client.LoadedSpriteFrame frame, Microsoft.Xna.Framework.Vector2 position, Nullable<Microsoft.Xna.Framework.Rectangle> sourceRectangle, Microsoft.Xna.Framework.Color tint, float rotation, Microsoft.Xna.Framework.Vector2 origin, Microsoft.Xna.Framework.Vector2 scale, Microsoft.Xna.Framework.Graphics.SpriteEffects effects, float layerDepth) { DrawLoadedSpriteFrame(frame, position, sourceRectangle, tint, rotation, origin, scale, effects, layerDepth); }
 
     void IGameplayContext.DrawLoadingOverlay() { DrawLoadingOverlay(); }
 
-    void IGameplayContext.DrawProceduralFlameParticles(Dictionary<ValueTuple<int, int>, float> cells, Microsoft.Xna.Framework.Vector2 cameraPosition, bool topOutlineOnly = false, float drawAlpha = 1f) { DrawProceduralFlameParticles(cells, cameraPosition, topOutlineOnly, drawAlpha); }
+    void IGameplayContext.DrawProceduralFlameParticles(Dictionary<ValueTuple<int, int>, float> cells, Microsoft.Xna.Framework.Vector2 cameraPosition, bool topOutlineOnly = false, float drawAlpha = 1f, PlayerTeam team = PlayerTeam.Neutral) { DrawProceduralFlameParticles(cells, cameraPosition, topOutlineOnly, drawAlpha, team); }
 
     void IGameplayContext.DrawSoftwareMenuCursor(Microsoft.Xna.Framework.Input.MouseState mouse) { DrawSoftwareMenuCursor(mouse); }
 

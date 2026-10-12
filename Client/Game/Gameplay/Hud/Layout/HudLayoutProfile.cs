@@ -47,6 +47,12 @@ public sealed class HudLayoutProfile
 
     public IReadOnlyDictionary<string, HudElementLayout> Defaults { get; } = HudLayoutDefaults.Create();
 
+    /// <summary>GG2 Modern's positions for the elements GG2 places differently.</summary>
+    public IReadOnlyDictionary<string, HudElementLayout> Gg2Defaults { get; } = HudLayoutDefaults.CreateGg2();
+
+    /// <summary>While on, <see cref="Gg2Defaults"/> win over the SGG and runtime defaults.</summary>
+    public bool UseGg2Defaults { get; set; }
+
     public void ClearRuntimeDefaults()
     {
         _runtimeDefaults.Clear();
@@ -190,6 +196,11 @@ public sealed class HudLayoutProfile
 
     private bool TryGetDefaultLayout(string id, out HudElementLayout defaultLayout)
     {
+        if (UseGg2Defaults && Gg2Defaults.TryGetValue(id, out defaultLayout!))
+        {
+            return true;
+        }
+
         if (_runtimeDefaults.TryGetValue(id, out defaultLayout!))
         {
             return true;

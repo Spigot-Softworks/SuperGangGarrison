@@ -186,9 +186,24 @@ public sealed class ClientSettings
 
     public bool EnablePrediction { get; set; } = true;
 
+    public bool Gg2PredictionEnabled { get; set; } = true;
+
     public float SmoothCameraMultiplier { get; set; } = DefaultSmoothCameraMultiplier;
 
     public bool SpriteDropShadowEnabled { get; set; }
+
+    /// <summary>Original GG2 look: stock sprites/animations, classic blood, static dead-body sprites.</summary>
+    public bool ClassicVisualsEnabled { get; set; }
+
+    public bool MapLightingEnabled { get; set; } = true;
+
+    public bool LightsFollowJukeboxEnabled { get; set; }
+
+    public bool CharacterBrightmapsEnabled { get; set; } = true;
+
+    public bool WeatherEnabled { get; set; } = true;
+
+    public int LightingIntensityPercent { get; set; } = OpenGarrisonPreferencesDocument.DefaultLightingIntensityPercent;
 
     public bool PixelPerfectWeaponRotation { get; set; } = true;
 
@@ -435,8 +450,15 @@ public sealed class ClientSettings
             ShowPlayerNamesEnabled = document.ShowPlayerNamesEnabled,
             PositionSmoothingEnabled = document.PositionSmoothingEnabled,
             EnablePrediction = document.EnablePrediction,
+            Gg2PredictionEnabled = document.Gg2PredictionEnabled,
             SmoothCameraMultiplier = Math.Clamp(document.SmoothCameraMultiplier, 0f, 1f),
             SpriteDropShadowEnabled = document.SpriteDropShadowEnabled,
+            ClassicVisualsEnabled = document.ClassicVisualsEnabled,
+            MapLightingEnabled = document.MapLightingEnabled,
+            LightsFollowJukeboxEnabled = document.LightsFollowJukeboxEnabled,
+            CharacterBrightmapsEnabled = document.CharacterBrightmapsEnabled,
+            WeatherEnabled = document.WeatherEnabled,
+            LightingIntensityPercent = OpenGarrisonPreferencesDocument.NormalizeLightingIntensityPercent(document.LightingIntensityPercent),
             PixelPerfectWeaponRotation = document.PixelPerfectWeaponRotation,
             UseLocalWeaponRotation = document.UseLocalWeaponRotation,
             ClientSettingsMigrationVersion = document.ClientSettingsMigrationVersion,
@@ -542,8 +564,15 @@ public sealed class ClientSettings
         preferences.ShowPlayerNamesEnabled = ShowPlayerNamesEnabled;
         preferences.PositionSmoothingEnabled = PositionSmoothingEnabled;
         preferences.EnablePrediction = EnablePrediction;
+        preferences.Gg2PredictionEnabled = Gg2PredictionEnabled;
         preferences.SmoothCameraMultiplier = Math.Clamp(SmoothCameraMultiplier, 0f, 1f);
         preferences.SpriteDropShadowEnabled = SpriteDropShadowEnabled;
+        preferences.ClassicVisualsEnabled = ClassicVisualsEnabled;
+        preferences.MapLightingEnabled = MapLightingEnabled;
+        preferences.LightsFollowJukeboxEnabled = LightsFollowJukeboxEnabled;
+        preferences.CharacterBrightmapsEnabled = CharacterBrightmapsEnabled;
+        preferences.WeatherEnabled = WeatherEnabled;
+        preferences.LightingIntensityPercent = OpenGarrisonPreferencesDocument.NormalizeLightingIntensityPercent(LightingIntensityPercent);
         preferences.PixelPerfectWeaponRotation = PixelPerfectWeaponRotation;
         preferences.UseLocalWeaponRotation = UseLocalWeaponRotation;
         preferences.ClientSettingsMigrationVersion = CurrentClientSettingsMigrationVersion;

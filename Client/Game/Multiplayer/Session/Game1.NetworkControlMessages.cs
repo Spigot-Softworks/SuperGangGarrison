@@ -58,7 +58,7 @@ public partial class Game1
     {
         var wasSpectator = _networkClient.IsSpectator;
         _networkClient.SetLocalPlayerSlot(slotChanged.PlayerSlot);
-        if (_networkClient.IsLegacyGg2Connection && !_networkClient.IsSpectator)
+        if (_networkClient.Profile.AssignsTeamsThroughRoster && !_networkClient.IsSpectator)
         {
             _legacyGg2TeamRequestStartedAtMilliseconds = -1;
         }
@@ -70,7 +70,7 @@ public partial class Game1
 
           if (_networkClient.IsSpectator)
           {
-              if (_networkClient.IsLegacyGg2Connection && !wasSpectator && !IsWatchOnlySession())
+              if (_networkClient.Profile.AssignsTeamsThroughRoster && !wasSpectator && !IsWatchOnlySession())
               {
                   OpenOnlineTeamSelection(clearPendingSelections: true, statusMessage: string.Empty);
               }

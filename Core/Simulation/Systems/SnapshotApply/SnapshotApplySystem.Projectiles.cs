@@ -260,7 +260,7 @@ internal sealed partial class SnapshotApplySystem
             _host.WorldEffects.RegisterBloodEffect(
                 nearestPlayer.X, nearestPlayer.Y,
                 DeterministicMath.Atan2(dirY, dirX) * (180f / MathF.PI) - 180f,
-                bloodCount);
+                bloodCount, team: nearestPlayer.Team);
         }
     }
 

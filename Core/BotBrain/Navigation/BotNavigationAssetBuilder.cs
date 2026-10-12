@@ -1454,7 +1454,8 @@ public static class BotNavigationAssetBuilder
             && mode is (GameModeKind.Arena
             or GameModeKind.ControlPoint
             or GameModeKind.KingOfTheHill
-            or GameModeKind.DoubleKingOfTheHill);
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest);
     }
 
     private static bool ShouldUseCtfMicroStepRepairs(SimpleLevel level)
@@ -1798,7 +1799,7 @@ public static class BotNavigationAssetBuilder
         SimpleLevel level,
         BotNavigationAuthoredCorridorEntry corridor)
     {
-        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill)
+        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest)
             || !TryFindNearestControlObjective(level, corridor.Waypoints[0].X, corridor.Waypoints[0].Y, out var objective))
         {
             return corridor.Waypoints;
@@ -2005,7 +2006,7 @@ public static class BotNavigationAssetBuilder
 
     private static int ResolveAuthoredCorridorTeamMask(SimpleLevel level, BotNavigationAuthoredCorridorEntry corridor, PlayerTeam startTeam)
     {
-        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill))
+        if (level.Mode is not (GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest))
         {
             return BotBrainTeamMask.For(corridor.Team);
         }
@@ -2085,7 +2086,7 @@ public static class BotNavigationAssetBuilder
         PlayerTeam startTeam) =>
         level.Mode == GameModeKind.CaptureTheFlag
         || corridor.PlayerClass == PlayerClass.Heavy
-        || (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+        || (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest
             && startTeam != corridor.Team)
             ? BotBrainClassMask.All
             : BotBrainClassMask.For(corridor.PlayerClass);
@@ -2096,7 +2097,7 @@ public static class BotNavigationAssetBuilder
         PlayerTeam startTeam) =>
         level.Mode == GameModeKind.CaptureTheFlag
         || corridor.PlayerClass == PlayerClass.Heavy
-        || (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill
+        || (level.Mode is GameModeKind.ControlPoint or GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest
             && startTeam != corridor.Team)
             ? AuthoredCorridorPreferredCostMultiplier
             : 1f;
@@ -2388,7 +2389,8 @@ public static class BotNavigationAssetBuilder
         mode is GameModeKind.Arena
             or GameModeKind.ControlPoint
             or GameModeKind.KingOfTheHill
-            or GameModeKind.DoubleKingOfTheHill;
+            or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest;
 
     private static bool TryAddLedgeDropDiscoveryEdge(
         SimpleLevel level,

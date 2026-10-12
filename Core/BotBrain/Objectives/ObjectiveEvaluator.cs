@@ -25,6 +25,7 @@ public static class ObjectiveEvaluator
             GameModeKind.Arena => EvaluateArenaGoal(self, world),
             GameModeKind.ControlPoint => EvaluateControlPointGoal(self, world, ownTeam),
             GameModeKind.Vip => EvaluateControlPointGoal(self, world, ownTeam),
+            GameModeKind.Conquest => EvaluateControlPointGoal(self, world, ownTeam),
             GameModeKind.KingOfTheHill => EvaluateControlPointGoal(self, world, ownTeam),
             GameModeKind.DoubleKingOfTheHill => EvaluateDoubleKingOfTheHillGoal(self, world, ownTeam),
             GameModeKind.Generator => EvaluateGeneratorGoal(self, world, ownTeam),

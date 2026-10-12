@@ -23,6 +23,7 @@ public partial class Game1
         var residual = GetWorldPassCameraResidual();
         foreach (var (roomObjectIndex, marker) in GetCachedSpritesheets(layer))
         {
+            DrawPropFragments(cameraPosition, roomObjectIndex, false);
             if (!_world.Level.IsRoomObjectActive(roomObjectIndex))
             {
                 continue;
@@ -70,12 +71,13 @@ public partial class Game1
                 marker.Spritesheet);
             var tint = Color.White * (layer == CustomMapSpriteLayerKind.Fg
                 ? ApplyCoveredPlayerForegroundOpacity(1f, destination, cameraPosition)
-                : 1f);
+                : 1f) * GetDestructiblePropOpacity(marker.DestructibleZoneIndex);
             _spriteBatch.Draw(
                 texture,
                 destination,
                 new Rectangle(source.X, source.Y, source.Width, source.Height),
                 tint);
+            DrawPropRespawnWarp(texture, new Rectangle(source.X, source.Y, source.Width, source.Height), destination, Color.White, marker.DestructibleZoneIndex);
         }
     }
 }

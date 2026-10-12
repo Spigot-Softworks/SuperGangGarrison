@@ -1,0 +1,16 @@
+{
+  "id": "ElkondoEngineerBlueWeaponS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoEngineerBlueWeaponS/0.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueWeaponS/1.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueWeaponS/2.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueWeaponS/3.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueWeaponS/4.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueWeaponS/5.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueWeaponS/6.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueWeaponS/7.png",
+    "assets/characters/player-skins/ElkondoEngineerBlueWeaponS/8.png"
+  ],
+  "originX": 28,
+  "originY": 42
+}

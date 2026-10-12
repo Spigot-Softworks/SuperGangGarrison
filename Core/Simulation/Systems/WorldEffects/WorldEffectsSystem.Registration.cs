@@ -95,7 +95,7 @@ internal sealed partial class WorldEffectsSystem
         }
     }
 
-    internal void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1)
+    internal void RegisterBloodEffect(float x, float y, float directionDegrees, int count = 1, PlayerTeam team = PlayerTeam.Neutral)
     {
         if (!_host.LocalGoreEffectsEnabled)
         {
@@ -109,11 +109,11 @@ internal sealed partial class WorldEffectsSystem
             y,
             normalizedDirectionDegrees,
             Math.Max(1, count),
-            SourceFrame: _host.Frame < 0 ? 0UL : (ulong)_host.Frame));
-        SpawnImpactBloodDrops(x, y, normalizedDirectionDegrees, count);
+            SourceFrame: _host.Frame < 0 ? 0UL : (ulong)_host.Frame, SourceTeam: team));
+        SpawnImpactBloodDrops(x, y, normalizedDirectionDegrees, count, team);
     }
 
-    private void SpawnImpactBloodDrops(float x, float y, float directionDegrees, int count)
+    private void SpawnImpactBloodDrops(float x, float y, float directionDegrees, int count, PlayerTeam team)
     {
         var dropCount = int.Clamp(4 + Math.Max(0, count - 1), 4, 7);
         var directionRadians = SimulationMath.DegreesToRadians(directionDegrees);
@@ -129,13 +129,13 @@ internal sealed partial class WorldEffectsSystem
                 y,
                 DeterministicMath.Cos(velocityRadians) * speed,
                 DeterministicMath.Sin(velocityRadians) * speed,
-                lifetimeTicks: lifetimeTicks);
+                lifetimeTicks: lifetimeTicks, team: team);
             _host.WorldObjects.BloodDrops.Add(bloodDrop);
             _host.EntityStore.Add(bloodDrop);
         }
     }
 
-    internal void RegisterVisualEffect(string effectName, float x, float y, float directionDegrees = 0f, int count = 1, bool normalizeDirection = true)
+    internal void RegisterVisualEffect(string effectName, float x, float y, float directionDegrees = 0f, int count = 1, bool normalizeDirection = true, PlayerTeam team = PlayerTeam.Neutral)
     {
         if (string.IsNullOrWhiteSpace(effectName))
         {
@@ -151,7 +151,7 @@ internal sealed partial class WorldEffectsSystem
             y,
             directionValue,
             Math.Max(1, count),
-            SourceFrame: _host.Frame < 0 ? 0UL : (ulong)_host.Frame));
+            SourceFrame: _host.Frame < 0 ? 0UL : (ulong)_host.Frame, SourceTeam: team));
     }
 
     internal void RegisterStrongDrinkShatterEffect(

@@ -164,11 +164,21 @@ public partial class Game1
         return GetModernBuilderMenuBarHeight() + GetModernBuilderToolbarHeight();
     }
 
+    /// <summary>
+    /// Width of the left section: the entity list, widening to the properties section while
+    /// properties are docked there (mid-animation in between). The toolbar and map sit to
+    /// its right.
+    /// </summary>
     private int GetModernGarrisonBuilderSidebarWidth()
     {
-        return _builderEntityPaletteVisible
-            ? ModernBuilderExpandedSidebarWidth
-            : ModernBuilderCollapsedPaletteWidth;
+        var paletteWidth = GetModernGarrisonBuilderPaletteWidth();
+        if (!IsGarrisonBuilderPropertyDockVisible)
+        {
+            return paletteWidth;
+        }
+
+        var dockWidth = Math.Max(paletteWidth, GetGarrisonBuilderPropertyDockWidth());
+        return (int)MathF.Round(paletteWidth + ((dockWidth - paletteWidth) * GetGarrisonBuilderPropertyDockEase()));
     }
 
     private Rectangle GetModernGarrisonBuilderMapViewport()
@@ -584,6 +594,18 @@ public partial class Game1
             return;
         }
 
+        if (IsGarrisonBuilderLightHandleDragging && mouse.LeftButton == ButtonState.Released)
+        {
+            EndGarrisonBuilderLightHandleDrag();
+            return;
+        }
+
+        if (IsGarrisonBuilderLightHandleDragging && mouse.LeftButton == ButtonState.Pressed)
+        {
+            ApplyGarrisonBuilderLightHandleDrag(world);
+            return;
+        }
+
         if (_builderEntityDragging
             && mouse.LeftButton == ButtonState.Released
             && _previousMouse.LeftButton == ButtonState.Pressed)
@@ -683,6 +705,13 @@ public partial class Game1
             if (_builderActiveTool == GarrisonBuilderTool.Erase)
             {
                 BeginGarrisonBuilderErase(world);
+                return;
+            }
+
+            if (_builderActiveTool == GarrisonBuilderTool.Select
+                && GetGarrisonBuilderSelectedEntityCount() <= 1
+                && TryBeginGarrisonBuilderLightHandleDrag(mouse.Position))
+            {
                 return;
             }
 
@@ -1636,6 +1665,7 @@ public partial class Game1
             [
                 ("New map", CreateNewGarrisonBuilderDocument),
                 ("Open map...", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.OpenMap)),
+                .. GetGarrisonBuilderRecentMapMenuItems(),
                 ("Recover draft...", OpenGarrisonBuilderRecovery),
                 ("Save (Ctrl+S)", SaveGarrisonBuilderDocument),
                 ("Save as... (Ctrl+Shift+S)", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Save)),
@@ -1684,7 +1714,7 @@ public partial class Game1
         if (!CommitGarrisonBuilderActiveEdits()) return;
         if (GuardGarrisonBuilderUnsavedAction(CreateNewGarrisonBuilderDocument)) return;
         ResetGarrisonBuilderDocumentSession();
-        _builderSelectedGameMode = CustomMapBuilderGameMode.Free;
+        _builderSelectedGameMode = CustomMapBuilderGameMode.CaptureTheFlag;
         _builderDocument = CustomMapBuilderDocument.CreateEmpty("new_map");
         _builderEntityCoordinatesAreWalkmaskPixels = false;
         _builderEntities.Clear();
@@ -1824,7 +1854,13 @@ public partial class Game1
 
     private bool TryHandleModernGarrisonBuilderSidebarClick(Point position)
     {
-        var sidebarWidth = GetModernGarrisonBuilderSidebarWidth();
+        if (IsGarrisonBuilderPropertyDockVisible)
+        {
+            // Properties cover the entity list (or are sliding away): clicks there do nothing.
+            return GetModernGarrisonBuilderLeftSectionBounds(GetModernGarrisonBuilderSidebarWidth()).Contains(position);
+        }
+
+        var sidebarWidth = GetModernGarrisonBuilderPaletteWidth();
         var sidebar = new Rectangle(0, GetModernBuilderMenuBarHeight(), sidebarWidth, BuilderViewportHeight - GetModernBuilderMenuBarHeight() - GetModernGarrisonBuilderLayerStripHeight());
         if (!sidebar.Contains(position))
         {
@@ -2552,12 +2588,12 @@ public partial class Game1
 
     private void UpdateModernGarrisonBuilderPaletteScroll(MouseState mouse)
     {
-        if (!_builderEntityPaletteVisible)
+        if (!_builderEntityPaletteVisible || IsGarrisonBuilderPropertyDockVisible)
         {
             return;
         }
 
-        var sidebarWidth = GetModernGarrisonBuilderSidebarWidth();
+        var sidebarWidth = GetModernGarrisonBuilderPaletteWidth();
         var sidebar = new Rectangle(
             0,
             GetModernBuilderMenuBarHeight(),
@@ -2612,12 +2648,12 @@ public partial class Game1
         _builderPaletteHoverEntityCategory = null;
         _builderPaletteHoverEntityIndex = -1;
         _builderPaletteHoverLogicEntityIndex = -1;
-        if (!_builderEntityPaletteVisible)
+        if (!_builderEntityPaletteVisible || IsGarrisonBuilderPropertyDockVisible)
         {
             return;
         }
 
-        var sidebarWidth = GetModernGarrisonBuilderSidebarWidth();
+        var sidebarWidth = GetModernGarrisonBuilderPaletteWidth();
         var sidebar = new Rectangle(
             0,
             GetModernBuilderMenuBarHeight(),
@@ -3404,6 +3440,8 @@ public partial class Game1
         _builderPropertyEditorTitle = $"{entity.Type} @ {entity.X:0},{entity.Y:0}";
         _builderPropertyScrollIndex = 0;
         _builderPropertyEditorValues = new Dictionary<string, string>(entity.Properties, StringComparer.OrdinalIgnoreCase);
+        if (GameplayMessageMetadata.IsGameplayMessageEntityType(entity.Type))
+            GameplayMessageMetadata.EnsurePresentationDefaults(_builderPropertyEditorValues);
         foreach (var key in _builderPropertyEditorValues.Keys.ToArray())
         {
             if (IsSkippedGarrisonBuilderProperty(key))
@@ -3436,6 +3474,9 @@ public partial class Game1
 
         SyncGarrisonBuilderSpawnPropertyEditorFields();
         SyncGarrisonBuilderControlPointPropertyEditorFields();
+
+        if (entity.Type.Equals(MapLightMetadata.EntityType, StringComparison.OrdinalIgnoreCase))
+            OpenGarrison.ClientShared.BuilderLightColors.NormalizeForEditing(_builderPropertyEditorValues);
     }
 
     private void DrawModernGarrisonBuilderEditorOverlay(MouseState mouse)
@@ -3657,9 +3698,23 @@ public partial class Game1
 
     private void DrawModernGarrisonBuilderSidebar(MouseState mouse)
     {
-        var sidebarWidth = GetModernGarrisonBuilderSidebarWidth();
-        var sidebar = new Rectangle(0, GetModernBuilderMenuBarHeight(), sidebarWidth, BuilderViewportHeight - GetModernBuilderMenuBarHeight() - GetModernGarrisonBuilderLayerStripHeight());
-        DrawMenuPanelBackdrop(sidebar, 0.96f);
+        var section = GetModernGarrisonBuilderLeftSectionBounds(GetModernGarrisonBuilderSidebarWidth());
+        DrawMenuPanelBackdrop(section, 0.96f);
+        var propertiesCoverList = IsGarrisonBuilderPropertyDockOpen
+            && _builderPropertyDockProgress >= 1f
+            && !IsGarrisonBuilderPropertyMapPickActive;
+        if (!propertiesCoverList)
+        {
+            DrawModernGarrisonBuilderEntityList(GetModernGarrisonBuilderLeftSectionBounds(GetModernGarrisonBuilderPaletteWidth()), mouse);
+        }
+
+        // Properties sliding away after closing, or waiting on a map pick.
+        DrawGarrisonBuilderPropertyDockCover(section);
+    }
+
+    /// <summary>The left section's usual contents: entity list, game mode, validation and status.</summary>
+    private void DrawModernGarrisonBuilderEntityList(Rectangle sidebar, MouseState mouse)
+    {
         if (!_builderEntityPaletteVisible)
         {
             var expandBounds = new Rectangle(sidebar.X + 2, sidebar.Y + 8, sidebar.Width - 4, sidebar.Height - 16);

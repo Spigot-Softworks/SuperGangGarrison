@@ -16,6 +16,7 @@ public enum CustomMapBuilderGameMode
     Arena = 1 << 5,
     Generator = 1 << 6,
     Scr = 1 << 7,
+    Conquest = 1 << 8,
 }
 
 public sealed record CustomMapBuilderEntityDefinition(
@@ -42,7 +43,7 @@ public static class CustomMapBuilderEntityCatalog
         Define("spawn", AllModes, "team=red;forward=false;priority=1;linkObjective=controlPoint1;useWhen=owned", 30, "Spawn", "Team spawn (red, blue, or neutral). Neutral spawns both teams. Forward spawn links to a control point and uses priority when multiple forwards are active.", "spawnS", 0),
         Define("barrier", AllModes, "xscale=1;yscale=1;redPlayers=block;bluePlayers=block;redShots=allow;blueShots=allow;redIntel=block;blueIntel=block", 50, "Barrier", "Resizable solid area. Blocks players and intel carriers by default. Set each target to Block or Allow.", "sprite45", 3),
         Define("directionalWall", AllModes, "passDirection=right;players=ignore;projectiles=ignore;xscale=1;yscale=1", 51, "Directional wall", "One-way wall. Set pass direction and whether players or projectiles are affected.", "sprite45", 3),
-        Define("controlPoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "index=1;capTimeMultiplier=1;initialOwner=modeDefault", 12, "Control point", "Neutral control point with configurable index (1-5).", "ControlPointNeutralS", 0),
+        Define("controlPoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.Conquest | ScrModes, "index=1;capTimeMultiplier=1;initialOwner=modeDefault", 12, "Control point", "Neutral control point with configurable index (1-5).", "ControlPointNeutralS", 0),
         Define("spawnroom", AllModes, "xscale=1;yscale=1", 74, "Spawn room", "Players can instantly respawn in this area.", "sprite64", 1),
         Define("redspawn", AllModes, "", 30, "Red spawn", "Default spawn locator for the red team.", "spawnS", 0),
         Define("redspawn1", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.KingOfTheHill | CustomMapBuilderGameMode.DualKingOfTheHill, "", 34, "Red spawn 1", "Red forward spawn #1.", "spawnS", 1),
@@ -71,7 +72,15 @@ public static class CustomMapBuilderEntityCatalog
         Define("pitfall", AllModes, "xscale=1;yscale=1", 62, "Pitfall", "Kills a player.", "sprite64", 3),
         Define("fragbox", AllModes, "xscale=1;yscale=1", 60, "Frag box", "Gibs a player.", "sprite64", 4),
         Define("firebox", AllModes, "xscale=1;yscale=1", 58, "Fire zone", "Ignites players while they remain inside this zone.", "sprite64", 2),
-        Define(MapLightMetadata.EntityType, AllModes, "color=ffcf80;radius=160;intensity=100;flicker=steady;falloff=map;direction=0;spread=360", 30, "Light", "Point light for map lighting: colour (hex), radius, intensity (0-200), steady/flicker/pulse, falloff (map style, smooth or retro bands), and a spotlight cone: direction in degrees (0 right, 90 up, 180 left, 270 down) and spread in degrees (360 = round light). Only shows when the map's lighting is on.", string.Empty, 0),
+        Define(
+            MapLightMetadata.EntityType,
+            AllModes,
+            "kind=lamp;color=ffcf80;altColor=;altColor2=;colorMode=solid;colorRate=1;colorTransition=instant;colorTransitionTime=0.5;radius=160;intensity=100;flicker=steady;sirenStyle=beacon;react=level;reactTo=brightness;sensitivity=100;floor=20;downTime=stay;falloff=map;direction=0;spread=360;motion=none;arc=90;speed=10;phase=0;steps=4;mirror=false;musicSweep=false;beams=1;fanSpread=30;width=4;haze=100;mask=;maskGlowRadius=0;startOn=true;transition=instant;fadeTime=0.5;followInput=;onInput=;offInput=;toggleInput=;colorInput=;tertiaryColorInput=;colorAction=holdAlt;stopsAtPlayers=false;damage=false;damagePerSecond=60;burn=100;damageTeam=all",
+            30,
+            "Light",
+            "Placed light. Lamp, searchlight or laser, with up to three colours. Supports flicker, pulse, siren and jukebox-synced behaviour, swept or beat-synced motion, logic-driven power and colour, and optional laser damage. Visible only when map lighting is enabled (damaging lasers are always visible).",
+            string.Empty,
+            0),
         Define(IndoorRegionMetadata.EntityType, AllModes, "xscale=1;yscale=1", 74, "Indoor (no weather)", "Resizable area that map weather treats as indoors: rain and snow stop at its top edge and never appear inside. No gameplay effect.", "sprite64", 1),
         Define(
             HealthPackMetadata.HealthPackEntityType,
@@ -115,13 +124,13 @@ public static class CustomMapBuilderEntityCatalog
         Define("bulletwall_horizontal", CustomMapBuilderGameMode.Free, "xscale=1;yscale=1", 56, "Bullet floor", "A floor that blocks bullets but not players.", "sprite44", 4),
         Define("leftdoor", AllModes, "xscale=1;yscale=1", 102, "Left door", "Blocks players trying to go left.", "sprite45", 5),
         Define("rightdoor", AllModes, "xscale=1;yscale=1", 104, "Right door", "Blocks players trying to go right.", "sprite45", 6),
-        Define("controlPoint1", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 12, "CP 1", "Control point #1.", "ControlPointNeutralS", 0),
-        Define("controlPoint2", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 14, "CP 2", "Control point #2.", "ControlPointNeutralS", 2),
-        Define("controlPoint3", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 16, "CP 3", "Control point #3.", "ControlPointNeutralS", 3),
-        Define("controlPoint4", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 18, "CP 4", "Control point #4.", "ControlPointNeutralS", 4),
-        Define("controlPoint5", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | ScrModes, "", 20, "CP 5", "Control point #5.", "ControlPointNeutralS", 5),
+        Define("controlPoint1", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.Conquest | ScrModes, "", 12, "CP 1", "Control point #1.", "ControlPointNeutralS", 0),
+        Define("controlPoint2", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.Conquest | ScrModes, "", 14, "CP 2", "Control point #2.", "ControlPointNeutralS", 2),
+        Define("controlPoint3", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.Conquest | ScrModes, "", 16, "CP 3", "Control point #3.", "ControlPointNeutralS", 3),
+        Define("controlPoint4", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.Conquest | ScrModes, "", 18, "CP 4", "Control point #4.", "ControlPointNeutralS", 4),
+        Define("controlPoint5", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.Conquest | ScrModes, "", 20, "CP 5", "Control point #5.", "ControlPointNeutralS", 5),
         Define("NextAreaO", TeamObjectiveModes, "", 106, "Next area", "Marks the next arena in multi stage maps.", "NextAreaS", 4),
-        Define("CapturePoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.KingOfTheHill | CustomMapBuilderGameMode.DualKingOfTheHill | CustomMapBuilderGameMode.Arena | ScrModes, "xscale=1;yscale=1", 26, "Capture zone", "Resizable capture zone. Players capping here use the nearest control point.", "CaptureZoneS", 0),
+        Define("CapturePoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.KingOfTheHill | CustomMapBuilderGameMode.DualKingOfTheHill | CustomMapBuilderGameMode.Arena | CustomMapBuilderGameMode.Conquest | ScrModes, "xscale=1;yscale=1", 26, "Capture zone", "Resizable capture zone. Players capping here use the nearest control point.", "CaptureZoneS", 0),
         Define("SetupGate", CustomMapBuilderGameMode.CaptureTheFlag | CustomMapBuilderGameMode.AttackDefenseControlPoint, "xscale=1;yscale=1", 28, "Setup gate", "Prevents players from passing during setup time.", "SetupGateS", 0),
         Define("ArenaControlPoint", CustomMapBuilderGameMode.Arena, "initialOwner=modeDefault", 22, "Arena CP", "Arena control point.", "ControlPointNeutralS", 0),
         Define("GeneratorRed", CustomMapBuilderGameMode.Generator, "", 76, "Red gen", "Location of the red generator.", "GeneratorRedS", 0),
@@ -237,7 +246,7 @@ public static class CustomMapBuilderEntityCatalog
         Define(
             ForegroundSpriteMetadata.ForegroundSpriteEntityType,
             AllModes,
-            "layer=bg;relativeZ=0;scale=1;tile=false;tileAnchor=topLeft;image=;jungle=false;outsideOpacity=1;insideOpacity=0.35;boundary=box",
+            "layer=bg;relativeZ=0;scale=1;tile=false;tileAnchor=topLeft;image=;jungle=false;outsideOpacity=1;insideOpacity=0.35;boundary=box;overlapLights=false",
             52,
             "Foreground sprite",
             "Sprite drawn in front of players. BG layer sits under the map foreground overlay; FG layer sits above it.",
@@ -253,7 +262,7 @@ public static class CustomMapBuilderEntityCatalog
             string.Empty,
             0),
         Define(MapLogicMetadata.CpTriggerEntityType, AllModes, "signal=latch;linkObjective=controlPoint1;requiredOwner=red;nodePriority=0;logicKey=", 12, "CP Trigger", "Outputs true when the linked control point matches the required owner (red, blue, neutral, or not neutral).", string.Empty, 0),
-        Define(MapLogicMetadata.GateEntityType, AllModes, "gateType=and;logicInput1=;logicInput2=;nodePriority=0;logicKey=", 12, "Logic gate", "Combines two logic inputs with AND, OR, or XOR.", string.Empty, 0),
+        Define(MapLogicMetadata.GateEntityType, AllModes, "gateType=and;logicInput1=;logicInput2=;logicInput3=;nodePriority=0;logicKey=", 12, "Logic gate", "Combines up to three inputs with AND, or two inputs with OR or XOR.", string.Empty, 0),
         Define(MapLogicMetadata.NotEntityType, AllModes, "logicInput=;nodePriority=0;logicKey=", 12, "NOT gate", "Inverts a logic input.", string.Empty, 0),
         Define(
             MapLogicMetadata.RisingEdgeEntityType,
@@ -331,6 +340,7 @@ public static class CustomMapBuilderEntityCatalog
         | CustomMapBuilderGameMode.Scr
         | CustomMapBuilderGameMode.KingOfTheHill
         | CustomMapBuilderGameMode.DualKingOfTheHill
+        | CustomMapBuilderGameMode.Conquest
         | CustomMapBuilderGameMode.Arena
         | CustomMapBuilderGameMode.Generator;
 
@@ -340,6 +350,7 @@ public static class CustomMapBuilderEntityCatalog
         | CustomMapBuilderGameMode.AttackDefenseControlPoint
         | CustomMapBuilderGameMode.KingOfTheHill
         | CustomMapBuilderGameMode.DualKingOfTheHill
+        | CustomMapBuilderGameMode.Conquest
         | CustomMapBuilderGameMode.Generator;
 
     private static CustomMapBuilderEntityDefinition Define(

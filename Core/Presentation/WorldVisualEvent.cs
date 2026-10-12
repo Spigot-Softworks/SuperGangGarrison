@@ -7,4 +7,5 @@ public sealed record WorldVisualEvent(
     float DirectionDegrees = 0f,
     int Count = 1,
     ulong EventId = 0,
-    ulong SourceFrame = 0);
+    ulong SourceFrame = 0,
+    PlayerTeam SourceTeam = PlayerTeam.Neutral);

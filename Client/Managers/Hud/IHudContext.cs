@@ -125,4 +125,5 @@ public interface IHudContext
     bool TryResolveHudElement(string id, out OpenGarrison.Client.HudResolvedElement resolved);
     bool TryResolveHudElementEvenIfHidden(string id, out OpenGarrison.Client.HudResolvedElement resolved);
     void UpdateHudElementBounds(string id, Microsoft.Xna.Framework.Rectangle bounds);
+    bool UsesGg2Presentation { get; }
 }

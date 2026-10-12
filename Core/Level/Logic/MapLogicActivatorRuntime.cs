@@ -26,7 +26,8 @@ public static class MapLogicActivatorRuntime
         bool[] roomObjectActiveMask,
         bool[] activatorStartApplied,
         MapLogicActivatorRuntimeState? runtimeState = null,
-        IReadOnlyList<RoomObjectMarker>? roomObjects = null)
+        IReadOnlyList<RoomObjectMarker>? roomObjects = null,
+        Action<int, MapLogicActivatorBehavior>? onActivation = null)
     {
         if (activators.Activators.Count == 0 || roomObjectActiveMask.Length == 0)
         {
@@ -37,11 +38,27 @@ public static class MapLogicActivatorRuntime
         runtimeState.EnsureActivatorCount(activators.Activators.Count);
         runtimeState.EnsureToggleTargetStateCount(roomObjectActiveMask.Length);
         runtimeState.BeginEvaluationTick();
+        for (var i = 0; i < activators.Activators.Count; i++)
+        {
+            var activator = activators.Activators[i];
+            if (activator.Behavior == MapLogicActivatorBehavior.Toggle && activator.ActivateOnStart
+                && i < activatorStartApplied.Length && !activatorStartApplied[i]
+                && IsControlPoint(activator.TargetRoomObjectIndex))
+            {
+                activatorStartApplied[i] = true;
+                runtimeState.SetToggleTargetActive(activator.TargetRoomObjectIndex, true);
+                onActivation?.Invoke(activator.TargetRoomObjectIndex, activator.Behavior);
+            }
+        }
         ApplyToggleActivateOnStart(activators, roomObjectActiveMask, activatorStartApplied, runtimeState);
+        bool IsControlPoint(int index) => roomObjects is not null && index >= 0 && index < roomObjects.Count && roomObjects[index].Type == RoomObjectType.ControlPoint;
 
         Span<bool> currentSignals = activators.Activators.Count <= 256
             ? stackalloc bool[activators.Activators.Count]
             : new bool[activators.Activators.Count];
+        var risingEdges = new bool[activators.Activators.Count];
+        var winningActivatorIndices = new int[roomObjectActiveMask.Length];
+        Array.Fill(winningActivatorIndices, -1);
 
         for (var activatorIndex = 0; activatorIndex < activators.Activators.Count; activatorIndex += 1)
         {
@@ -52,12 +69,12 @@ public static class MapLogicActivatorRuntime
                 activatorIndex,
                 activatorStartApplied,
                 runtimeState);
-            if (activator.InputNodeIndex >= 0 && graph.GetOutput(activator.InputNodeIndex))
+            if (graph.GetOutput(activator.InputNodeIndex) || graph.GetOutput(activator.ExternalPulseNodeIndex))
             {
                 runtimeState.MarkLogicInputActivated(activatorIndex);
             }
 
-            runtimeState.RecordSignalTransition(activatorIndex, currentSignals[activatorIndex]);
+            risingEdges[activatorIndex] = runtimeState.RecordSignalTransition(activatorIndex, currentSignals[activatorIndex]);
         }
 
         Span<ActivatorDecision?> winners = roomObjectActiveMask.Length <= 256
@@ -84,7 +101,12 @@ public static class MapLogicActivatorRuntime
                 continue;
             }
 
-            var activeValue = ResolveActivatorActiveValue(activator, activatorIndex, runtimeState);
+            // Capture-point actions change ownership, never the point's availability.
+            var activeValue = IsControlPoint(activator.TargetRoomObjectIndex)
+                ? true
+                : activator.Behavior == MapLogicActivatorBehavior.Toggle && !risingEdges[activatorIndex]
+                    ? runtimeState.GetResolvedActiveValue(activatorIndex)
+                    : ResolveActivatorActiveValue(activator, activatorIndex, runtimeState);
             runtimeState.SetToggleTargetActive(activator.TargetRoomObjectIndex, activeValue);
 
             var decision = new ActivatorDecision(
@@ -95,6 +117,7 @@ public static class MapLogicActivatorRuntime
             if (winner is null || IsBetterDecision(decision, winner.Value))
             {
                 winner = decision;
+                winningActivatorIndices[activator.TargetRoomObjectIndex] = activatorIndex;
             }
         }
 
@@ -102,7 +125,11 @@ public static class MapLogicActivatorRuntime
         {
             if (winners[index] is ActivatorDecision winner)
             {
+                var activatorIndex = winningActivatorIndices[index];
+                if (activatorIndex >= 0 && risingEdges[activatorIndex])
+                    onActivation?.Invoke(index, activators.Activators[activatorIndex].Behavior);
                 roomObjectActiveMask[index] = winner.ActiveValue;
+                runtimeState.SetToggleTargetActive(index, winner.ActiveValue);
                 if (winner.ActiveValue
                     && roomObjects is not null
                     && AreaExtensionMetadata.IsPrimaryExtendableZone(roomObjects, index))
@@ -248,6 +275,6 @@ public static class MapLogicActivatorRuntime
             }
         }
 
-        return activator.InputNodeIndex >= 0 && graph.GetOutput(activator.InputNodeIndex);
+        return graph.GetOutput(activator.InputNodeIndex) || graph.GetOutput(activator.ExternalPulseNodeIndex);
     }
 }

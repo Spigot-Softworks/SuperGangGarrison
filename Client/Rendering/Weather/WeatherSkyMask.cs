@@ -28,11 +28,15 @@ internal sealed class WeatherSkyMask
     private readonly float[] _indoorTopY;
     private readonly float[] _hazeBottomY;
 
+    /// <summary>Columns whose ground is an indoor region's invisible roof rather than a real surface.</summary>
+    private readonly bool[] _groundIsIndoorRoof;
+
     /// <summary>Solid runs thinner than this (one-row ledges, platforms) let haze through.</summary>
     private const float ThinLedgeThickness = 18f;
 
-    private WeatherSkyMask(float[] groundY, float[] skyStartY, float[] indoorTopY, float[] hazeBottomY, float width, float height)
+    private WeatherSkyMask(float[] groundY, float[] skyStartY, float[] indoorTopY, float[] hazeBottomY, bool[] groundIsIndoorRoof, float width, float height)
     {
+        _groundIsIndoorRoof = groundIsIndoorRoof;
         _groundY = groundY;
         _skyStartY = skyStartY;
         _indoorTopY = indoorTopY;
@@ -170,6 +174,7 @@ internal sealed class WeatherSkyMask
         // Pass 3: indoor regions roof over whatever lies beneath them.
         var indoorTop = new float[columnCount];
         Array.Fill(indoorTop, height);
+        var groundIsIndoorRoof = new bool[columnCount];
         if (indoorRegions is not null)
         {
             for (var index = 0; index < indoorRegions.Count; index += 1)
@@ -195,12 +200,13 @@ internal sealed class WeatherSkyMask
                     if (surface < ground[column])
                     {
                         ground[column] = surface;
+                        groundIsIndoorRoof[column] = true;
                     }
                 }
             }
         }
 
-        return new WeatherSkyMask(ground, skyStart, indoorTop, hazeBottom, width, height);
+        return new WeatherSkyMask(ground, skyStart, indoorTop, hazeBottom, groundIsIndoorRoof, width, height);
     }
 
     /// <summary>World Y where weather falling at <paramref name="x"/> stops.</summary>
@@ -213,6 +219,21 @@ internal sealed class WeatherSkyMask
         }
 
         return _groundY[column];
+    }
+
+    /// <summary>
+    /// Whether weather at <paramref name="x"/> stops on an indoor region's invisible roof:
+    /// drops just vanish there (no splash or settling), since there is no visible surface.
+    /// </summary>
+    public bool GroundIsIndoorRoofAt(float x)
+    {
+        var column = (int)(x / ColumnWidth);
+        if ((uint)column >= (uint)_groundIsIndoorRoof.Length)
+        {
+            column = column < 0 ? 0 : _groundIsIndoorRoof.Length - 1;
+        }
+
+        return _groundIsIndoorRoof[column];
     }
 
     /// <summary>World Y where open sky begins at <paramref name="x"/> (below any top-edge ceiling).</summary>

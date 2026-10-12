@@ -14,7 +14,6 @@ public static class MapLogicGraphImporter
         {
             if (!MapLogicMetadata.IsLogicEntityType(entity.Type)
                 || AreaExtensionMetadata.IsAreaEntityType(entity.Type)
-                || DamageableMetadata.IsDamageableEntityType(entity.Type)
                 || MapLogicScoreTriggerMetadata.IsScoreTriggerEntityType(entity.Type))
             {
                 continue;
@@ -22,6 +21,33 @@ public static class MapLogicGraphImporter
 
             var properties = entity.Properties ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var logicKey = MapLogicMetadata.EnsureLogicKey(properties);
+            if (DamageableMetadata.IsDamageableEntityType(entity.Type))
+            {
+                var zoneRef = MapLogicEntityReference.FormatEntityRef(entity.Type, MapLogicMetadata.EnsureMapEntityId(properties));
+                var zoneIndex = roomObjects is not null && DamageableMetadata.TryResolveRoomObjectIndex(roomObjects, zoneRef, out var resolvedZone)
+                    ? resolvedZone : -1;
+                definitions.Add(new MapLogicNodeDefinition
+                {
+                    LogicKey = logicKey, Kind = MapLogicNodeKind.DamageTrigger,
+                    DamageableRoomObjectIndex = zoneIndex, TriggerWhenDestroyed = true,
+                    SignalMode = MapLogicSignalMode.Latch, NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                });
+                continue;
+            }
+
+            if (entity.Type.Equals(MapLogicMetadata.ActivatorEntityType, StringComparison.OrdinalIgnoreCase))
+            {
+                // A destruction output can select the activator directly. Its signal also
+                // follows the normal input, allowing the same node to drive other consumers.
+                definitions.Add(new MapLogicNodeDefinition
+                {
+                    LogicKey = logicKey, Kind = MapLogicNodeKind.Gate, GateType = MapLogicGateType.Or,
+                    InputRef1 = ReadProperty(properties, MapLogicMetadata.LogicInputPropertyKey),
+                    NodePriority = MapLogicMetadata.ParseNodePriority(properties),
+                });
+                continue;
+            }
+
             if (entity.Type.Equals(MapLogicMetadata.CpTriggerEntityType, StringComparison.OrdinalIgnoreCase))
             {
                 _ = MapLogicMetadata.TryParseCpTriggerOwnerRequirement(
@@ -52,6 +78,7 @@ public static class MapLogicGraphImporter
                     GateType = gateType,
                     InputRef1 = ReadProperty(properties, MapLogicMetadata.LogicInput1PropertyKey),
                     InputRef2 = ReadProperty(properties, MapLogicMetadata.LogicInput2PropertyKey),
+                    InputRef3 = ReadProperty(properties, MapLogicMetadata.LogicInput3PropertyKey),
                     NodePriority = MapLogicMetadata.ParseNodePriority(properties),
                 });
                 continue;

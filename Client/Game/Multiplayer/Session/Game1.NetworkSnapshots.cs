@@ -169,7 +169,7 @@ public partial class Game1
                 soundEvent.EventId,
                 ResolveNetworkEventSourceFrame(soundEvent.SourceFrame, resolvedSnapshot.Frame),
                 soundEvent.SourcePlayerId));
-            if (_networkClient.IsLegacyGg2Connection
+            if (_networkClient.Profile.StartsFireAnimationsFromSounds
                 && soundEvent.SourcePlayerId >= 0
                 && IsWeaponFireSoundName(soundEvent.SoundName))
             {
@@ -300,7 +300,7 @@ public partial class Game1
         var localPlayerJoined = wasAwaitingJoin && !_world.LocalPlayerAwaitingJoin;
         var presentationEpochChanged = mapChanged
             || localPlayerIdentityChanged
-            || (localPlayerJoined && !_networkClient.IsLegacyGg2Connection);
+            || (localPlayerJoined && _networkClient.Profile.LocalJoinStartsPresentationEpoch);
         var localPlayerAuthorityChanged = mapChanged
             || localPlayerIdentityChanged
             || previousLocalClassId != _world.LocalPlayer.ClassId
@@ -538,7 +538,7 @@ public partial class Game1
         // without a spawned character is the class-selection phase, not a new
         // request to select a team. The generic SGG map-transition recovery
         // would otherwise replace the class menu with team selection again.
-        if (_networkClient.IsLegacyGg2Connection)
+        if (_networkClient.Profile.AssignsTeamsThroughRoster)
         {
             return;
         }

@@ -182,12 +182,14 @@ public sealed class GameplayImpactEffectsController
         {
             DrawAirBlastVisuals(cameraPosition);
             DrawBubblePopVisuals(cameraPosition);
-            DrawFallbackExplosionVisuals(cameraPosition);
             var largeSprite = _context.GetResolvedSprite("ExplosionS");
             var smallSprite = _context.GetResolvedSprite("ExplosionSmallS");
             if ((largeSprite is null || largeSprite.Frames.Count == 0)
                 && (smallSprite is null || smallSprite.Frames.Count == 0))
             {
+                // Plain squares only when the explosion sprites are missing; drawn under the
+                // sprites as well, their corners showed as a box around every explosion.
+                DrawFallbackExplosionVisuals(cameraPosition);
                 return;
             }
 

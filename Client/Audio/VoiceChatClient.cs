@@ -44,6 +44,9 @@ public sealed class VoiceChatClient : IDisposable
     public bool CanUseVoiceChannel => ServerState is { } state && (!state.VoiceChannelRequiresJoin
         || _wantsVoiceChannel && state.VoiceChannelJoined && state.VoiceChannelRevision == _membershipRevision);
     public IEnumerable<Speaker> Speakers => _speakers.Values;
+
+    /// <summary>Music features of the jukebox as this player hears it (drives jukebox lights).</summary>
+    public JukeboxAnalyzer JukeboxAnalyzer { get; } = new();
     public IReadOnlyList<string> MicrophoneNames => _device.MicrophoneNames;
     public string Status => string.IsNullOrEmpty(_error) ? _device.Status : _error;
     public bool IsTransmitting(double now) => _capturing && now - _lastTransmittedAt < 0.2;
@@ -175,6 +178,11 @@ public sealed class VoiceChatClient : IDisposable
                         }
 
                         _device.Play(speaker.Slot, pcm, speaker.Slot == 0 ? 2 : 1, deviceVolume, mix.Item2);
+                        if (speaker.Slot == 0)
+                        {
+                            // Only audible music drives lights: a muted jukebox never reaches here.
+                            JukeboxAnalyzer.Feed(pcm, 2, now);
+                        }
                     }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException) { _error = "Voice playback: " + ex.Message; RemoveSpeaker(speaker.Slot); }
@@ -185,6 +193,7 @@ public sealed class VoiceChatClient : IDisposable
     {
         _playbackGains.Remove(slot);
         if (_speakers.Remove(slot, out var speaker)) speaker.Dispose();
+        if (slot == 0) JukeboxAnalyzer.Reset();
         try { _device.StopPlayback(slot); }
         catch (Exception ex) when (ex is not OutOfMemoryException) { _error = "Audio device unavailable: " + ex.Message; }
     }

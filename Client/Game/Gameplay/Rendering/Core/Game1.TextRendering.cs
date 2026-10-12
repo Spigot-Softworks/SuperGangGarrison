@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace OpenGarrison.Client;
 
@@ -16,6 +17,9 @@ public partial class Game1
 
     public readonly record struct SpriteFontMetrics(float CellWidth, float MaxHeight);
     public readonly record struct SpriteFontGlyphMetrics(float LeftTrim, float VisibleWidth);
+
+    private sealed record SpriteFontExtent(float Width, float Height);
+    private static readonly ConditionalWeakTable<LoadedGameMakerSprite, SpriteFontExtent> SpriteFontExtents = new();
 
     private static readonly SpriteFontDefinition BitmapFontDefinition = new("gg2FontS", '!', false, 0);
     private static readonly SpriteFontDefinition CountFontDefinition = new("countFontS", '0', false, 2);
@@ -271,18 +275,24 @@ public partial class Game1
         return new Vector2(MathF.Round(position.X), MathF.Round(position.Y));
     }
 
-    private static SpriteFontMetrics GetSpriteFontMetrics(SpriteFontDefinition definition, LoadedGameMakerSprite fontSprite)
+    internal static SpriteFontMetrics GetSpriteFontMetrics(SpriteFontDefinition definition, LoadedGameMakerSprite fontSprite)
     {
-        var maxWidth = 0f;
-        var maxHeight = 0f;
-        for (var index = 0; index < fontSprite.Frames.Count; index += 1)
+        // Fonts are immutable asset snapshots. Builder viewport/layout measurement is
+        // called for every entity and link; scan glyphs once, not on every measurement.
+        var extent = SpriteFontExtents.GetValue(fontSprite, static sprite =>
         {
-            maxWidth = MathF.Max(maxWidth, fontSprite.Frames[index].Width);
-            maxHeight = MathF.Max(maxHeight, fontSprite.Frames[index].Height);
-        }
+            var maxWidth = 0f;
+            var maxHeight = 0f;
+            for (var index = 0; index < sprite.Frames.Count; index += 1)
+            {
+                maxWidth = MathF.Max(maxWidth, sprite.Frames[index].Width);
+                maxHeight = MathF.Max(maxHeight, sprite.Frames[index].Height);
+            }
+            return new SpriteFontExtent(maxWidth, maxHeight);
+        });
 
-        var cellWidth = MathF.Max(1f, maxWidth + definition.CharacterSeparator);
-        return new SpriteFontMetrics(cellWidth, MathF.Max(1f, maxHeight));
+        var cellWidth = MathF.Max(1f, extent.Width + definition.CharacterSeparator);
+        return new SpriteFontMetrics(cellWidth, MathF.Max(1f, extent.Height));
     }
 
     private static float GetSpriteFontCharacterAdvance(

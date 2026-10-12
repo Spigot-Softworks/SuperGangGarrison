@@ -139,19 +139,23 @@ def build(catalog: Path, check: bool) -> None:
                     write(skin[part], frames, skin["origin"])
             weapon = skin.get("weapon")
             if weapon is not None:
+                # A weapon may be drawn on a wider box than the body (flamethrower, minigun:
+                # 48x32), anchored at the same top-left corner.
+                weapon_canvas = weapon.get("canvas", skin["canvas"])
                 normal = []
                 for pose in skin["poses"]:
                     # The exported full-canvas weapon frames already contain the pose offset.
                     # Normalize around a shared pivot; the runtime applies that offset once.
-                    image = compose(source, [pose["weapon"]], team, skin["canvas"])
-                    normalized = Image.new("RGBA", tuple(skin["canvas"]))
-                    normalized.alpha_composite(image, tuple(-v for v in pose["weaponOffset"]))
+                    image = compose(source, [pose["weapon"]], team, weapon_canvas)
+                    normalized = Image.new("RGBA", tuple(weapon_canvas))
+                    # paste (not alpha_composite) accepts negative offsets; the canvas is empty.
+                    normalized.paste(image, tuple(-v for v in pose.get("weaponOffset", [0, 0])))
                     normal.append(normalized)
                 write(weapon["sprite"], normal, weapon["pivot"])
-                for action in ("fire", "reload"):
+                for action in ("fire", "reload", "ability"):
                     frames = weapon.get(action + "Frames", [])
                     if frames:
-                        images = [compose(source, [frame], team, skin["canvas"]) for frame in frames]
+                        images = [compose(source, [frame], team, weapon_canvas) for frame in frames]
                         write(weapon[action + "Sprite"], images, weapon["pivot"])
 
         action_sprites = skin.get("actionSprites")

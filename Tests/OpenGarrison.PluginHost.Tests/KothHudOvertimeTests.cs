@@ -49,7 +49,7 @@ public sealed class KothHudOvertimeTests
             out var decodedSnapshot));
 
         var client = new SimulationWorld();
-        Assert.True(client.SnapshotApply.ApplySnapshot(Assert.IsType<SnapshotMessage>(decodedSnapshot)));
+        Assert.True(client.SnapshotApply.ApplySnapshot(Assert.IsType<SnapshotMessage>(decodedSnapshot), localPlayerSlot: byte.MaxValue));
         Assert.True(client.MatchState.IsOvertime);
         Assert.True(IsTeamTimerOvertime(client, PlayerTeam.Red));
     }

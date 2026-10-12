@@ -26,7 +26,7 @@ public partial class Game1
 
     public int GetGameplayCameraViewportHeight(int viewportHeight)
     {
-        if (_gameplayHudHidden || _gameplayHudMinimal || !IsLocalSpectatorPresentationActive())
+        if (_gameplayHudHidden || _gameplayHudMinimal || !IsLocalSpectatorPresentationActive() || UsesGg2Presentation)
         {
             return viewportHeight;
         }
@@ -46,6 +46,12 @@ public partial class Game1
             return;
         }
 
+        if (UsesGg2Presentation)
+        {
+            DrawGg2SpectatorHud();
+            return;
+        }
+
         var gameHeight = GetGameplayCameraViewportHeight(ViewportHeight);
         var panelHeight = Math.Max(0, ViewportHeight - gameHeight);
         DrawSpectatorOffscreenIndicators(cameraPosition, gameHeight);
@@ -56,6 +62,93 @@ public partial class Game1
 
         DrawSpectatorPersistentBoards(gameHeight, panelHeight);
         DrawSpectatorMinimap(new Rectangle(ViewportWidth / 4, gameHeight, ViewportWidth / 2, panelHeight));
+    }
+
+    /// <summary>
+    /// GG2 draws 20 px black bars top and bottom whenever the view has no character of its
+    /// own: spectating, or dead with the death cam over. Drawn under the kill feed and score
+    /// panel, as GG2's Spectator sits under its HUD.
+    /// </summary>
+    private void DrawGg2DeadViewBars()
+    {
+        if (!UsesGg2Presentation || _world.LocalPlayerAwaitingJoin)
+        {
+            return;
+        }
+
+        var spectating = IsLocalSpectatorPresentationActive();
+        var deadWithoutDeathCam = !_world.LocalPlayer.IsAlive
+            && !(_gameplayManager.RuntimeSettings.KillCamEnabled && _world.LocalDeathCam is not null);
+        if (!spectating && !deadWithoutDeathCam)
+        {
+            return;
+        }
+
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, ViewportWidth, 20), Color.Black);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, ViewportHeight - 20, ViewportWidth, 20), Color.Black);
+    }
+
+    /// <summary>GG2's "Respawn in N second(s)." line, left aligned and vertically centred on y.</summary>
+    private void DrawGg2RespawnText(Vector2 position)
+    {
+        if (IsLocalSpectatorPresentationActive())
+        {
+            return;
+        }
+
+        string text;
+        if (_world.MatchRules.Mode == GameModeKind.Arena && !_world.MatchState.IsEnded)
+        {
+            text = "No Respawning in Arena";
+        }
+        else
+        {
+            var respawnTicks = _world.LocalPlayerRespawnTicks;
+            if (respawnTicks <= 0)
+            {
+                return;
+            }
+
+            var seconds = (int)MathF.Ceiling(respawnTicks / (float)Math.Max(1, _config.TicksPerSecond));
+            text = "Respawn in " + seconds.ToString(CultureInfo.InvariantCulture) + " second(s).";
+        }
+
+        DrawHudTextLeftAligned(
+            text,
+            new Vector2(position.X, position.Y - (MeasureBitmapFontHeight(1f) * 0.5f)),
+            Color.White,
+            1f);
+    }
+
+    /// <summary>
+    /// GG2's spectator HUD: the tracked player's name bottom left and, for spectators, wareya's
+    /// health cross (red underlay, green fill faded by remaining health). The bars come from
+    /// <see cref="DrawGg2DeadViewBars"/>; the crosshair from the shared tracked-player code.
+    /// </summary>
+    private void DrawGg2SpectatorHud()
+    {
+        if (GetSpectatorFocusPlayer() is not { } player)
+        {
+            return;
+        }
+
+        var viewportHeight = ViewportHeight;
+        DrawHudTextLeftAligned(SanitizeScoreboardText(player.DisplayName), new Vector2(50f, viewportHeight - 16f), Color.White, 1f);
+        if (!player.IsAlive || player.MaxHealth <= 0)
+        {
+            return;
+        }
+
+        var scale = new Vector2(2f, 2f);
+        var crossPosition = new Vector2(-2f, viewportHeight - 62f);
+        TryDrawScreenSprite("SpectatorHealthCross", 0, crossPosition, Color.White, scale);
+
+        var fraction = Math.Clamp(player.Health / (float)player.MaxHealth, 0f, 1f);
+        var sourceTop = (int)MathF.Round(27f - (fraction * 17f));
+        var source = new Rectangle(0, sourceTop, 43, 28 - sourceTop);
+        var fillPosition = crossPosition + new Vector2(0f, 20f + ((sourceTop - 10) * 2f));
+        TryDrawScreenSpritePart("SpectatorHealthFill", 0, source, fillPosition, new Color(255, 0, 0), scale, SpriteEffects.None, Vector2.Zero);
+        TryDrawScreenSpritePart("SpectatorHealthFill", 0, source, fillPosition, new Color(0, 128, 0) * fraction, scale, SpriteEffects.None, Vector2.Zero);
     }
 
     private void DrawSpectatorPersistentBoards(int panelY, int panelHeight)

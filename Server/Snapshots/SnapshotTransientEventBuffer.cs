@@ -218,7 +218,7 @@ internal sealed class SnapshotTransientEventBuffer(ulong transientEventReplayTic
             gibSpawnEvent.RotationFriction,
             gibSpawnEvent.LifetimeTicks,
             gibSpawnEvent.BloodChance,
-            eventId);
+            eventId, (byte)gibSpawnEvent.Team);
     }
 
     private static SnapshotRocketSpawnEvent ToSnapshotRocketSpawnEvent(WorldRocketSpawnEvent rocketSpawnEvent, ulong eventId)

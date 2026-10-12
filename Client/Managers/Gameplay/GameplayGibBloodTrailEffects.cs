@@ -121,7 +121,7 @@ public sealed partial class GameplayGoreEffectsController
             0.18f + (_context._visualRandom.NextSingle() * 0.17f),
             _context._visualRandom.Next(18, 32),
             gib.ExperimentalCryoTinted,
-            heavy: false);
+            heavy: false, team: gib.Team);
     }
 
     private void TrySpawnGibLandingSplat(PlayerGibEntity gib, float previousVelocityX, float previousVelocityY, float velocityY)
@@ -157,7 +157,7 @@ public sealed partial class GameplayGoreEffectsController
                 0.2f + (_context._visualRandom.NextSingle() * 0.25f),
                 _context._visualRandom.Next(20, 36),
                 gib.ExperimentalCryoTinted,
-                heavy: false);
+                heavy: false, team: gib.Team);
         }
     }
 }

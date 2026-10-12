@@ -6,6 +6,13 @@ public partial class Game1
 {
     public LoadedGameMakerSprite? GetResolvedSprite(string spriteName)
     {
+        var sprite = ResolveSpriteByName(spriteName);
+        ObserveResolvedSpriteForBrightmaps(spriteName, sprite);
+        return sprite;
+    }
+
+    private LoadedGameMakerSprite? ResolveSpriteByName(string spriteName)
+    {
         if (OperatingSystem.IsBrowser())
         {
             var browserGameplaySprite = _gameplayModAssets?.GetSprite(spriteName, allowBrowserLazyFallback: false);

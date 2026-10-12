@@ -94,7 +94,7 @@ public partial class Game1
 
     private Vector2 GetClientPluginCameraOffset()
     {
-        if (_networkClient.IsLegacyGg2Connection)
+        if (!_networkClient.Profile.AllowsPluginCameraOffset)
         {
             return Vector2.Zero;
         }

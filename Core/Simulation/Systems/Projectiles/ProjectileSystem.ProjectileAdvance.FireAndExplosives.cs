@@ -242,7 +242,7 @@ public sealed partial class ProjectileSystem
                             if (!infiltrateBlockedFlare)
                             {
                                 hitTarget = true;
-                                RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f);
+                                RegisterBloodEffect(hitResult.HitPlayer.X, hitResult.HitPlayer.Y, DeterministicMath.Atan2(directionY, directionX) * (180f / MathF.PI) - 180f, team: hitResult.HitPlayer.Team);
                             }
 
                             var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(flare.DamagePerHit * flare.CriticalDamageMultiplier), out var damageFlags);
@@ -559,7 +559,7 @@ public sealed partial class ProjectileSystem
             return;
         }
 
-        RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(grenade.PreviousX, grenade.PreviousY, target.X, target.Y) - 180f);
+        RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(grenade.PreviousX, grenade.PreviousY, target.X, target.Y) - 180f, team: target.Team);
         var damage = Math.Max(1, (int)MathF.Round(GrenadeProjectileEntity.StrongDrinkDirectHitDamage * grenade.CriticalDamageMultiplier));
         if (ApplyPlayerDamageWithContext(
                 target,
@@ -924,7 +924,7 @@ public sealed partial class ProjectileSystem
                     continue;
                 }
 
-                RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(grenade.X, grenade.Y, player.X, player.Y) - 180f, 3);
+                RegisterBloodEffect(player.X, player.Y, PointDirectionDegrees(grenade.X, grenade.Y, player.X, player.Y) - 180f, 3, team: player.Team);
                 var critMultiplier = (player.Id == grenade.OwnerId && player.Team == grenade.Team) ? 1f : grenade.CriticalDamageMultiplier;
                 var maxSplashDamage = grenade.ExplosionDamage * critMultiplier;
                 if (player.Id == grenade.OwnerId && player.Team == grenade.Team)
@@ -1064,7 +1064,7 @@ public sealed partial class ProjectileSystem
             return;
         }
 
-        RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(grenade.X, grenade.Y, target.X, target.Y) - 180f, 3);
+        RegisterBloodEffect(target.X, target.Y, PointDirectionDegrees(grenade.X, grenade.Y, target.X, target.Y) - 180f, 3, team: target.Team);
         var damage = Math.Max(1, (int)MathF.Round(GrenadeProjectileEntity.DirectHitDamage * grenade.CriticalDamageMultiplier));
         if (ApplyPlayerDamageWithContext(
                 target,

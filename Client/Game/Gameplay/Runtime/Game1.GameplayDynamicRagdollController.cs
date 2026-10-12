@@ -832,7 +832,7 @@ public partial class Game1
         Array.Clear(ragdoll.PivotVelocities);
         Array.Clear(ragdoll.RestPivotDegrees);
         ragdoll.BisectedPartner = lower;
-        _gameplayManager.GoreEffects.SpawnBisectCutSquibs(waistWorld.X, waistWorld.Y);
+        _gameplayManager.GoreEffects.SpawnBisectCutSquibs(waistWorld.X, waistWorld.Y, ragdoll.Team);
         return true;
     }
 

@@ -38,6 +38,8 @@ public sealed partial class SimulationWorld :
         => WorldEffects.RegisterImpactEffect(x, y, direction);
     void ISimulationPresentationEvents.RegisterBloodEffect(float x, float y, float direction, int count)
         => WorldEffects.RegisterBloodEffect(x, y, direction, count);
+    void ISimulationPresentationEvents.RegisterBloodEffect(float x, float y, float direction, int count, PlayerTeam team)
+        => WorldEffects.RegisterBloodEffect(x, y, direction, count, team);
     void ISimulationPresentationEvents.RegisterCombatTrace(float x, float y, float directionX, float directionY, float distance, bool hitCharacter, PlayerTeam team, bool isSniperTracer, bool isCritical)
         => WorldEffects.RegisterCombatTrace(x, y, directionX, directionY, distance, hitCharacter, team, isSniperTracer, isCritical);
     void ISimulationPresentationEvents.RegisterStuckArrowEffect(float x, float y, float directionX, float directionY, ArrowProjectileEntity arrow)

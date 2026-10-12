@@ -47,6 +47,7 @@ internal interface ISimulationPresentationEvents
     void RegisterVisualEffect(string effectName, float x, float y, float direction, int count, bool normalizeDirection);
     void RegisterImpactEffect(float x, float y, float direction);
     void RegisterBloodEffect(float x, float y, float direction, int count);
+    void RegisterBloodEffect(float x, float y, float direction, int count, PlayerTeam team) => RegisterBloodEffect(x, y, direction, count);
     void RegisterCombatTrace(float x, float y, float directionX, float directionY, float distance, bool hitCharacter, PlayerTeam team, bool isSniperTracer, bool isCritical);
     void RegisterStuckArrowEffect(float x, float y, float directionX, float directionY, ArrowProjectileEntity arrow);
     void RegisterExplosionTraces(float x, float y);

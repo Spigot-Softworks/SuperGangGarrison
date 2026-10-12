@@ -340,7 +340,7 @@ public sealed partial class ProjectileSystem
 
     private void RegisterCombatTrace(float x, float y, float directionX, float directionY, float distance, bool hitCharacter, PlayerTeam team = PlayerTeam.Red, bool isSniperTracer = false, bool isCritical = false)
         => _host.RegisterCombatTrace(x, y, directionX, directionY, distance, hitCharacter, team, isSniperTracer, isCritical);
-    private void RegisterBloodEffect(float x, float y, float direction, int count = 1) => _host.RegisterBloodEffect(x, y, direction, count);
+    private void RegisterBloodEffect(float x, float y, float direction, int count = 1, PlayerTeam team = PlayerTeam.Neutral) => _host.RegisterBloodEffect(x, y, direction, count, team);
     private void RegisterVisualEffect(string effect, float x, float y, float direction = 0f, int count = 1, bool normalizeDirection = true) => _host.RegisterVisualEffect(effect, x, y, direction, count, normalizeDirection);
     private void RegisterWorldSoundEvent(string sound, float x, float y, int sourcePlayerId = -1) => _host.RegisterWorldSoundEvent(sound, x, y, sourcePlayerId);
     private void RegisterImpactEffect(float x, float y, float direction) => _host.RegisterImpactEffect(x, y, direction);

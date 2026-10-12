@@ -14,26 +14,40 @@ public partial class Game1
         var viewportWidth = ViewportWidth;
         var viewportHeight = ViewportHeight;
         var centerX = viewportWidth / 2f;
+        var isConquest = _world.MatchRules.Mode == GameModeKind.Conquest;
+        if (isConquest)
+        {
+            // Make room for the third point while preserving the player's HUD overrides.
+            SetHudElementRuntimeDefault(_hudLayoutProfile.Defaults[HudElementId.MatchKothRedTimer] with { Offset = new Vector2(-162f, -28f) });
+            SetHudElementRuntimeDefault(_hudLayoutProfile.Defaults[HudElementId.MatchKothBlueTimer] with { Offset = new Vector2(162f, -28f) });
+        }
 
         DrawKothPointStatus();
         DrawKothTeamTimer(
             HudElementId.MatchKothRedTimer,
-            centerX - 132f,
+            centerX - (isConquest ? 162f : 132f),
             viewportHeight - 28f,
             PlayerTeam.Red,
-            _world.ObjectiveRules.KothRedTimerTicksRemaining,
+            isConquest ? _world.RedCaps : _world.ObjectiveRules.KothRedTimerTicksRemaining,
             IsKothTimerActive(PlayerTeam.Red),
-            IsKothTeamOvertime(PlayerTeam.Red));
+            IsKothTeamOvertime(PlayerTeam.Red),
+            isScore: isConquest);
         DrawKothTeamTimer(
             HudElementId.MatchKothBlueTimer,
-            centerX + 132f,
+            centerX + (isConquest ? 162f : 132f),
             viewportHeight - 28f,
             PlayerTeam.Blue,
-            _world.ObjectiveRules.KothBlueTimerTicksRemaining,
+            isConquest ? _world.BlueCaps : _world.ObjectiveRules.KothBlueTimerTicksRemaining,
             IsKothTimerActive(PlayerTeam.Blue),
-            IsKothTeamOvertime(PlayerTeam.Blue));
+            IsKothTeamOvertime(PlayerTeam.Blue),
+            isScore: isConquest);
 
-        if (_world.ObjectiveRules.KothUnlockTicksRemaining > 0)
+        if (isConquest)
+        {
+            DrawMatchTimerHud(centerX);
+            DrawHudTextCentered($"First to {ConquestRules.ScoreLimit}", new Vector2(centerX, 64f), Color.White, 1f);
+        }
+        else if (_world.ObjectiveRules.KothUnlockTicksRemaining > 0)
         {
             DrawHudTextCentered($"Unlock {FormatHudTimerText(_world.ObjectiveRules.KothUnlockTicksRemaining)}", new Vector2(centerX, 30f), Color.White, 1f);
         }
@@ -60,6 +74,10 @@ public partial class Game1
         var objectiveHudY = origin.Y;
         var objectiveHudCounterY = origin.Y + (3f * scale);
         var drawX = origin.X - MathF.Floor(_world.ControlPoints.Count / 2f) * 48f * scale;
+        if (_world.MatchRules.Mode == GameModeKind.Conquest)
+        {
+            drawX = origin.X - (_world.ControlPoints.Count - 1) * 30f * scale;
+        }
         var firstX = drawX;
         for (var index = 0; index < _world.ControlPoints.Count; index += 1)
         {
@@ -111,7 +129,8 @@ public partial class Game1
         PlayerTeam team,
         int ticksRemaining,
         bool isActive,
-        bool isOvertime)
+        bool isOvertime,
+        bool isScore = false)
     {
         var center = new Vector2(defaultCenterX, defaultY);
         var scale = 1f;
@@ -149,7 +168,7 @@ public partial class Game1
         }
         else
         {
-            var timerLimitTicks = Math.Max(1, _config.TicksPerSecond * 180);
+            var timerLimitTicks = isScore ? ConquestRules.ScoreLimit : Math.Max(1, _config.TicksPerSecond * 180);
             var timerFrame = Math.Clamp((int)MathF.Floor((ticksRemaining / (float)timerLimitTicks) * 12f), 0, 12);
             TryDrawScreenSprite(
                 "TimerS",
@@ -158,7 +177,7 @@ public partial class Game1
                 Color.White,
                 new Vector2(timerHudScale));
             DrawTimerFontTextRightAlignedCenteredY(
-                FormatHudTimerText(ticksRemaining),
+                isScore ? ticksRemaining.ToString(CultureInfo.InvariantCulture) : FormatHudTimerText(ticksRemaining),
                 center + new Vector2(2f * scale, 0f),
                 textColor,
                 1.15f * scale);
@@ -183,6 +202,19 @@ public partial class Game1
 
     private bool IsKothTimerActive(PlayerTeam team)
     {
+        if (_world.MatchRules.Mode == GameModeKind.Conquest)
+        {
+            foreach (var point in _world.ControlPoints)
+            {
+                if (point.Team == team)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         if (_world.MatchRules.Mode == GameModeKind.KingOfTheHill)
         {
             for (var index = 0; index < _world.ControlPoints.Count; index += 1)

@@ -561,6 +561,8 @@ sealed class SnapshotBroadcaster
             CompetitiveReadyUpPhase = (byte)_world.ReadyUp.CompetitiveReadyUpPhase,
             CompetitiveReadyUpTicksRemaining = _world.ReadyUp.CompetitiveReadyUpTicksRemaining,
             CapLimit = _world.MatchRules.CapLimit,
+            MapLightStates = BuildMapLightStates(_world.Level),
+            DamageableZoneStates = BuildDamageableZoneStates(),
             SentryGibs = ConvertToArray(_world.SentryGibs, sentryGib => _world.Snapshots.ToSnapshotSentryGibState(sentryGib)),
             JumpPads = ConvertToArray(_world.JumpPads, jumpPad => _world.Snapshots.ToSnapshotJumpPadState(jumpPad)),
             CivilDefenseTurrets = ConvertToArray(_world.CivilDefenseTurrets, turret => _world.Snapshots.ToSnapshotCivilDefenseTurretState(turret)),
@@ -1148,4 +1150,40 @@ sealed class SnapshotBroadcaster
         };
     }
 
+    /// <summary>
+    /// The logic state of the map's logic-driven lights (full list, a few bytes each), so
+    /// every client shows lights, and damaging lasers, exactly as the server has them.
+    /// </summary>
+    private static SnapshotMapLightState[] BuildMapLightStates(SimpleLevel level)
+    {
+        var state = level.MapLightState;
+        var indices = state.LogicLightIndices;
+        if (indices.Count == 0)
+        {
+            return Array.Empty<SnapshotMapLightState>();
+        }
+
+        var result = new SnapshotMapLightState[indices.Count];
+        for (var index = 0; index < indices.Count; index += 1)
+        {
+            var lightIndex = indices[index];
+            result[index] = new SnapshotMapLightState((ushort)lightIndex, state.GetNetworkState(lightIndex));
+        }
+
+        return result;
+    }
+
+    private SnapshotDamageableZoneState[] BuildDamageableZoneStates()
+    {
+        var level = _world.Level;
+        var states = new List<SnapshotDamageableZoneState>();
+        foreach (var index in level.GetRoomObjectIndices(RoomObjectType.DamageableZone))
+        {
+            if (states.Count >= 1024 || index > ushort.MaxValue) break;
+            _world.MapLogic.GetDamageableZoneHealth(index);
+            var state = level.DamageableZoneStates[index];
+            states.Add(new SnapshotDamageableZoneState((ushort)index, state.Health, state.Revision, state.StateAgeTicks));
+        }
+        return states.ToArray();
+    }
 }

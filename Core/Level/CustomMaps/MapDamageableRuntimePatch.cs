@@ -34,7 +34,12 @@ public static class MapDamageableRuntimePatch
                 ReadProperty(properties, DamageableMetadata.HealWhenPropertyKey));
             roomObjects[index] = marker with
             {
-                DamageableZone = DamageableMetadata.ParseZoneConfiguration(properties, healWhenNodeIndex),
+                DamageableZone = DamageableMetadata.ParseZoneConfiguration(properties, healWhenNodeIndex) with
+                {
+                    OnRedDestroyedNodeIndex = MapLogicGraphImporter.ResolveLogicSignalNodeIndex(graph, ReadProperty(properties, DamageableMetadata.OnRedDestroyedPropertyKey)),
+                    OnBlueDestroyedNodeIndex = MapLogicGraphImporter.ResolveLogicSignalNodeIndex(graph, ReadProperty(properties, DamageableMetadata.OnBlueDestroyedPropertyKey)),
+                    OnDestroyedNodeIndex = MapLogicGraphImporter.ResolveLogicSignalNodeIndex(graph, ReadProperty(properties, DamageableMetadata.OnDestroyedPropertyKey)),
+                },
             };
         }
     }

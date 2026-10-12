@@ -22,6 +22,7 @@ public sealed partial class SimulationWorld : ISnapshotApplyHost
     LocalDeathCamState? ISnapshotApplyHost.LocalDeathCam { get => LocalDeathCam; set => LocalDeathCam = value; }
     PlayerEntity ISnapshotApplyHost.LocalPlayer => LocalPlayer;
     MapLifecycleSystem ISnapshotApplyHost.MapLifecycle => MapLifecycle;
+    MapLogicSystem ISnapshotApplyHost.MapLogic => MapLogic;
     MatchRules ISnapshotApplyHost.MatchRules { get => MatchRules; set => MatchRules = value; }
     MatchState ISnapshotApplyHost.MatchState { get => MatchState; set => MatchState = value; }
     IReadOnlyList<MineProjectileEntity> ISnapshotApplyHost.Mines => Mines;

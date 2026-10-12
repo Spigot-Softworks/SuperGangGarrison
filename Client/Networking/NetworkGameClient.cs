@@ -170,6 +170,9 @@ public sealed class NetworkGameClient : IDisposable
     public bool IsSpectator => IsConnected && LocalPlayerSlot >= SimulationWorld.FirstSpectatorSlot;
     public bool IsReplayConnection { get; private set; }
     public bool IsLegacyGg2Connection { get; private set; }
+
+    /// <summary>The rules of the current session's server (see <see cref="NetworkSessionProfile"/>).</summary>
+    public NetworkSessionProfile Profile => IsLegacyGg2Connection ? NetworkSessionProfile.Gg2 : NetworkSessionProfile.Sgg;
     public bool IsDemoRecordingActive => _demoRecorder is not null || !string.IsNullOrWhiteSpace(_armedDemoRecordingPath);
     public bool IsAutomaticDemoRecordingActive => IsDemoRecordingActive && _demoRecordingIsAutomatic;
 

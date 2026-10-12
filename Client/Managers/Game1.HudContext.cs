@@ -33,6 +33,7 @@ public partial class Game1 : IHudContext
 
 
     OpenGarrison.Client.NetworkGameClient IHudContext._networkClient { get => _networkClient; }
+    bool IHudContext.UsesGg2Presentation => UsesGg2Presentation;
 
     Microsoft.Xna.Framework.Graphics.Texture2D IHudContext._pixel { get => _pixel; set => _pixel = value; }
 

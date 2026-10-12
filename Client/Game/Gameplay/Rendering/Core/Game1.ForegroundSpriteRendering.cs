@@ -63,6 +63,7 @@ public partial class Game1
 
         foreach (var (roomObjectIndex, marker) in GetCachedForegroundSprites(layer))
         {
+            DrawPropFragments(cameraPosition, roomObjectIndex, false);
             if (!_world.Level.IsRoomObjectActive(roomObjectIndex))
             {
                 continue;
@@ -77,6 +78,8 @@ public partial class Game1
                 continue;
             }
 
+            texture = GetCurrentCustomMapFrame(texture, marker.ForegroundSprite.AnimationFramesPerSecond);
+
             var screenX = marker.CenterX - cameraPosition.X;
             var screenY = marker.CenterY - cameraPosition.Y;
             var drawWidth = MathF.Max(1f, marker.Width);
@@ -86,11 +89,11 @@ public partial class Game1
                 (int)MathF.Floor(screenY - (drawHeight * 0.5f)),
                 Math.Max(1, (int)MathF.Ceiling(drawWidth)),
                 Math.Max(1, (int)MathF.Ceiling(drawHeight)));
-            var opacity = ApplyCoveredPlayerForegroundOpacity(
-                ResolveForegroundSpriteDrawOpacity(roomObjectIndex, marker.ForegroundSprite),
-                destination,
-                cameraPosition);
-            var tint = Color.White * opacity;
+            var baseOpacity = ResolveForegroundSpriteDrawOpacity(roomObjectIndex, marker.ForegroundSprite);
+            var opacity = marker.ForegroundSprite.NoCoverFade
+                ? baseOpacity
+                : ApplyCoveredPlayerForegroundOpacity(baseOpacity, destination, cameraPosition);
+            var tint = Color.White * opacity * GetDestructiblePropOpacity(marker.DestructibleZoneIndex);
             if (marker.ForegroundSprite.Tile)
             {
                 var tileWidth = MathF.Max(1f, texture.Width * marker.ForegroundSprite.Scale);
@@ -117,6 +120,7 @@ public partial class Game1
                     SpriteEffects.None,
                     0f);
             }
+            DrawPropRespawnWarp(texture, texture.Bounds, destination, Color.White * opacity, marker.DestructibleZoneIndex);
         }
     }
 
@@ -124,7 +128,7 @@ public partial class Game1
     {
         if (!configuration.Jungle)
         {
-            return 1f;
+            return Math.Clamp(configuration.FixedOpacity ?? 1f, 0f, 1f);
         }
 
         var opacity = configuration.OutsideOpacity;

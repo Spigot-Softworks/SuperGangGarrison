@@ -22,6 +22,11 @@ public partial class Game1
 
     public void UpdateGameplayScreenState(KeyboardState keyboard, MouseState mouse)
     {
+        if (UpdateGarrisonBuilderQuickTestHotkeys(keyboard))
+        {
+            return;
+        }
+
         _gameplayManager.ScreenState.UpdateGameplayScreenState(keyboard, mouse);
     }
 

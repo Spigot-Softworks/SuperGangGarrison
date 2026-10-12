@@ -17,7 +17,7 @@ public partial class Game1
     private CustomMapBuilderValidationResult? _builderCachedValidation;
     private GarrisonBuilderHistorySnapshot? _builderValidationSnapshot;
     private Task<CustomMapBuilderValidationResult>? _builderValidationTask;
-    private readonly Dictionary<string, (CustomMapBuilderResource Resource, Task<TextureDecodeUtility.DecodedTextureData>? Task)> _builderResourceDecodeTasks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (CustomMapBuilderResource Resource, Task<GarrisonBuilderDecodedImage>? Task)> _builderResourceDecodeTasks = new(StringComparer.OrdinalIgnoreCase);
     private Action? _builderUnsavedAction;
     private bool _builderAllowDiscard;
     private float _builderRecoveryElapsed;
@@ -50,6 +50,7 @@ public partial class Game1
 
     private bool CommitGarrisonBuilderActiveEdits()
     {
+        if (_builderLightMaskCanvas is not null && !FinishGarrisonBuilderLightMaskPainting(apply: true)) return false;
         if (_builderPropertyTarget != GarrisonBuilderPropertyTarget.None)
         {
             if (_builderPropertyEditMode != GarrisonBuilderPropertyEditMode.List)
@@ -166,14 +167,13 @@ public partial class Game1
                 {
                     var bytes = resource.EmbeddedBytes ?? CustomMapBuilderResourceCodec.GetResourceBytes(resource);
                     BuilderImageValidation.Validate(bytes);
-                    return TextureDecodeUtility.DecodeTextureData(bytes, false);
+                    return DecodeGarrisonBuilderImage(bytes);
                 }));
                 _builderResourceDecodeTasks[pair.Key] = entry;
             }
             if (entry.Task?.IsCompletedSuccessfully == true && !_builderResourceTextureCache.ContainsKey(pair.Key))
             {
-                var image = entry.Task.Result;
-                _builderResourceTextureCache[pair.Key] = TextureDecodeUtility.CreateTexture(GraphicsDevice, image.PixelData, image.Width, image.Height);
+                StoreGarrisonBuilderResourceTexture(pair.Key, entry.Task.Result);
                 _builderResourceDecodeTasks[pair.Key] = (entry.Resource, null);
             }
             else if (entry.Task?.IsFaulted == true) { _ = entry.Task.Exception; _builderResourceDecodeTasks[pair.Key] = (entry.Resource, null); } // Already surfaced by import/export validation; do not retry each draw.
@@ -260,6 +260,8 @@ public partial class Game1
 
     private void ResetGarrisonBuilderDocumentSession()
     {
+        FinishGarrisonBuilderLightMaskPainting(apply: false);
+        _builderLightMaskDrafts.Clear();
         FinishGarrisonBuilderGestures();
         _builderPropertyEditSnapshot = null;
         CloseGarrisonBuilderPropertyEditor(applyChanges: false);

@@ -688,6 +688,8 @@ public partial class Game1 : IMenuContext
 
     void IMenuContext.TogglePredictionSetting() { TogglePredictionSetting(); }
 
+    void IMenuContext.ToggleGg2PredictionSetting() { ToggleGg2PredictionSetting(); }
+
     void IMenuContext.ToggleProjectileTeamTintSetting() { ToggleProjectileTeamTintSetting(); }
 
     void IMenuContext.ToggleScrollWheelWeaponSwapSetting() { ToggleScrollWheelWeaponSwapSetting(); }
@@ -705,6 +707,13 @@ public partial class Game1 : IMenuContext
     void IMenuContext.ToggleSpatialVoice() { ToggleSpatialVoice(); }
 
     void IMenuContext.ToggleSpriteDropShadowSetting() { ToggleSpriteDropShadowSetting(); }
+    void IMenuContext.ToggleClassicVisualsSetting() { ToggleClassicVisualsSetting(); }
+    void IMenuContext.ToggleMapLightingSetting() { ToggleMapLightingSetting(); }
+    void IMenuContext.ToggleLightsFollowJukeboxSetting() { ToggleLightsFollowJukeboxSetting(); }
+    void IMenuContext.ToggleCharacterBrightmapsSetting() { ToggleCharacterBrightmapsSetting(); }
+    void IMenuContext.ToggleWeatherSetting() { ToggleWeatherSetting(); }
+    void IMenuContext.AdjustLightingIntensitySetting(int step) { AdjustLightingIntensitySetting(step); }
+    void IMenuContext.CycleLightingIntensitySetting() { CycleLightingIntensitySetting(); }
 
     void IMenuContext.CycleWeaponBobSetting() { CycleWeaponBobSetting(); }
 

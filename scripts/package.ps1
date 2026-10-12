@@ -1096,9 +1096,11 @@ function Invoke-PublishDistributionMaps {
         throw "Release maps are missing the canonical Docking package at '$dockingSourceDirectory'."
     }
 
+    # Maps ship sorted as Maps/<Super Gang Garrison|Classic|Custom>/<mode>/<map>.
     Copy-DirectoryContents `
         -SourceDirectory $dockingSourceDirectory `
-        -DestinationDirectory (Join-Path $DestinationDirectory "Docking")
+        -DestinationDirectory (Join-Path $DestinationDirectory "Super Gang Garrison\cp\Docking")
+    New-Item -ItemType Directory -Force -Path (Join-Path $DestinationDirectory "Custom") | Out-Null
 }
 
 function Assert-RequiredDistributionMaps {
@@ -1118,9 +1120,12 @@ function Assert-RequiredDistributionMaps {
     )
 
     foreach ($mapName in $requiredCustomMaps) {
-        $manifestPath = Join-Path (Join-Path $MapsDirectory $mapName) "$mapName.json"
-        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
-            throw "Release maps are missing required packaged custom map '$mapName' at '$manifestPath'."
+        # Maps are sorted into category/mode folders, so look for the package at any depth.
+        $manifest = Get-ChildItem -LiteralPath $MapsDirectory -Recurse -File -Filter "$mapName.json" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Directory.Name -eq $mapName } |
+            Select-Object -First 1
+        if ($null -eq $manifest) {
+            throw "Release maps are missing required packaged custom map '$mapName' under '$MapsDirectory'."
         }
     }
 

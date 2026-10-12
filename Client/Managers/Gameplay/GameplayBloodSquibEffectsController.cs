@@ -37,7 +37,7 @@ public sealed partial class GameplayGoreEffectsController
         private const float SquibHeavyMaxSpeed = 9f;
         private const float SquibTrailScaleThreshold = 0.38f;
         private const float SquibGroundSnapMaxDistance = 420f;
-        // Y-down angles: negative = toward world-up. Shot cone = 15° up + 5° down.
+        // Y-down angles: negative = toward world-up. Shot cone = 15Â° up + 5Â° down.
         private const float SquibShotSpreadUpDegrees = 15f;
         private const float SquibShotSpreadDownDegrees = 5f;
 
@@ -59,7 +59,7 @@ public sealed partial class GameplayGoreEffectsController
 
         private void AdvanceBloodSquibEffects()
         {
-            // Floor stains come only from visible client squibs — not legacy BloodDropEntity.
+            // Floor stains come only from visible client squibs â€” not legacy BloodDropEntity.
             // Moving gibs (thrown, kicked or blasted) bleed and splat like GG2's Gib object.
             AdvanceGibBloodTrails();
             AdvanceBloodSquibParticles();
@@ -86,12 +86,12 @@ public sealed partial class GameplayGoreEffectsController
                 float spreadDegrees;
                 if (explosive)
                 {
-                    // Full radial blast — ignore the downward placeholder direction.
+                    // Full radial blast â€” ignore the downward placeholder direction.
                     spreadDegrees = _context._visualRandom.NextSingle() * 360f;
                 }
                 else
                 {
-                    // Focused along hit direction: 15° toward up, 5° toward down (20° total).
+                    // Focused along hit direction: 15Â° toward up, 5Â° toward down (20Â° total).
                     var offsetDegrees = -SquibShotSpreadUpDegrees
                         + (_context._visualRandom.NextSingle() * (SquibShotSpreadUpDegrees + SquibShotSpreadDownDegrees));
                     spreadDegrees = directionDegrees + offsetDegrees;
@@ -158,7 +158,7 @@ public sealed partial class GameplayGoreEffectsController
             float scale,
             int lifetimeTicks,
             bool experimentalCryoTinted,
-            bool heavy)
+            bool heavy, PlayerTeam? team = null)
         {
             if (_bloodSquibParticles.Count >= MaxBloodSquibParticles)
             {
@@ -175,7 +175,7 @@ public sealed partial class GameplayGoreEffectsController
                 unchecked(_nextBloodSquibSeed++),
                 lifetimeTicks,
                 experimentalCryoTinted,
-                heavy));
+                heavy, team ?? _spawnBloodTeam));
         }
 
 
@@ -220,7 +220,7 @@ public sealed partial class GameplayGoreEffectsController
                 if (TryResolveSquibSolidCollision(squib, solids, previousX, previousY, out var landed, out var impactX, out var impactY)
                     && landed)
                 {
-                    TryDepositSettledBloodOnGround(impactX, impactY, SettledBloodDepositAmount * squib.Scale, squib.ExperimentalCryoTinted);
+                    TryDepositSettledBloodOnGround(impactX, impactY, SettledBloodDepositAmount * squib.Scale, squib.ExperimentalCryoTinted, squib.Team);
                     _bloodSquibParticles.RemoveAt(index);
                     continue;
                 }
@@ -229,12 +229,12 @@ public sealed partial class GameplayGoreEffectsController
                 var clampedY = bounds.ClampY(squib.Y, BloodCellSize);
                 if (clampedX != squib.X || clampedY != squib.Y)
                 {
-                    // Left the world — snap any remaining mass onto ground under the exit point.
+                    // Left the world â€” snap any remaining mass onto ground under the exit point.
                     TryDepositSettledBloodOnGround(
                         clampedX,
                         clampedY,
                         SettledBloodDepositAmount * squib.Scale * 0.7f,
-                        squib.ExperimentalCryoTinted);
+                        squib.ExperimentalCryoTinted, squib.Team);
                     _bloodSquibParticles.RemoveAt(index);
                     continue;
                 }
@@ -246,7 +246,7 @@ public sealed partial class GameplayGoreEffectsController
                         squib.X,
                         squib.Y,
                         SettledBloodDepositAmount * squib.Scale * 0.7f,
-                        squib.ExperimentalCryoTinted);
+                        squib.ExperimentalCryoTinted, squib.Team);
                     _bloodSquibParticles.RemoveAt(index);
                 }
             }
@@ -306,7 +306,7 @@ public sealed partial class GameplayGoreEffectsController
                     squib.VelocityX *= -0.12f;
                     impactX = squib.X;
                     impactY = squib.Y;
-                    // Walls never count as ground — keep falling so stains don't float mid-air.
+                    // Walls never count as ground â€” keep falling so stains don't float mid-air.
                     landed = false;
                     return true;
                 }
@@ -401,7 +401,7 @@ public sealed partial class GameplayGoreEffectsController
                 }
 
                 cell.Amount -= transferAmount;
-                _pendingSettledBloodTransfers.Add((targetX, targetY, transferAmount, cell.ExperimentalCryoTinted));
+                _pendingSettledBloodTransfers.Add((targetX, targetY, transferAmount, cell.ExperimentalCryoTinted, cell.Team));
                 if (cell.Amount <= 0.05f)
                 {
                     _staleSettledBloodCellKeys.Add(entry.Key);
@@ -418,7 +418,7 @@ public sealed partial class GameplayGoreEffectsController
             for (var index = 0; index < _pendingSettledBloodTransfers.Count; index += 1)
             {
                 var transfer = _pendingSettledBloodTransfers[index];
-                AddSettledBloodCellAmount(transfer.X, transfer.Y, transfer.Amount, transfer.Cryo);
+                AddSettledBloodCellAmount(transfer.X, transfer.Y, transfer.Amount, transfer.Cryo, transfer.Team);
             }
 
             _pendingSettledBloodTransfers.Clear();
@@ -506,7 +506,7 @@ public sealed partial class GameplayGoreEffectsController
             return false;
         }
 
-        private void TryDepositSettledBloodOnGround(float worldX, float worldY, float amount, bool experimentalCryoTinted)
+        private void TryDepositSettledBloodOnGround(float worldX, float worldY, float amount, bool experimentalCryoTinted, PlayerTeam team = PlayerTeam.Neutral)
         {
             if (amount <= 0.01f)
             {
@@ -518,7 +518,7 @@ public sealed partial class GameplayGoreEffectsController
                 return;
             }
 
-            DepositSettledBlood(surfaceX, surfaceY, amount, experimentalCryoTinted);
+            DepositSettledBlood(surfaceX, surfaceY, amount, experimentalCryoTinted, team);
         }
 
         private static bool TrySnapToGroundSurface(
@@ -618,14 +618,14 @@ public sealed partial class GameplayGoreEffectsController
             return true;
         }
 
-        private void DepositSettledBlood(float worldX, float worldY, float amount, bool experimentalCryoTinted)
+        private void DepositSettledBlood(float worldX, float worldY, float amount, bool experimentalCryoTinted, PlayerTeam team = PlayerTeam.Neutral)
         {
             if (amount <= 0.01f)
             {
                 return;
             }
 
-            // Every droplet leaves a readable pool — never a single lone pixel.
+            // Every droplet leaves a readable pool â€” never a single lone pixel.
             amount = MathF.Max(amount, 0.7f);
 
             var solids = _context._world.Level.Solids;
@@ -674,17 +674,17 @@ public sealed partial class GameplayGoreEffectsController
             var minGY = (int)MathF.Floor((worldY - radiusUp) / BloodCellSize);
             var maxGY = (int)MathF.Floor((worldY + radiusDown) / BloodCellSize);
 
-            // Center only — sides taper through the ellipse on the 2px grid.
-            AddSettledBloodCellAmount(centerGx, centerGy, amount, experimentalCryoTinted);
+            // Center only â€” sides taper through the ellipse on the 2px grid.
+            AddSettledBloodCellAmount(centerGx, centerGy, amount, experimentalCryoTinted, team);
 
-            // One extra cell toward a wall/step riser — just enough to kill stair striping.
+            // One extra cell toward a wall/step riser â€” just enough to kill stair striping.
             if (cornerBoost > 0.25f && MathF.Abs(wallPullX) > 0.01f)
             {
                 AddSettledBloodCellAmount(
                     centerGx + (int)MathF.Sign(wallPullX),
                     centerGy,
                     amount * 0.55f,
-                    experimentalCryoTinted);
+                    experimentalCryoTinted, team);
             }
 
             for (var gy = minGY; gy <= maxGY; gy += 1)
@@ -732,11 +732,11 @@ public sealed partial class GameplayGoreEffectsController
                     }
 
                     var massScale = MathHelper.Lerp(0.35f, 0.9f, accum);
-                    AddSettledBloodCellAmount(gx, gy, amount * massScale * falloff, experimentalCryoTinted);
+                    AddSettledBloodCellAmount(gx, gy, amount * massScale * falloff, experimentalCryoTinted, team);
                 }
             }
 
-            BlendTowardNearbyPools(centerGx, centerGy, amount * 0.4f, experimentalCryoTinted);
+            BlendTowardNearbyPools(centerGx, centerGy, amount * 0.4f, experimentalCryoTinted, team);
 
             TrimSettledBloodCellsIfNeeded();
         }
@@ -815,7 +815,7 @@ public sealed partial class GameplayGoreEffectsController
             wallPullX = wallSign;
         }
 
-        private void BlendTowardNearbyPools(int centerGx, int centerGy, float amount, bool experimentalCryoTinted)
+        private void BlendTowardNearbyPools(int centerGx, int centerGy, float amount, bool experimentalCryoTinted, PlayerTeam team = PlayerTeam.Neutral)
         {
             if (amount <= 0.05f)
             {
@@ -847,21 +847,21 @@ public sealed partial class GameplayGoreEffectsController
                     // Midpoint fill toward the neighbour so pools meet smoothly.
                     var midGx = centerGx + (ox / 2);
                     var midGy = centerGy + (oy / 2);
-                    AddSettledBloodCellAmount(midGx, midGy, bridge, experimentalCryoTinted);
+                    AddSettledBloodCellAmount(midGx, midGy, bridge, experimentalCryoTinted, team);
                     if (Math.Abs(ox) > 1)
                     {
-                        AddSettledBloodCellAmount(centerGx + Math.Sign(ox), centerGy, bridge * 0.65f, experimentalCryoTinted);
+                        AddSettledBloodCellAmount(centerGx + Math.Sign(ox), centerGy, bridge * 0.65f, experimentalCryoTinted, team);
                     }
 
                     if (Math.Abs(oy) > 1)
                     {
-                        AddSettledBloodCellAmount(centerGx, centerGy + Math.Sign(oy), bridge * 0.65f, experimentalCryoTinted);
+                        AddSettledBloodCellAmount(centerGx, centerGy + Math.Sign(oy), bridge * 0.65f, experimentalCryoTinted, team);
                     }
                 }
             }
         }
 
-        private void AddSettledBloodCellAmount(int gx, int gy, float amount, bool experimentalCryoTinted)
+        private void AddSettledBloodCellAmount(int gx, int gy, float amount, bool experimentalCryoTinted, PlayerTeam team = PlayerTeam.Neutral)
         {
             if (amount <= 0.01f)
             {
@@ -871,6 +871,7 @@ public sealed partial class GameplayGoreEffectsController
             var key = (gx, gy);
             if (_settledBloodCells.TryGetValue(key, out var cell))
             {
+                if (amount >= cell.Amount || cell.Team == PlayerTeam.Neutral) cell.Team = team;
                 cell.Amount = MathF.Min(SettledBloodMaxAmount, cell.Amount + amount);
                 // Fresh blood keeps the pool coherent: rejuvenate so fade stays edge-driven.
                 cell.Age = 0;
@@ -889,6 +890,7 @@ public sealed partial class GameplayGoreEffectsController
                 DripProgress = 0f,
                 Age = 0,
                 ExperimentalCryoTinted = experimentalCryoTinted,
+                Team = team,
             };
         }
 
@@ -934,6 +936,11 @@ public sealed partial class GameplayGoreEffectsController
 
         private void DrawFlyingBloodSquibParticles(Vector2 cameraPosition)
         {
+            if (_context._world.Level.Lighting.BloodTeamColor)
+            {
+                DrawFlyingTeamBlood(cameraPosition);
+                return;
+            }
             var normalCells = _bloodDrawCellsScratch;
             var cryoCells = _bloodCryoDrawCellsScratch;
 
@@ -997,7 +1004,7 @@ public sealed partial class GameplayGoreEffectsController
                 }
 
                 var isCryo = entry.Value.ExperimentalCryoTinted;
-                drawCache.CaptureSourceCell(entry.Key, entry.Value.Amount, isCryo);
+                drawCache.CaptureSourceCell(entry.Key, entry.Value.Amount, isCryo, entry.Value.Team);
                 var cells = isCryo ? cryoCells : normalCells;
                 AddCellAmount(cells, entry.Key.X, entry.Key.Y, entry.Value.Amount);
             }
@@ -1007,6 +1014,8 @@ public sealed partial class GameplayGoreEffectsController
 
             AppendSettledBloodRenderCells(normalCells, drawCache.NormalCells, useCryoColors: false);
             AppendSettledBloodRenderCells(cryoCells, drawCache.CryoCells, useCryoColors: true);
+            AssignSettledBloodTeams(drawCache.NormalCells);
+            AssignSettledBloodTeams(drawCache.CryoCells);
 
             drawCache.CompleteBuild();
         }
@@ -1018,7 +1027,7 @@ public sealed partial class GameplayGoreEffectsController
             {
                 var cell = cells[index];
                 var rect = GetSettledBloodRenderRectangle(cell, cameraPosition, cellSize);
-                _context._spriteBatch.Draw(_context._pixel, rect, cell.Color);
+                _context._spriteBatch.Draw(_context._pixel, rect, GetBloodColor(cell.Color, cell.Team));
             }
         }
 
@@ -1117,7 +1126,7 @@ public sealed partial class GameplayGoreEffectsController
 
             bridgeScratch.Clear();
 
-            // Weld 2–3 cell horizontal gaps between separate pool blobs.
+            // Weld 2â€“3 cell horizontal gaps between separate pool blobs.
             _staleSettledBloodCellKeys.Clear();
             foreach (var key in cells.Keys)
             {
@@ -1159,7 +1168,7 @@ public sealed partial class GameplayGoreEffectsController
                 }
 
                 var missingNeighbours = CountMissingBloodNeighbours(cells, gx, gy);
-                // Any silhouette rim stays thin — depth only inside the core.
+                // Any silhouette rim stays thin â€” depth only inside the core.
                 if (missingNeighbours >= 1)
                 {
                     continue;
@@ -1410,7 +1419,7 @@ public sealed partial class GameplayGoreEffectsController
             Dictionary<(int, int), float> cells,
             Vector2 cameraPosition,
             bool useCryoColors,
-            bool useFlightColors)
+            bool useFlightColors, PlayerTeam team = PlayerTeam.Neutral)
         {
             if (cells.Count == 0)
             {
@@ -1426,6 +1435,7 @@ public sealed partial class GameplayGoreEffectsController
                     gy,
                     useCryoColors,
                     useFlightColors);
+                pixelColor = GetBloodColor(pixelColor, team);
 
                 var rect = new Rectangle(
                     (int)MathF.Round((gx * cellSize) - cameraPosition.X),
@@ -1443,7 +1453,7 @@ public sealed partial class GameplayGoreEffectsController
             bool useCryoColors,
             bool useFlightColors)
         {
-            // Inner silhouette: darker rim cells only — never expand outside the pool.
+            // Inner silhouette: darker rim cells only â€” never expand outside the pool.
             var isOutline = !cells.ContainsKey((gx - 1, gy))
                 || !cells.ContainsKey((gx + 1, gy))
                 || !cells.ContainsKey((gx, gy - 1))
@@ -1469,7 +1479,7 @@ public sealed partial class GameplayGoreEffectsController
         }
 
         // Multi-scale blotches of blood shades. Continuous field is neighbour-softened, then
-        // quantized so bands sit next to midtones (no harsh dark↔bright jumps).
+        // quantized so bands sit next to midtones (no harsh darkâ†”bright jumps).
         internal static Color ResolveSettledBloodFillColor(
             Dictionary<(int, int), float> cells,
             int gx,
@@ -1519,7 +1529,7 @@ public sealed partial class GameplayGoreEffectsController
 
         private static float SampleBloodShadeField(int gx, int gy)
         {
-            // Large regions (~5–8 cells), medium patches (~3 cells), small clumps (~2 cells).
+            // Large regions (~5â€“8 cells), medium patches (~3 cells), small clumps (~2 cells).
             var large = ValueNoise2D(gx * 0.17f, gy * 0.19f, unchecked((int)0xA11CEu));
             var medium = ValueNoise2D(gx * 0.33f, gy * 0.31f, unchecked((int)0xB100Du));
             var small = ValueNoise2D(gx * 0.55f, gy * 0.52f, unchecked((int)0xC0FFEEu));
@@ -1549,7 +1559,7 @@ public sealed partial class GameplayGoreEffectsController
 
         private static int QuantizeBloodShadeLevel(float shade)
         {
-            // 5 fill bands — enough for midtones between dark and bright blotches.
+            // 5 fill bands â€” enough for midtones between dark and bright blotches.
             if (shade < 0.18f)
             {
                 return 0;

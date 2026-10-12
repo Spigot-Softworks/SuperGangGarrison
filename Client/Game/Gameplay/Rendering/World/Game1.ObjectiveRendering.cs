@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Collections.Generic;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -83,10 +84,56 @@ public partial class Game1
             _ => "ControlPointNeutralS",
         };
 
+        if (_world.ArenaPointTeam is not (PlayerTeam.Red or PlayerTeam.Blue)
+            && TryDrawNeutralControlPointIcon(-1, pointMarker.Value.X, pointMarker.Value.Y, cameraPosition, capping: false))
+        {
+            return;
+        }
+
         var pulseAlpha = 0.5f + (0.5f * MathF.Sin((float)_world.Frame * 0.1f));
         TryDrawSprite(spriteName, 0, pointMarker.Value.X, pointMarker.Value.Y, cameraPosition, Color.White);
         TryDrawSprite(spriteName, 1, pointMarker.Value.X, pointMarker.Value.Y, cameraPosition, Color.White * pulseAlpha);
     }
+
+    private const string ControlPointNeutralSpinSprite = "ControlPointNeutralSpinS";
+
+    /// <summary>Spin speed of the neutral icon, in frames per second (faster while being captured).</summary>
+    private const float ControlPointSpinFramesPerSecond = 10f;
+    private const float ControlPointCappingSpinFramesPerSecond = 24f;
+
+    private readonly Dictionary<int, float> _controlPointSpinPhases = new();
+    private double _controlPointSpinLastTime = -1d;
+    private long _controlPointSpinLastFrame = -1;
+
+    /// <summary>
+    /// Neutral points show the spinning "?" icon. Each point keeps its own spin phase, so
+    /// speeding up while it is captured does not make the icon jump.
+    /// </summary>
+    private bool TryDrawNeutralControlPointIcon(int pointIndex, float x, float y, Vector2 cameraPosition, bool capping)
+    {
+        var sprite = GetResolvedSprite(ControlPointNeutralSpinSprite);
+        if (sprite is null || sprite.Frames.Count == 0)
+        {
+            return false;
+        }
+
+        // Advance every point's phase once per drawn frame by the real time since the last.
+        var now = _weatherClock.Elapsed.TotalSeconds;
+        var frameStamp = _characterLightingFrame;
+        if (frameStamp != _controlPointSpinLastFrame)
+        {
+            _controlPointSpinLastFrame = frameStamp;
+            _controlPointSpinDelta = _controlPointSpinLastTime < 0d ? 0f : (float)Math.Clamp(now - _controlPointSpinLastTime, 0d, 0.25d);
+            _controlPointSpinLastTime = now;
+        }
+
+        _controlPointSpinPhases.TryGetValue(pointIndex, out var phase);
+        phase = (phase + (_controlPointSpinDelta * (capping ? ControlPointCappingSpinFramesPerSecond : ControlPointSpinFramesPerSecond))) % sprite.Frames.Count;
+        _controlPointSpinPhases[pointIndex] = phase;
+        return TryDrawSprite(ControlPointNeutralSpinSprite, (int)phase, x, y, cameraPosition, Color.White);
+    }
+
+    private float _controlPointSpinDelta;
 
     private bool ShouldDrawControlPointSpritesOnMap()
     {
@@ -98,6 +145,7 @@ public partial class Game1
         return _world.MatchRules.Mode is GameModeKind.ControlPoint
             or GameModeKind.KingOfTheHill
             or GameModeKind.DoubleKingOfTheHill
+            or GameModeKind.Conquest
             || _world.Level.ShowControlPoints;
     }
 
@@ -119,6 +167,12 @@ public partial class Game1
                 PlayerTeam.Blue => "ControlPointBlueS",
                 _ => "ControlPointNeutralS",
             };
+
+            if (point.Team is not (PlayerTeam.Red or PlayerTeam.Blue)
+                && TryDrawNeutralControlPointIcon(index, point.Marker.X, point.Marker.Y, cameraPosition, point.CappingTicks > 0f))
+            {
+                continue;
+            }
 
             TryDrawSprite(spriteName, 0, point.Marker.X, point.Marker.Y, cameraPosition, Color.White);
             if (point.CappingTicks > 0f)

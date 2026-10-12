@@ -26,7 +26,9 @@ public partial class Game1
 
         var resolvedFillColor = fillColor ?? (useTeamColors
             ? GetUberOverlayColor(_world.LocalPlayer.Team)
-            : Color.Lerp(Color.Red, Color.LimeGreen, MathF.Min(1f, MathF.Max(0f, value / maxValue))));
+            : UsesGg2Presentation
+                ? GetGg2HealthBarColor(value / maxValue)
+                : Color.Lerp(Color.Red, Color.LimeGreen, MathF.Min(1f, MathF.Max(0f, value / maxValue))));
         var fillFraction = MathF.Min(1f, MathF.Max(0f, value / maxValue));
         Rectangle fillRectangle;
         if (fillDirection == HudFillDirection.VerticalBottomToTop)

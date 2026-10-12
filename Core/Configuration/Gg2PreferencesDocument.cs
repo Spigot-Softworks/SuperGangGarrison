@@ -41,6 +41,9 @@ public sealed class OpenGarrisonPreferencesDocument
     public const BuildMenuStyle DefaultBuildMenuStyle = BuildMenuStyle.List;
     public const bool DefaultCameraPanningEnabled = true;
     public const int DefaultDamageVignetteIntensityPercent = 100;
+    public const int DefaultLightingIntensityPercent = 85;
+    public const int MinLightingIntensityPercent = 5;
+    public const int MaxLightingIntensityPercent = 100;
     public const int DefaultCombatMusicVolumePercent = 120;
     public const bool DefaultPostGameMvpArtEnabled = true;
     public const int MinCursorSizePercent = 50;
@@ -251,9 +254,30 @@ public sealed class OpenGarrisonPreferencesDocument
 
     public bool EnablePrediction { get; set; } = true;
 
+    /// <summary>Predict the local player's movement on GG2 servers instead of waiting for the server's echo.</summary>
+    public bool Gg2PredictionEnabled { get; set; } = true;
+
     public float SmoothCameraMultiplier { get; set; }
 
     public bool SpriteDropShadowEnabled { get; set; }
+
+    /// <summary>Original GG2 look: stock sprites/animations, classic blood, static dead-body sprites.</summary>
+    public bool ClassicVisualsEnabled { get; set; }
+
+    /// <summary>Map lighting (light maps, rim light, glows). Off shows maps unlit.</summary>
+    public bool MapLightingEnabled { get; set; } = true;
+
+    /// <summary>Every map light pulses with the jukebox music, whatever the map set.</summary>
+    public bool LightsFollowJukeboxEnabled { get; set; }
+
+    /// <summary>Brightmapped parts of characters keep some of their colour in the dark (experimental).</summary>
+    public bool CharacterBrightmapsEnabled { get; set; } = true;
+
+    /// <summary>Map weather (rain, snow, fireflies, lightning).</summary>
+    public bool WeatherEnabled { get; set; } = true;
+
+    /// <summary>How strongly map lighting applies, in 5% steps (100 = as the map is authored).</summary>
+    public int LightingIntensityPercent { get; set; } = DefaultLightingIntensityPercent;
 
     public bool PixelPerfectWeaponRotation { get; set; } = true;
 
@@ -404,8 +428,15 @@ public sealed class OpenGarrisonPreferencesDocument
             ShowPlayerNamesEnabled = ini.GetBool(SettingsSection, "Show Player Names", true),
             PositionSmoothingEnabled = ini.GetBool(SettingsSection, "Position Smoothing", true),
             EnablePrediction = ini.GetBool(SettingsSection, "Enable Prediction", true),
+            Gg2PredictionEnabled = ini.GetBool(SettingsSection, "GG2 Prediction", true),
             SmoothCameraMultiplier = Math.Clamp(ini.GetFloat(SettingsSection, "Smooth Camera Multiplier", 0f), 0f, 1f),
             SpriteDropShadowEnabled = ini.GetBool(SettingsSection, "Sprite Drop Shadow", true),
+            ClassicVisualsEnabled = ini.GetBool(SettingsSection, "Classic GG2 Visuals", false),
+            MapLightingEnabled = ini.GetBool(SettingsSection, "Map Lighting", true),
+            LightsFollowJukeboxEnabled = ini.GetBool(SettingsSection, "Lights Follow Jukebox", false),
+            CharacterBrightmapsEnabled = ini.GetBool(SettingsSection, "Character Brightmaps", true),
+            WeatherEnabled = ini.GetBool(SettingsSection, "Weather Effects", true),
+            LightingIntensityPercent = NormalizeLightingIntensityPercent(ini.GetInt(SettingsSection, "Lighting Intensity", DefaultLightingIntensityPercent)),
             PixelPerfectWeaponRotation = ini.GetBool(SettingsSection, "Pixel Perfect Weapon Rotation", true),
             UseLocalWeaponRotation = ini.GetBool(SettingsSection, "Use Local Weapon Rotation", true),
             ClientSettingsMigrationVersion = ini.GetInt(SettingsSection, "Client Settings Migration Version", 0),
@@ -532,8 +563,15 @@ public sealed class OpenGarrisonPreferencesDocument
         ini.SetBool(SettingsSection, "Show Player Names", ShowPlayerNamesEnabled);
         ini.SetBool(SettingsSection, "Position Smoothing", PositionSmoothingEnabled);
         ini.SetBool(SettingsSection, "Enable Prediction", EnablePrediction);
+        ini.SetBool(SettingsSection, "GG2 Prediction", Gg2PredictionEnabled);
         ini.SetFloat(SettingsSection, "Smooth Camera Multiplier", Math.Clamp(SmoothCameraMultiplier, 0f, 1f));
         ini.SetBool(SettingsSection, "Sprite Drop Shadow", SpriteDropShadowEnabled);
+        ini.SetBool(SettingsSection, "Classic GG2 Visuals", ClassicVisualsEnabled);
+        ini.SetBool(SettingsSection, "Map Lighting", MapLightingEnabled);
+        ini.SetBool(SettingsSection, "Lights Follow Jukebox", LightsFollowJukeboxEnabled);
+        ini.SetBool(SettingsSection, "Character Brightmaps", CharacterBrightmapsEnabled);
+        ini.SetBool(SettingsSection, "Weather Effects", WeatherEnabled);
+        ini.SetInt(SettingsSection, "Lighting Intensity", NormalizeLightingIntensityPercent(LightingIntensityPercent));
         ini.SetBool(SettingsSection, "Pixel Perfect Weapon Rotation", PixelPerfectWeaponRotation);
         ini.SetBool(SettingsSection, "Use Local Weapon Rotation", UseLocalWeaponRotation);
         ini.SetInt(SettingsSection, "Client Settings Migration Version", ClientSettingsMigrationVersion);
@@ -1029,6 +1067,13 @@ public sealed class OpenGarrisonPreferencesDocument
     private static int NormalizeDamageVignetteIntensityPercent(int percent)
     {
         return Math.Clamp(percent, 0, 100);
+    }
+
+    /// <summary>Lighting intensity snapped to 5% steps within its range.</summary>
+    public static int NormalizeLightingIntensityPercent(int percent)
+    {
+        var snapped = (int)Math.Round(percent / 5d, MidpointRounding.AwayFromZero) * 5;
+        return Math.Clamp(snapped, MinLightingIntensityPercent, MaxLightingIntensityPercent);
     }
 
 }

@@ -64,6 +64,7 @@ internal sealed class ClientSnapshotState
 internal sealed class MapRuntimeState
 {
     public float[] DamageableZoneHealth { get; set; } = [];
+    public long[] DamageableZoneChangedFrame { get; set; } = [];
 
     public PlayerTeam?[] DamageableZoneLastDamagingTeam { get; set; } = [];
 

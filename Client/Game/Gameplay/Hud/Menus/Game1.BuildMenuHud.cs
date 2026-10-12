@@ -52,7 +52,7 @@ public partial class Game1
 
     private PlayerInputSnapshot ApplyBuildMenuInputSelection(PlayerInputSnapshot input)
     {
-        if (_networkClient.IsLegacyGg2Connection)
+        if (!_networkClient.Profile.OffersBuildWheel)
         {
             return input;
         }
@@ -134,7 +134,7 @@ public partial class Game1
 
     private void DrawBuildMenuHud()
     {
-        if (_networkClient.IsLegacyGg2Connection) return;
+        if (!_networkClient.Profile.OffersBuildWheel) return;
 
         if ((!_buildMenuOpen && !_hudEditorOpen) || _world.LocalPlayer.ClassId != PlayerClass.Engineer
             || !CanDrawGameplayBuildHud()
@@ -421,7 +421,7 @@ public partial class Game1
     private void UpdateBuildMenuState(KeyboardState keyboard, MouseState mouse, PlayerInputSnapshot input)
     {
         ResetBuildMenuInputSelection();
-        if (_networkClient.IsLegacyGg2Connection)
+        if (!_networkClient.Profile.OffersBuildWheel)
         {
             if (_buildMenuOpen) BeginClosingBuildMenu();
             return;

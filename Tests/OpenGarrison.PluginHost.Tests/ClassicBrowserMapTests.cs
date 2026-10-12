@@ -37,7 +37,7 @@ public sealed class ClassicBrowserMapTests
                 var entry = Assert.Single(SimpleLevelFactory.GetAvailableSourceLevels(), e => e.Name == variant.LevelName);
                 Assert.Equal(ContentRoot.GetPath(variant.RelativeSourcePath.Split('/')), entry.RoomSourcePath);
                 var level = SimpleLevelFactory.CreateImportedLevel(variant.LevelName);
-                Assert.NotNull(level);
+                Assert.True(level is not null, $"Could not import browser map {variant.LevelName} from {entry.RoomSourcePath}.");
                 Assert.Equal(variant.LevelName, level.Name);
                 Assert.Equal(variant.Mode, level.Mode);
                 Assert.NotEmpty(level.Solids);

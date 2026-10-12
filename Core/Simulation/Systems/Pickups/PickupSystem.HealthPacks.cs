@@ -14,8 +14,9 @@ internal sealed partial class PickupSystem
             var pickedUp = false;
             foreach (var player in _host.EnumerateSimulatedPlayers())
             {
+                // A burning player picks up a pack even at full health: it puts them out.
                 if (!player.IsAlive
-                    || player.Health >= player.MaxHealth
+                    || (player.Health >= player.MaxHealth && !player.IsBurning)
                     || !player.IntersectsMarker(
                         healthPack.X,
                         healthPack.Y,
@@ -42,11 +43,13 @@ internal sealed partial class PickupSystem
                         healAmount,
                         soundName: "CbntHealSnd",
                         soundX: player.X,
-                        soundY: player.Y) <= 0)
+                        soundY: player.Y) <= 0
+                    && !player.IsBurning)
                 {
                     continue;
                 }
 
+                player.ExtinguishAfterburn();
                 pickedUp = true;
                 break;
             }

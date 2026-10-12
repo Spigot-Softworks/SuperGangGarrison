@@ -56,10 +56,10 @@ public partial class Game1
         var isKothMode = _world.MatchRules.Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill;
         var redCenterValue = _world.MatchRules.Mode == GameModeKind.Arena
             ? _world.ArenaRedConsecutiveWins
-            : IsPracticeSessionActive ? GetPracticeRoundPoints(PlayerTeam.Red) : _world.RedCaps;
+            : IsPracticeSessionActive && _world.MatchRules.Mode != GameModeKind.Conquest ? GetPracticeRoundPoints(PlayerTeam.Red) : _world.RedCaps;
         var blueCenterValue = _world.MatchRules.Mode == GameModeKind.Arena
             ? _world.ArenaBlueConsecutiveWins
-            : IsPracticeSessionActive ? GetPracticeRoundPoints(PlayerTeam.Blue) : _world.BlueCaps;
+            : IsPracticeSessionActive && _world.MatchRules.Mode != GameModeKind.Conquest ? GetPracticeRoundPoints(PlayerTeam.Blue) : _world.BlueCaps;
         var redCenterText = isKothMode
             ? FormatHudTimerText(_world.ObjectiveRules.KothRedTimerTicksRemaining)
             : redCenterValue.ToString(CultureInfo.InvariantCulture);
@@ -516,7 +516,8 @@ public partial class Game1
 
     private void DrawScoreboardSelectedPlayerCard()
     {
-        if (_scoreboardCardPlayerRow is not { } row)
+        // GG2's scoreboard has no player cards.
+        if (UsesGg2Presentation || _scoreboardCardPlayerRow is not { } row)
         {
             return;
         }

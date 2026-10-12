@@ -25,6 +25,7 @@ internal interface ISnapshotApplyHost : ISimulationWorldState, ISimulationPlayer
     LocalDeathCamState? LocalDeathCam { get; set; }
     PlayerEntity LocalPlayer { get; }
     MapLifecycleSystem MapLifecycle { get; }
+    MapLogicSystem MapLogic { get; }
     MatchRules MatchRules { get; set; }
     MatchState MatchState { get; set; }
     IReadOnlyList<MineProjectileEntity> Mines { get; }

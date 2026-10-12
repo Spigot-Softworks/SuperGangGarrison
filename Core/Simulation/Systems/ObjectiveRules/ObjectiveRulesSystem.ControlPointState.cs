@@ -106,6 +106,14 @@ internal sealed partial class ObjectiveRulesSystem
         for (var index = 0; index < _host.Objectives.ControlPoints.Points.Count; index += 1)
         {
             var point = _host.Objectives.ControlPoints.Points[index];
+            if (!_host.Level.IsControlPointLogicActive(point.Marker))
+            {
+                point.CappingTeam = null;
+                point.CappingTicks = 0;
+                point.Cappers = point.RedCappers = point.BlueCappers = 0;
+                ClearCaptureParticipants(point);
+                continue;
+            }
             var previousRedCappers = point.RedCappers;
             var previousBlueCappers = point.BlueCappers;
             var redCappers = redCapStrengthByPoint[index];
@@ -155,7 +163,11 @@ internal sealed partial class ObjectiveRulesSystem
 
             var capStrength = GetCaptureProgressPerTick(cappers);
 
-            if (_host.Level.ControlPointSettings.OverrideInitialOwnership)
+            if (_host.MatchRules.Mode == GameModeKind.Conquest)
+            {
+                point.IsLocked = false;
+            }
+            else if (_host.Level.ControlPointSettings.OverrideInitialOwnership)
             {
                 var isLocked = point.IsLocked;
                 ControlPointLockDependencyMetadata.ApplyMapLockTriggers(
@@ -423,6 +435,8 @@ internal sealed partial class ObjectiveRulesSystem
         HashSet<int>[] blueCappersByPoint)
     {
         point.Team = team;
+        point.ConquestOwnedTicks = 0;
+        point.ConquestScoringTeam = team;
         point.CappingTicks = 0f;
         point.CappingTeam = null;
         point.Cappers = 0;
