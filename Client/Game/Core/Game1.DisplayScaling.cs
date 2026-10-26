@@ -203,6 +203,23 @@ public partial class Game1
             transformMatrix: SubpixelWorld.GetWorldTransform(GameplayCameraZoom));
     }
 
+    // Restarts the active world batch with another blend state (screen effects), keeping its
+    // sampler, rasterizer and camera transform.
+    public void RestartGameplayWorldSpriteBatch(BlendState blendState)
+    {
+        if (!_gameplayWorldSpriteBatchActive)
+        {
+            return;
+        }
+
+        _spriteBatch.End();
+        _spriteBatch.Begin(
+            blendState: blendState,
+            samplerState: SamplerState.PointClamp,
+            rasterizerState: _gameplayWorldRasterizerState,
+            transformMatrix: SubpixelWorld.GetWorldTransform(GameplayCameraZoom));
+    }
+
     private Matrix? GetActiveGameplayWorldSpriteBatchTransform()
     {
         return _gameplayWorldSpriteBatchActive

@@ -99,6 +99,17 @@ internal static class Og2NavigationGraphBuilder
         AddAnchorEdges(level, anchorRecords, surfaces, surfaceNodeIndices, nodes, envelope, adjacency, edgeKeys);
         AddRecoveryBridgeEdges(level, anchorRecords, nodes, envelope, adjacency, edgeKeys);
 
+        // Geometry alone makes a conveyor corridor appear bidirectional.
+        // Remove walks against a full-speed push before route costs are cached.
+        for (var fromIndex = 0; fromIndex < nodes.Count; fromIndex++)
+        {
+            var from = nodes[fromIndex];
+            adjacency[fromIndex].RemoveAll(edge => edge.Kind == NavEdgeKind.Walk
+                && BotNavigationEnvironment.HasOpposingForce(level, from.X, from.Y,
+                    nodes[edge.ToNode].X, nodes[edge.ToNode].Y,
+                    envelope.LeftOffset, envelope.TopOffset, envelope.RightOffset, envelope.BottomOffset));
+        }
+
         var graph = new NavGraph(
             nodes.ToArray(),
             adjacency,
@@ -1500,6 +1511,8 @@ internal static class Og2NavigationGraphBuilder
         var top = y + envelope.TopOffset;
         var right = x + envelope.RightOffset;
         var bottom = y + envelope.BottomOffset;
+        if (BotNavigationEnvironment.IntersectsLethalZone(level, left, top, right, bottom))
+            return true;
         if (level.IntersectsSolid(left, top, right, bottom))
         {
             return true;
@@ -1730,7 +1743,7 @@ internal static class Og2NavigationGraphBuilder
                     out _,
                     out _))
             {
-                foreach (var playerClass in Enum.GetValues<PlayerClass>())
+                foreach (var playerClass in PlayerClassSlots.Stock)
                 {
                     if (OpenGarrison.BotAI.BotNavigationProfiles.GetProfileForClass(playerClass) == profile)
                     {
@@ -1907,7 +1920,7 @@ internal static class Og2NavigationGraphBuilder
     {
         public static NavigationEnvelope Create()
         {
-            var definitions = Enum.GetValues<PlayerClass>()
+            var definitions = PlayerClassSlots.Stock
                 .Select(CharacterClassCatalog.GetDefinition)
                 .ToArray();
             return new NavigationEnvelope(
@@ -2188,7 +2201,7 @@ internal static class Og2NavigationGraphStore
         var configured = Environment.GetEnvironmentVariable("BOTBRAIN_NAV_ALPHA_CONTACT_CLASSES");
         if (string.IsNullOrWhiteSpace(configured))
         {
-            return Enum.GetValues<PlayerClass>();
+            return PlayerClassSlots.Stock;
         }
 
         var classes = configured
@@ -2201,7 +2214,7 @@ internal static class Og2NavigationGraphStore
             .Distinct()
             .ToArray();
 
-        return classes.Length > 0 ? classes : Enum.GetValues<PlayerClass>();
+        return classes.Length > 0 ? classes : PlayerClassSlots.Stock;
     }
 
     private static void TraceCache(SimpleLevel level, string status, string path, NavGraph graph)

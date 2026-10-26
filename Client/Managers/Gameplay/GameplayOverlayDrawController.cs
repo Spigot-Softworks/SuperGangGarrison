@@ -124,6 +124,7 @@ public sealed class GameplayOverlayDrawController
             {
                 _context.BeginGameplayWorldSpriteBatch(RasterizerState.CullNone);
                 _context.Gameplay.WorldDraw.DrawGameplayWorldForCamera(cameraPosition, worldViewportWidth, worldViewportHeight);
+                _context.Gameplay.PluginEffects.DrawScreenEffects(cameraPosition, worldViewportWidth, worldViewportHeight);
                 _context.EndGameplayWorldSpriteBatch();
                 return;
             }
@@ -138,6 +139,7 @@ public sealed class GameplayOverlayDrawController
             _context.GraphicsDevice.ScissorRectangle = new Rectangle(0, 0, viewportWidth, gameplayViewportHeight);
             _context.BeginGameplayWorldSpriteBatch(scissorRasterizer);
             _context.Gameplay.WorldDraw.DrawGameplayWorldForCamera(cameraPosition, worldViewportWidth, worldViewportHeight);
+            _context.Gameplay.PluginEffects.DrawScreenEffects(cameraPosition, worldViewportWidth, worldViewportHeight);
             _context.EndGameplayWorldSpriteBatch();
             _context.GraphicsDevice.ScissorRectangle = previousScissor;
         }

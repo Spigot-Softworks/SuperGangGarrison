@@ -206,7 +206,13 @@ public static class ControlPointOwnershipResolver
             return 0;
         }
 
-        return Math.Clamp(ResolveControlPointIndex(entity) - ControlPointIndexMetadata.MinIndex, 0, ControlPointIndexMetadata.MaxIndex);
+        // ControlPointNeutralS frames: 0 = plain (point 1), 1 = faded variant with no number,
+        // 2..5 = numbered 2..5. Point n therefore uses frame n, except point 1 which uses 0
+        // (the same frames the entity palette uses). Higher indexes use the
+        // unnumbered variant instead of incorrectly displaying point 5.
+        var index = ResolveControlPointIndex(entity);
+        return index <= ControlPointIndexMetadata.MinIndex ? 0
+            : index > ControlPointIndexMetadata.MaxIndex ? 1 : index;
     }
 
     public static bool IsControlPointEntity(string type)

@@ -205,7 +205,9 @@ partial class GameServer
         _world.ServerTuning.SetRoundEndFriendlyFire(host.RoundEndFriendlyFireEnabled);
         _world.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(
             EnableSecondaryAbilities: host.SecondaryAbilitiesEnabled,
-            EnableSoldierShotgunSecondaryWeapon: host.SecondaryAbilitiesEnabled));
+            EnableSoldierShotgunSecondaryWeapon: host.SecondaryAbilitiesEnabled,
+            EnableHardcore: host.HardcoreEnabled));
+        _world.MapLifecycle.SetConquestScoreLimit(host.ConquestScoreLimit);
         _world.MapLifecycle.ConfigureMatchDefaults(
             timeLimitMinutes: Math.Clamp(host.TimeLimitMinutes, 1, 255),
             capLimit: Math.Clamp(host.CapLimit, 1, 255),
@@ -686,6 +688,8 @@ partial class GameServer
             _relayHostCts = null;
             _pluginHost?.NotifyServerStopped();
             _pluginHost?.ShutdownPlugins();
+            // The registry is process-wide; an embedded server must not leave it sealed for practice or the next server.
+            CharacterClassCatalog.RuntimeRegistry.UnsealAbilityDefinitions();
             Console.WriteLine("[server] cleanup complete.");
         }
     }
@@ -1111,6 +1115,21 @@ partial class GameServer
             minValue: 1,
             maxValue: 255);
         registry.RegisterInteger(
+            "sv_conquest_scorelimit",
+            "Points needed to win Conquest.",
+            _world.ConfiguredConquestScoreLimit,
+            () => _world.ConfiguredConquestScoreLimit,
+            value => _world.MapLifecycle.SetConquestScoreLimit(value),
+            minValue: 1,
+            maxValue: ConquestRules.MaximumScoreLimit);
+        registry.RegisterBoolean(
+            "sv_experimental_hardcore",
+            "Experimental Hardcore: cap every class at 75 health.",
+            _world.ExperimentalGameplaySettings.EnableHardcore,
+            () => _world.ExperimentalGameplaySettings.EnableHardcore,
+            value => _world.ConfigureExperimentalGameplaySettings(
+                _world.ExperimentalGameplaySettings with { EnableHardcore = value }));
+        registry.RegisterInteger(
             "sv_respawnseconds",
             "Current respawn time in seconds.",
             _respawnSecondsOverride ?? _world.ConfiguredRespawnSeconds,
@@ -1492,6 +1511,7 @@ partial class GameServer
             receiveCustomBubbleUpload: _outboundMessaging.ReceiveCustomBubbleUpload,
             receiveCustomBubbleClear: _outboundMessaging.ReceiveCustomBubbleClear,
             sendCustomBubbleStates: _outboundMessaging.SendCustomBubbleStatesToClient,
+            sendGameplayContent: _outboundMessaging.SendGameplayContentSync,
             localPredictionEnabledGetter: () => _localPredictionEnabled,
             sendProtocol64StateResync: (client, request) =>
                 _outboundMessaging.SendProtocol64StateResync(client, request, unchecked((uint)_world.Frame)),

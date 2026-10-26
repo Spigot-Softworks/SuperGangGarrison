@@ -125,7 +125,7 @@ public sealed class TopDownMovementTests
         var goal = graph.FindNearestNode(400f, 300f);
 
         Assert.True(graph.NodeCount > 0);
-        foreach (var playerClass in Enum.GetValues<PlayerClass>())
+        foreach (var playerClass in PlayerClassSlots.Stock)
         {
             var path = graph.FindPath(start, goal, CharacterClassCatalog.GetDefinition(playerClass).Id, team: PlayerTeam.Red);
             Assert.NotNull(path);

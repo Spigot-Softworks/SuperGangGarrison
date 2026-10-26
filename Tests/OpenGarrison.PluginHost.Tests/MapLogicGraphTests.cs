@@ -5,6 +5,30 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class MapLogicGraphTests
 {
+    [Theory]
+    [InlineData(MapLogicNodeKind.Timer)]
+    [InlineData(MapLogicNodeKind.Oscillator)]
+    public void OwnershipRefreshPreservesStatefulOutputsAndTheirConsumers(MapLogicNodeKind kind)
+    {
+        var graph = MapLogicGraphBuilder.Build([
+            new MapLogicNodeDefinition { LogicKey = "source", Kind = kind,
+                TriggerOnStart = true, CountdownSeconds = 0.1f, Autostart = true, TrueTimeSeconds = 10f },
+            new MapLogicNodeDefinition { LogicKey = "consumer", Kind = MapLogicNodeKind.Gate,
+                GateType = MapLogicGateType.Or, InputRef1 = "node:source" },
+        ]);
+        graph.ResetTimerStates();
+        graph.ResetOscillatorStates();
+        graph.AdvanceTimers(0.1f);
+        graph.AdvanceOscillators(0.1f);
+        Assert.True(graph.GetOutput(graph.NodeIndexByKey["source"]));
+        for (var evaluation = 0; evaluation < 5; evaluation++)
+        {
+            graph.EvaluateCombinatorial([]);
+            Assert.True(graph.GetOutput(graph.NodeIndexByKey["source"]));
+            Assert.True(graph.GetOutput(graph.NodeIndexByKey["consumer"]));
+        }
+    }
+
     [Fact]
     public void AndGateOutputsTrueOnlyWhenBothInputsTrue()
     {

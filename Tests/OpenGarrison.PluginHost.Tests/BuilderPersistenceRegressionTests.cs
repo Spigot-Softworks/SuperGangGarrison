@@ -11,6 +11,161 @@ namespace OpenGarrison.PluginHost.Tests;
 public sealed class BuilderPersistenceRegressionTests : IDisposable
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MapScriptNamesAndGroupsSurviveDraftAndExport(bool package)
+    {
+        var source = "-- quotes: \"Hello\"; braces: { }\nfunction on_start()\n  print('map loaded')\nend";
+        var named = CustomMapBuilderEntity.Create("medCabinet", 40, 50,
+            new Dictionary<string, string> { [MapObjectMetadata.NameKey] = "red_cabinet", [MapObjectMetadata.GroupsKey] = "red_spawn, cabinets" });
+        var document = _document with { Entities = [.. _document.Entities, named],
+            Metadata = new Dictionary<string, string>(_document.Metadata) { [MapScriptMetadata.SourceKey] = source } };
+        var draft = Path.Combine(_root, "script.ogmap");
+        BuilderProjectStore.Save(document, draft);
+        var loaded = BuilderProjectStore.Load(draft, Path.Combine(_root, "script-cache"));
+        Assert.Equal(source, MapScriptMetadata.Read(loaded.Metadata));
+        var path = Path.Combine(_root, package ? "scripted/map.json" : "scripted.png");
+        if (package) CustomMapPackageExporter.Export(loaded, path); else CustomMapPngExporter.Export(loaded, path);
+        var room = (package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!).Room;
+        Assert.Equal(source, room.MapScriptSource);
+        var marker = Assert.Single(room.RoomObjects.Where(marker => marker.Type == RoomObjectType.HealingCabinet));
+        Assert.Equal("red_cabinet", marker.ObjectName);
+        Assert.Equal("red_spawn, cabinets", marker.ObjectGroups);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OverlappingLegacyCabinetsKeepIndependentStableTargets(bool package)
+    {
+        var first = CustomMapBuilderEntity.Create("medCabinet", 80, 100,
+            new Dictionary<string, string> { ["mapEntityId"] = "first-cabinet" });
+        var second = first with { Properties = new Dictionary<string, string> { ["mapEntityId"] = "second-cabinet" } };
+        var disable = CustomMapBuilderEntity.Create("logicActivator", 20, 20,
+            new Dictionary<string, string> { ["logicKey"] = "disable-cabinet", ["activatorBehavior"] = "disable",
+                ["activateOnStart"] = "true", ["activatorEntity"] = MapLogicEntityReference.FormatEntityRef(second) });
+        var document = _document with { Entities = [.. _document.Entities, first, second, disable] };
+        var path = Path.Combine(_root, package ? "cabinets/map.json" : "cabinets.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var room = (package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!).Room;
+        var activator = Assert.Single(room.LogicActivators.Activators);
+        Assert.Equal("second-cabinet", room.RoomObjects[activator.TargetRoomObjectIndex].MapEntityId);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void OverlappingSpritesKeepIndependentMapStartActivatorTargets(bool package, bool reverseOrder)
+    {
+        using var image = new Image<Rgba32>(8, 8);
+        using var stream = new MemoryStream();
+        image.SaveAsPng(stream);
+        var red = CustomMapBuilderEntity.Create("logicCustomSprite", 80, 100,
+            new Dictionary<string, string> { ["mapEntityId"] = "red-sprite", ["image"] = "red", ["scale"] = "6" });
+        var blue = CustomMapBuilderEntity.Create("logicCustomSprite", 80, 100,
+            new Dictionary<string, string> { ["mapEntityId"] = "blue-sprite", ["image"] = "blue", ["scale"] = "6" });
+        var enableRed = CustomMapBuilderEntity.Create("logicActivator", 20, 20,
+            new Dictionary<string, string> { ["logicKey"] = "enable-red", ["activatorBehavior"] = "enable",
+                ["activateOnStart"] = "true", ["activatorEntity"] = MapLogicEntityReference.FormatEntityRef(red) });
+        var disableBlue = CustomMapBuilderEntity.Create("logicActivator", 40, 20,
+            new Dictionary<string, string> { ["logicKey"] = "disable-blue", ["activatorBehavior"] = "disable",
+                ["activateOnStart"] = "true", ["activatorEntity"] = MapLogicEntityReference.FormatEntityRef(blue) });
+        var resources = new Dictionary<string, CustomMapBuilderResource>
+        {
+            ["red"] = new("red", "", CustomMapBuilderResourceKind.CustomSprite, stream.ToArray()),
+            ["blue"] = new("blue", "", CustomMapBuilderResourceKind.CustomSprite, stream.ToArray()),
+        };
+        var document = _document with
+        {
+            Entities = [.. _document.Entities, .. (reverseOrder ? new[] { blue, red } : new[] { red, blue }), enableRed, disableBlue],
+            Resources = resources,
+        };
+        var path = Path.Combine(_root, package ? "overlap/map.json" : "overlap.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var room = (package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!).Room;
+        Assert.Equal(2, room.LogicActivators.Activators.Count);
+        Assert.Equal(2, room.LogicActivators.Activators.Select(activator => activator.TargetRoomObjectIndex).Distinct().Count());
+        var mask = Enumerable.Repeat(true, room.RoomObjects.Count).ToArray();
+        var startApplied = new bool[room.LogicActivators.Activators.Count];
+        var state = MapLogicActivatorRuntimeState.CreateForActivatorCount(startApplied.Length);
+        for (var tick = 0; tick < 3; tick++)
+        {
+            MapLogicActivatorRuntime.Apply(room.LogicGraph, room.LogicActivators, mask, startApplied, state, room.RoomObjects);
+            for (var index = 0; index < room.RoomObjects.Count; index++)
+            {
+                if (room.RoomObjects[index].Type != RoomObjectType.CustomMapSprite) continue;
+                Assert.Equal(room.RoomObjects[index].CustomMapSprite.ImageResourceName == "red", mask[index]);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RoundEndAndDestroyWhenConnectionsSurviveExportAndRuntimeImport(bool package)
+    {
+        var source = CustomMapBuilderEntity.Create("logicGate", 20, 20,
+            new Dictionary<string, string> { ["logicKey"] = "condition", ["gateType"] = "or" });
+        var completed = CustomMapBuilderEntity.Create("logicGate", 40, 20,
+            new Dictionary<string, string> { ["logicKey"] = "completed", ["gateType"] = "or" });
+        var roundEnd = CustomMapBuilderEntity.Create(MapRoundEndMetadata.EntityType, 60, 20,
+            new Dictionary<string, string> { ["logicKey"] = "roundEnd", ["logicInput"] = "node:condition",
+                ["winnerTeam"] = "blue", ["countdownDelay"] = "3", ["countdownSeconds"] = "8", ["onComplete"] = "node:completed" });
+        var zone = CustomMapBuilderEntity.Create(DamageableMetadata.DamageableEntityType, 80, 20,
+            new Dictionary<string, string> { ["mapEntityId"] = "zone", ["destroyWhen"] = "node:completed" });
+        var document = _document with { Entities = [.. _document.Entities, source, completed, roundEnd, zone] };
+        var path = Path.Combine(_root, package ? "round-end/map.json" : "round-end.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var reopened = package ? CustomMapPackageImporter.ImportDocument(path)! : CustomMapBuilderPngImporter.Import(path)!;
+        Assert.Equal("node:completed", reopened.Entities.Single(entity => entity.Type == MapRoundEndMetadata.EntityType).Properties["onComplete"]);
+        var runtime = package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!;
+        var graph = runtime.Room.LogicGraph;
+        var definition = Assert.Single(graph.RoundEnds);
+        Assert.Equal(PlayerTeam.Blue, definition.Winner);
+        Assert.Equal(3f, definition.DelaySeconds);
+        Assert.Equal(8f, definition.CountdownSeconds);
+        Assert.Equal(graph.NodeIndexByKey["completed"], definition.OnCompleteNodeIndex);
+        Assert.Equal(graph.NodeIndexByKey["condition"], graph.Nodes[definition.NodeIndex].InputNodeIndex);
+        Assert.Equal(graph.NodeIndexByKey["completed"],
+            runtime.Room.RoomObjects.Single(marker => marker.Type == RoomObjectType.DamageableZone).DamageableZone.DestroyWhenNodeIndex);
+    }
+
+    [Theory]
+    [InlineData(false, 6)]
+    [InlineData(true, 6)]
+    [InlineData(false, 20)]
+    [InlineData(true, 20)]
+    public void ConquestPointsBeyondFiveSurvivePngAndPackageRoundTrips(bool package, int pointCount)
+    {
+        var entities = new List<CustomMapBuilderEntity>
+        {
+            CustomMapBuilderEntity.Create("redspawn", 0, 0),
+            CustomMapBuilderEntity.Create("bluespawn", 300, 0),
+        };
+        for (var index = 1; index <= pointCount; index++)
+        {
+            entities.Add(CustomMapBuilderEntity.Create("controlPoint", index * 10, 100,
+                new Dictionary<string, string> { ["index"] = index.ToString() }));
+            entities.Add(CustomMapBuilderEntity.Create("CapturePoint", index * 10, 100));
+        }
+        var document = _document with
+        {
+            Name = "cq_many", Entities = entities,
+            Metadata = new Dictionary<string, string> { ["gameMode"] = "cq" },
+        };
+        var path = Path.Combine(_root, package ? "cq_many/cq_many.json" : "cq_many.png");
+        if (package) CustomMapPackageExporter.Export(document, path); else CustomMapPngExporter.Export(document, path);
+        var imported = package ? CustomMapPackageImporter.Import(path)! : CustomMapPngImporter.Import(path)!;
+        var points = imported.Room.RoomObjects.Where(marker => marker.Type == RoomObjectType.ControlPoint).ToArray();
+        Assert.Equal(GameModeKind.Conquest, SimpleLevelFactory.DetectMode(imported.Room));
+        Assert.Equal(pointCount, points.Length);
+        Assert.Equal(Enumerable.Range(1, pointCount), points.Select(point =>
+        { Assert.True(ControlPointMarkerIndex.TryGetIndex(point, out var index)); return index; }).Order());
+    }
+
+    [Theory]
     [InlineData(false, true, false)]
     [InlineData(false, false, true)]
     [InlineData(true, true, false)]

@@ -49,7 +49,7 @@ public sealed class OpenGarrisonPreferencesDocument
     public const int MinCursorSizePercent = 50;
     public const int MaxCursorSizePercent = 250;
     public const int CursorSizeStepPercent = 10;
-    public const int DefaultCursorSizePercent = 100;
+    public const int DefaultCursorSizePercent = 200;
     public const int MaxCombatMusicVolumePercent = 300;
     public const CrtPresetKind DefaultCrtPreset = CrtPresetKind.Off;
     public const CrtQualityKind DefaultCrtQuality = CrtQualityKind.Auto;
@@ -1092,6 +1092,10 @@ public sealed class OpenGarrisonHostSettings
 
     public int CapLimit { get; set; } = 5;
 
+    public int ConquestScoreLimit { get; set; } = ConquestRules.ScoreLimit;
+
+    public bool HardcoreEnabled { get; set; }
+
     public int RespawnSeconds { get; set; } = 5;
 
     public int TickRate { get; set; } = SimulationConfig.DefaultTicksPerSecond;
@@ -1492,6 +1496,7 @@ public static class OpenGarrisonStockMapCatalog
         new("cp_coldfront_js", "cp_coldfront_js", "Coldfront", GameModeKind.ControlPoint, 0, "coldfront", "coldfront_v7", "cp_coldfront_v7"),
         new("cp_gully", "cp_gully", "Gully", GameModeKind.ControlPoint, 0, "gully"),
         new("cp_powerstrip", "cp_powerstrip", "Powerstrip", GameModeKind.ControlPoint, 0, "powerstrip"),
+        new("cq_circuits", "cq_circuits", "Circuits", GameModeKind.Conquest, 0, "circuits"),
         new("koth_ravine", "koth_ravine", "Ravine", GameModeKind.KingOfTheHill, 0, "ravine"),
         new("koth_standoff", "koth_standoff", "Standoff", GameModeKind.KingOfTheHill, 0, "standoff"),
         new("koth_crab_v2", "koth_crab_v2", "Crab", GameModeKind.KingOfTheHill, 0, "crab"),
@@ -1500,6 +1505,7 @@ public static class OpenGarrisonStockMapCatalog
         new("koth_heist", "koth_heist", "Heist", GameModeKind.KingOfTheHill, 0, "heist"),
         new("koth_drill_v3", "koth_drill_v3", "Drill", GameModeKind.KingOfTheHill, 0, "drill_v3", "drill"),
         new("koth_nightly", "koth_nightly", "Nightly", GameModeKind.KingOfTheHill, 0, "nightly"),
+        new("koth_thicket", "koth_thicket", "Thicket", GameModeKind.KingOfTheHill, 0, "thicket"),
     ];
 
     private static IReadOnlyList<OpenGarrisonStockMapDefinition> HiddenDefinitions { get; } =

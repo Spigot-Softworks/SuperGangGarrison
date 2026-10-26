@@ -835,6 +835,8 @@ public sealed class ClientPluginHost
             }
 
             _registeredManifestGameplayPackIds.Add(modPack.Id);
+            // Plugin packs live outside the stock content roots; sprites load from (and servers publish) this folder.
+            CharacterClassCatalog.RuntimeRegistry.RegisterPackDirectory(modPack.Id, packDirectory);
             _log($"[plugin] registered gameplay pack {modPack.DisplayName} ({modPack.Id} {modPack.Version})");
         }
     }

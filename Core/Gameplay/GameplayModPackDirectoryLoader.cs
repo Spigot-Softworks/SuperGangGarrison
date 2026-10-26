@@ -13,6 +13,7 @@ public static class GameplayModPackDirectoryLoader
     private const string PackMetadataFileName = "pack.json";
     private const string RuntimeMetadataFileName = "runtime.json";
     private const int CurrentSchemaVersion = 2;
+    private const int MaxSoundNameBytes = 64;
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
     private static readonly HashSet<string> LegacyAlternatePrimaryItemIds = new(StringComparer.Ordinal)
     {
@@ -132,6 +133,27 @@ public static class GameplayModPackDirectoryLoader
                 };
             });
         var spritesById = sprites.ToDictionary(static sprite => sprite.Id, StringComparer.Ordinal);
+        var sounds = LoadDefinitionsFromDirectory<GameplaySoundAssetDefinition>(
+            fullPackDirectory,
+            "sounds",
+            (sound, _, filePath) =>
+            {
+                ValidateRequiredText(sound.Id, nameof(GameplaySoundAssetDefinition.Id), filePath);
+                // Sound events carry the name as a string of at most 64 UTF-8 bytes.
+                if (System.Text.Encoding.UTF8.GetByteCount(sound.Id.Trim()) > MaxSoundNameBytes)
+                {
+                    throw new InvalidOperationException($"Gameplay sound \"{sound.Id}\" name is longer than {MaxSoundNameBytes} bytes in \"{filePath}\".");
+                }
+
+                var path = NormalizeAndValidatePackRelativeFilePath(fullPackDirectory, sound.Path, sound.Id, filePath);
+                if (!path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) && !path.EndsWith(".ogg", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"Gameplay sound \"{sound.Id}\" must be a .wav or .ogg file in \"{filePath}\": {sound.Path}");
+                }
+
+                return sound with { Id = sound.Id.Trim(), Path = path };
+            });
+        var soundsById = sounds.ToDictionary(static sound => sound.Id, StringComparer.Ordinal);
         var classes = LoadDefinitionsFromDirectory<GameplayClassDefinition>(
             fullPackDirectory,
             "classes",
@@ -187,7 +209,7 @@ public static class GameplayModPackDirectoryLoader
             Version: version,
             Items: itemsById,
             Classes: classesById,
-            Assets: new GameplayModPackAssetCatalog(spritesById),
+            Assets: new GameplayModPackAssetCatalog(spritesById, soundsById.Count == 0 ? null : soundsById),
             SchemaVersion: schemaVersion);
     }
 
@@ -310,6 +332,7 @@ public static class GameplayModPackDirectoryLoader
                 GameplayItemDefinition item => item.Id,
                 GameplayClassDefinition gameplayClass => gameplayClass.Id,
                 GameplaySpriteAssetDefinition sprite => sprite.Id,
+                GameplaySoundAssetDefinition sound => sound.Id,
                 _ => throw new InvalidOperationException($"Unsupported gameplay mod definition type: {typeof(TDefinition).Name}"),
             };
 

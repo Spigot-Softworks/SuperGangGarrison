@@ -74,8 +74,15 @@ internal sealed class MapLifecycleSystem
         _host.MatchSettings.CapLimit = Math.Clamp(capLimit, 1, 255);
         _host.MatchRules = _host.MatchRules with
         {
-            CapLimit = _host.MatchRules.Mode == GameModeKind.Conquest ? ConquestRules.ScoreLimit : _host.MatchSettings.CapLimit,
+            CapLimit = _host.MatchRules.Mode == GameModeKind.Conquest ? _host.MatchSettings.ConquestScoreLimit : _host.MatchSettings.CapLimit,
         };
+    }
+
+    public void SetConquestScoreLimit(int scoreLimit)
+    {
+        _host.MatchSettings.ConquestScoreLimit = Math.Clamp(scoreLimit, 1, ConquestRules.MaximumScoreLimit);
+        if (_host.MatchRules.Mode == GameModeKind.Conquest)
+            _host.MatchRules = _host.MatchRules with { CapLimit = _host.MatchSettings.ConquestScoreLimit };
     }
 
     public void SetRespawnSeconds(int respawnSeconds)
@@ -301,6 +308,10 @@ internal sealed class MapLifecycleSystem
         {
             _host.WorldObjects.Generators.Clear();
         }
+        if (!ObjectiveRulesSystem.IsControlPointMode(_host.MatchRules.Mode)
+            && !ObjectiveRulesSystem.IsKothMode(_host.MatchRules.Mode)
+            && !_host.Level.ShouldSimulateControlPoints)
+            _host.MapLogic.EvaluateMapLogicGraph();
     }
 
     private void ClearDynamicEntities()
@@ -386,7 +397,7 @@ internal sealed class MapLifecycleSystem
         if (mode == GameModeKind.Conquest)
         {
             return new MatchRules(mode, ConquestRules.TimeLimitMinutes,
-                ConquestRules.TimeLimitMinutes * _host.Config.TicksPerSecond * 60, ConquestRules.ScoreLimit);
+                ConquestRules.TimeLimitMinutes * _host.Config.TicksPerSecond * 60, _host.MatchSettings.ConquestScoreLimit);
         }
 
         var timeLimitTicks = settings.TimeLimitMinutes * _host.Config.TicksPerSecond * 60;

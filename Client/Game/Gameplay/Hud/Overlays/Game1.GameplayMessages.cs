@@ -43,6 +43,7 @@ public partial class Game1
     private void AdvanceGameplayMessages()
     {
         EnsureGameplayMessageState();
+        AdvanceMapRoundEndCountdownPresentation();
         var messages = _world.Level.GameplayMessages;
         if (messages.Count == 0)
         {
@@ -589,6 +590,15 @@ public partial class Game1
         }
 
         var marker = active.Marker;
+        // A late join or snapshot correction can shorten the announcement's local
+        // lead-in. Its linked countdown replaces the banner at the server's deadline.
+        if (_world.MapLogic.GetActiveRoundEndCountdown() is { } countdown
+            && countdown.Definition.ShowCountdown && marker.TriggerNodeIndex >= 0
+            && _world.Level.LogicGraph.Nodes[countdown.Definition.NodeIndex].InputNodeIndex == marker.TriggerNodeIndex)
+        {
+            DrawGameplayMessageEndEffectsHud();
+            return;
+        }
         var alpha = ResolveGameplayMessageAlpha(marker, active.ElapsedSeconds);
         if (alpha <= 0.01f)
         {

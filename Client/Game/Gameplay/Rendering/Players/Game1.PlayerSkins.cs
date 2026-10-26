@@ -244,46 +244,46 @@ public partial class Game1
             pose = skin.Poses[pose].WeaponSkinPose;
             skin = weaponSkin;
         }
-        var weapon = skin.Weapon;
-        if (weapon is null) return definition;
         // Match the actual equipped item's presentation, so offhands, acquired weapons,
         // and custom gameplay items retain their own art and attachment points.
-        var matchesEquippedItem = CharacterClassCatalog.RuntimeRegistry.TryGetItem(weapon.ItemId, out var item)
-            && ReferenceEquals(presentation, item.Presentation);
-        if (!matchesEquippedItem)
+        bool Matches(PlayerSkinWeapon candidate)
         {
-            foreach (var itemAlias in weapon.ItemAliases)
-            {
-                if (CharacterClassCatalog.RuntimeRegistry.TryGetItem(itemAlias, out var aliasItem)
-                    && ReferenceEquals(presentation, aliasItem.Presentation))
-                {
-                    matchesEquippedItem = true;
-                    break;
-                }
-            }
+            if (presentation.WorldSpriteName != candidate.MatchSprite) return false;
+            if (CharacterClassCatalog.RuntimeRegistry.TryGetItem(candidate.ItemId, out var item)
+                && ReferenceEquals(presentation, item.Presentation)) return true;
+            return candidate.ItemAliases.Exists(alias => CharacterClassCatalog.RuntimeRegistry.TryGetItem(alias, out var aliasItem)
+                && ReferenceEquals(presentation, aliasItem.Presentation));
         }
-        if (!matchesEquippedItem || presentation.WorldSpriteName != weapon.MatchSprite)
-            return definition;
+        var weapon = skin.Weapons.Find(Matches) ?? (skin.Weapon is { } primary && Matches(primary) ? primary : null);
+        if (weapon is null) return definition;
         var offset = skin.Poses[pose].WeaponOffset;
+        var companion = weapon.TorsoSprite is not null;
         return definition with
         {
             NormalSpriteName = skin.SpriteForTeam(weapon.Sprite, player.Team),
             RecoilSpriteName = weapon.FireSprite is null ? null : skin.SpriteForTeam(weapon.FireSprite, player.Team),
-            RecoilDurationSeconds = definition.RecoilDurationSeconds / weapon.FirePlaybackRate,
+            RecoilDurationSeconds = weapon.FireDurationSeconds > 0 ? weapon.FireDurationSeconds
+                : definition.RecoilDurationSeconds / weapon.FirePlaybackRate,
+            ReloadDurationSeconds = weapon.ReloadDurationSeconds > 0 ? weapon.ReloadDurationSeconds : definition.ReloadDurationSeconds,
             ReloadSpriteName = weapon.ReloadSprite is null ? null : skin.SpriteForTeam(weapon.ReloadSprite, player.Team),
             RecoilOverlay = default,
             ReloadOverlay = default,
-            XOffset = (offset[0] + weapon.AttachmentOffset[0] - skin.Origin[0]) * skin.PixelScale,
-            YOffset = (offset[1] + weapon.AttachmentOffset[1] - skin.Origin[1]) * skin.PixelScale,
+            XOffset = (offset[0] + weapon.AttachmentOffset[0] + (companion ? weapon.Pivot[0] : 0) - skin.Origin[0]) * skin.PixelScale,
+            YOffset = (offset[1] + weapon.AttachmentOffset[1] + (companion ? weapon.Pivot[1] : 0) - skin.Origin[1]) * skin.PixelScale,
             ReloadSpriteXOffset = 0,
             ReloadSpriteYOffset = 0,
             SingleTeamFrames = true,
+            UseTorsoReplacement = companion,
+            TorsoSpriteName = companion ? skin.SpriteForTeam(weapon.TorsoSprite!, player.Team) : null,
+            LoopRecoilWhileActive = weapon.FireLoopStart >= 0 || definition.LoopRecoilWhileActive,
             PoseFrameIndex = pose,
             DrawBehindBody = weapon.DrawBehindBody,
             AbilitySpriteName = weapon.AbilitySprite is null ? null : skin.SpriteForTeam(weapon.AbilitySprite, player.Team),
             AbilityDurationSeconds = Math.Max(0, weapon.AbilityDurationSourceTicks) / (float)LegacyMovementModel.SourceTicksPerSecond,
             RecoilLoopStartFrame = weapon.FireLoopStart,
-            RecoilFramesPerSecond = weapon.FireLoopStart >= 0 ? MathF.Max(1f, weapon.FireFramesPerSecond) : 0f,
+            RecoilFramesPerSecond = weapon.FireFrameMilliseconds > 0 ? 1000f / weapon.FireFrameMilliseconds
+                : weapon.FireLoopStart >= 0 ? MathF.Max(1f, weapon.FireFramesPerSecond) : 0f,
+            ReloadFramesPerSecond = weapon.ReloadFrameMilliseconds > 0 ? 1000f / weapon.ReloadFrameMilliseconds : 0f,
             MuzzleOffset = weapon.Muzzle.Length == 2
                 ? new Vector2(weapon.Muzzle[0] - weapon.Pivot[0], weapon.Muzzle[1] - weapon.Pivot[1]) * skin.PixelScale
                 : null,

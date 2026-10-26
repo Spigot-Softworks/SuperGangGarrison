@@ -39,6 +39,7 @@ public static class MapDamageableRuntimePatch
                     OnRedDestroyedNodeIndex = MapLogicGraphImporter.ResolveLogicSignalNodeIndex(graph, ReadProperty(properties, DamageableMetadata.OnRedDestroyedPropertyKey)),
                     OnBlueDestroyedNodeIndex = MapLogicGraphImporter.ResolveLogicSignalNodeIndex(graph, ReadProperty(properties, DamageableMetadata.OnBlueDestroyedPropertyKey)),
                     OnDestroyedNodeIndex = MapLogicGraphImporter.ResolveLogicSignalNodeIndex(graph, ReadProperty(properties, DamageableMetadata.OnDestroyedPropertyKey)),
+                    DestroyWhenNodeIndex = MapLogicGraphImporter.ResolveLogicSignalNodeIndex(graph, ReadProperty(properties, DamageableMetadata.DestroyWhenPropertyKey)),
                 },
             };
         }

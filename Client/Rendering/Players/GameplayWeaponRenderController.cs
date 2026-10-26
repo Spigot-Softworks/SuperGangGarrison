@@ -895,6 +895,11 @@ public sealed class GameplayWeaponRenderController
                 return System.MathF.Cos(radians) < 0f ? -1f : 1f;
             }
 
+            if (player.FacingLockDirection != 0)
+            {
+                return player.FacingLockDirection;
+            }
+
             if (ReferenceEquals(player, _game._world.LocalPlayer)
                 && _game.Gameplay.InputUpdate.HasLatestLocalAimWorldPosition
                 && _game.GameplayRuntimeSettings.UseLocalWeaponRotation)
@@ -1109,16 +1114,21 @@ public sealed class GameplayWeaponRenderController
                     return System.Math.Clamp(weaponDefinition.PoseFrameIndex, 0, frameCount - 1);
                 var hasSkinState = _game._playerRenderStates.TryGetValue(_game.GetPlayerStateKey(player), out var skinState);
                 if (weaponAnimationMode == WeaponAnimationMode.Recoil
-                    && weaponDefinition.RecoilFramesPerSecond > 0f
-                    && weaponDefinition.RecoilLoopStartFrame >= 0)
+                    && weaponDefinition.RecoilFramesPerSecond > 0f)
                 {
                     // Held fire (flamethrower, minigun): wind-up frames once, then loop the rest
                     // at a fixed rate for as long as the trigger keeps the recoil alive.
                     var elapsedFrame = hasSkinState
-                        ? (int)System.MathF.Floor(skinState!.WeaponAnimationElapsedSeconds * weaponDefinition.RecoilFramesPerSecond)
+                        ? (int)System.MathF.Floor(skinState!.WeaponAnimationElapsedSeconds * weaponDefinition.RecoilFramesPerSecond + 0.00001f)
                         : 0;
-                    return ResolveLoopingFrameIndex(elapsedFrame, weaponDefinition.RecoilLoopStartFrame, frameCount);
+                    return weaponDefinition.RecoilLoopStartFrame >= 0
+                        ? ResolveLoopingFrameIndex(elapsedFrame, weaponDefinition.RecoilLoopStartFrame, frameCount)
+                        : System.Math.Clamp(elapsedFrame, 0, frameCount - 1);
                 }
+                if (weaponAnimationMode == WeaponAnimationMode.Reload && weaponDefinition.ReloadFramesPerSecond > 0f)
+                    return System.Math.Clamp(hasSkinState
+                        ? (int)System.MathF.Floor(skinState!.WeaponAnimationElapsedSeconds * weaponDefinition.ReloadFramesPerSecond + 0.00001f)
+                        : 0, 0, frameCount - 1);
 
                 var progress = hasSkinState
                     ? skinState!.WeaponAnimationElapsedSeconds / System.MathF.Max(skinState.WeaponAnimationDurationSeconds, 0.0001f)
@@ -1300,6 +1310,8 @@ public sealed class GameplayWeaponRenderController
             var weaponSpriteName = weaponAnimationMode == WeaponAnimationMode.Recoil
                     && weaponDefinition.RecoilSpriteName is not null
                 ? weaponDefinition.RecoilSpriteName
+                : weaponAnimationMode == WeaponAnimationMode.Reload && weaponDefinition.ReloadSpriteName is not null
+                ? weaponDefinition.ReloadSpriteName
                 : weaponAnimationMode == WeaponAnimationMode.StrongDrinkThrow
                     && weaponDefinition.RecoilSpriteName is not null
                 ? weaponDefinition.RecoilSpriteName
@@ -1590,7 +1602,10 @@ public sealed class GameplayWeaponRenderController
                 return CharacterClassCatalog.RuntimeRegistry.GetRequiredItem(equippedItemId).Presentation;
             }
 
-            return CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(_game.GetRenderWeaponPresentationClassId(player)).Presentation;
+            var presentationClassId = _game.GetRenderWeaponPresentationClassId(player);
+            return presentationClassId == PlayerClass.Custom
+                ? CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(player.ClassDefinition).Presentation
+                : CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(presentationClassId).Presentation;
         }
 
         private bool ShouldPresentSniperStrongDrink(PlayerEntity player)

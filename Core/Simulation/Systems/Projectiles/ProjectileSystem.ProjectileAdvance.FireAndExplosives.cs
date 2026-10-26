@@ -14,6 +14,12 @@ public sealed partial class ProjectileSystem
                 continue;
             }
 
+            if (IsProjectileFrozen(flame.X, flame.Y))
+            {
+                flame.HoldStill();
+                continue;
+            }
+
             flame.AdvanceOneTick(deltaSeconds, _configuredGravityScale);
             if (flame.IsGrounded)
             {
@@ -182,6 +188,12 @@ public sealed partial class ProjectileSystem
                 continue;
             }
 
+            if (IsProjectileFrozen(flare.X, flare.Y))
+            {
+                flare.HoldStill();
+                continue;
+            }
+
             flare.AdvanceOneTick();
             var movementX = flare.X - flare.PreviousX;
             var movementY = flare.Y - flare.PreviousY;
@@ -335,6 +347,12 @@ public sealed partial class ProjectileSystem
                 continue;
             }
 
+            if (IsProjectileFrozen(mine.X, mine.Y))
+            {
+                mine.HoldStill();
+                continue;
+            }
+
             mine.AdvanceOneTick(_configuredGravityScale);
             if (mine.IsStickied)
             {
@@ -393,6 +411,12 @@ public sealed partial class ProjectileSystem
             var grenade = _grenades[grenadeIndex];
             if (!ShouldAdvanceProjectileForClientPrediction(grenade.OwnerId))
             {
+                continue;
+            }
+
+            if (IsProjectileFrozen(grenade.X, grenade.Y))
+            {
+                grenade.HoldStill();
                 continue;
             }
 

@@ -68,9 +68,14 @@ public sealed class SimpleLevel
         MapWeather weather = default,
         IReadOnlyList<IndoorRegionMarker>? indoorRegions = null,
         IReadOnlyList<MapLightMarker>? mapLights = null,
-        MapLighting? lighting = null)
+        MapLighting? lighting = null,
+        string mapScriptSource = "",
+        IReadOnlyDictionary<string, string>? mapScriptNodeNames = null)
     {
         Name = name;
+        MapScriptSource = mapScriptSource;
+        MapScriptNodeNames = mapScriptNodeNames ?? new Dictionary<string, string>();
+        MapScriptObjectOverrides = new bool?[roomObjects.Count];
         Mode = mode;
         Bounds = bounds;
         MapScale = mapScale;
@@ -229,6 +234,22 @@ public sealed class SimpleLevel
         || Mode is GameModeKind.KingOfTheHill or GameModeKind.DoubleKingOfTheHill or GameModeKind.Conquest;
 
     public bool[] RoomObjectLogicActiveMask { get; private set; }
+    public string MapScriptSource { get; }
+    public IReadOnlyDictionary<string, string> MapScriptNodeNames { get; }
+    public bool?[] MapScriptObjectOverrides { get; }
+    public Dictionary<string, bool> MapScriptSpawnOverrides { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public void SetMapScriptObjectOverride(int index, bool? active)
+    {
+        if (index < 0 || index >= MapScriptObjectOverrides.Length || MapScriptObjectOverrides[index] == active) return;
+        MapScriptObjectOverrides[index] = active;
+        _blockingTeamGateCaches.Clear();
+    }
+    public void ClearMapScriptOverrides()
+    {
+        Array.Clear(MapScriptObjectOverrides);
+        MapScriptSpawnOverrides.Clear();
+        _blockingTeamGateCaches.Clear();
+    }
 
     public float[]? DamageableZoneCurrentHealth { get; internal set; }
 
@@ -256,7 +277,7 @@ public sealed class SimpleLevel
             return true;
         }
 
-        if (!RoomObjectLogicActiveMask[roomObjectIndex])
+        if (!(MapScriptObjectOverrides[roomObjectIndex] ?? RoomObjectLogicActiveMask[roomObjectIndex]))
         {
             return false;
         }

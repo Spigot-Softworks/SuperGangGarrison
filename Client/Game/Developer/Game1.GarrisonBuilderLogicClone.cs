@@ -41,6 +41,8 @@ public partial class Game1
                 : source with { X = source.X + offsetX };
             var properties = new Dictionary<string, string>(clone.Properties, StringComparer.OrdinalIgnoreCase);
             properties[MapLogicMetadata.MapEntityIdPropertyKey] = MapLogicMetadata.CreateMapEntityId();
+            var sourceName = MapObjectMetadata.Name(properties);
+            if (sourceName.Length > 0) properties[MapObjectMetadata.NameKey] = MapObjectMetadata.UniqueName(sourceName, _builderEntities);
             _builderEntities.Add((clone with { Properties = properties }).NormalizeForEditing());
             var cloneIndex = _builderEntities.Count - 1;
             sourceToCloneIndex[sourceIndex] = cloneIndex;

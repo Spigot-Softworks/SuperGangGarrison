@@ -391,6 +391,44 @@ internal sealed partial class NetworkPlayerSystem
         };
     }
 
+    // Puts every player (and slot) whose class is no longer registered, a plugin class whose
+    // plugin has stopped, on the stock fallback class, so nothing later looks up the missing one.
+    // Returns how many were moved.
+    public int ResetUnregisteredClassesToStock(PlayerClass fallback = PlayerClass.Scout)
+    {
+        var registry = CharacterClassCatalog.RuntimeRegistry;
+        if (!registry.TryGetClassBinding(fallback, out var fallbackBinding))
+        {
+            return 0;
+        }
+
+        var fallbackDefinition = CharacterClassCatalog.GetDefinition(fallbackBinding.ClassId);
+        var moved = 0;
+        var slots = new List<byte> { SimulationConstants.LocalPlayerSlot };
+        slots.AddRange(_host.PlayerRegistry.EnabledAdditionalSlots);
+        foreach (var slot in slots)
+        {
+            var slotClassMissing = !registry.TryGetClassBinding(GetNetworkPlayerClassDefinition(slot).GameplayClassId, out _);
+            var hasPlayer = TryGetNetworkPlayer(slot, out var player);
+            var playerClassMissing = hasPlayer && !registry.TryGetClassBinding(player.GameplayClassId, out _);
+            if (!slotClassMissing && !playerClassMissing)
+            {
+                continue;
+            }
+
+            TrySetNetworkPlayerClassDefinition(slot, fallbackDefinition);
+            if (playerClassMissing)
+            {
+                player.SetClassDefinition(fallbackDefinition);
+                _host.ExperimentalRules.SyncExperimentalGameplayLoadout(slot, player);
+            }
+
+            moved += 1;
+        }
+
+        return moved;
+    }
+
     public bool TrySetNetworkPlayerClassDefinition(byte slot, CharacterClassDefinition definition)
     {
         switch (slot)

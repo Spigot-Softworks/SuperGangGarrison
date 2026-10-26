@@ -222,6 +222,11 @@ public sealed partial class PlayerEntity
         }
 
         HeavyEatTicksRemaining -= 1;
+        if (IsTimeStopped)
+        {
+            return;
+        }
+
         HeavyHealingAccumulator += HeavyEatHealPerTickValue;
         var wholeHealing = (int)HeavyHealingAccumulator;
         if (wholeHealing > 0)
@@ -684,7 +689,7 @@ public sealed partial class PlayerEntity
 
     public int ApplyContinuousHealingAndGetAmount(float healing)
     {
-        if (!IsAlive || healing <= 0f)
+        if (!IsAlive || healing <= 0f || IsTimeStopped)
         {
             return 0;
         }
@@ -918,7 +923,10 @@ public sealed partial class PlayerEntity
                 ? 4
                 : 5;
         healAmount = ApplyLastToDieMedicPassiveRegenerationMultiplier(healAmount);
-        Health = int.Min(MaxHealth, Health + healAmount);
+        if (!IsTimeStopped)
+        {
+            Health = int.Min(MaxHealth, Health + healAmount);
+        }
     }
 
     public bool TryStartSpySuperjumpCharge(float aimDirectionDegrees, bool leftHeld, bool rightHeld, bool upHeld, bool downHeld)

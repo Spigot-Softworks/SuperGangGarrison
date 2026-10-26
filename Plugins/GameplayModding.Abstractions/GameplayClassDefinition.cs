@@ -56,6 +56,11 @@ public sealed record GameplayClassRuntimeDefinition(
 /// <param name="IntelSuffix">The intel suffix, if any.</param>
 /// <param name="ScopedSuffix">The scoped suffix, if any.</param>
 /// <param name="HeavyEatSuffix">The heavy eat suffix, if any.</param>
+/// <param name="PoseSuffixes">Suffixes of move poses a plugin can play on the player (see GameplayPlayerPoses).</param>
+/// <param name="StandFramesPerSecond">Frame rate of an animated standing sprite; 0 keeps the first frame.</param>
+/// <param name="ProjectileSprites">Sprites for projectiles this class fires, keyed by projectile kind
+/// (for example "blade"); they replace the stock look of that kind for this class's shots.</param>
+/// <param name="SpawnSound">The sound played when a player of this class spawns, instead of RespawnSnd.</param>
 public sealed record GameplayClassPresentationDefinition(
     string SpritePrefix,
     string BaseSuffix = "S",
@@ -73,4 +78,8 @@ public sealed record GameplayClassPresentationDefinition(
     string? DeadSuffix = null,
     string? IntelSuffix = null,
     string? ScopedSuffix = null,
-    string? HeavyEatSuffix = null);
+    string? HeavyEatSuffix = null,
+    IReadOnlyList<string>? PoseSuffixes = null,
+    float StandFramesPerSecond = 0f,
+    IReadOnlyDictionary<string, string>? ProjectileSprites = null,
+    string? SpawnSound = null);

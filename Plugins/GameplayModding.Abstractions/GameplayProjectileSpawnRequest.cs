@@ -13,6 +13,9 @@ namespace OpenGarrison.GameplayModding;
 /// <param name="DirectionRadians">The direction in radians.</param>
 /// <param name="Damage">The damage.</param>
 /// <param name="KillFeedWeaponSpriteName">The kill feed weapon sprite name, if any.</param>
+/// <param name="LifetimeTicks">How long a blade flies before it vanishes, in ticks; 0 keeps the stock lifetime.</param>
+/// <param name="KnockbackScale">Scales the push a blade gives the player it hits (1 is the stock push).</param>
+/// <param name="DeathType">How a kill by a blade leaves the body: "gib", "decapitated", "bisected", "severe", "rifle", or null for the usual corpse.</param>
 public sealed record GameplayProjectileSpawnRequest(
     int OwnerPlayerId,
     string Kind,
@@ -23,7 +26,10 @@ public sealed record GameplayProjectileSpawnRequest(
     float Speed = 0f,
     float DirectionRadians = 0f,
     float Damage = 0f,
-    string? KillFeedWeaponSpriteName = null);
+    string? KillFeedWeaponSpriteName = null,
+    int LifetimeTicks = 0,
+    float KnockbackScale = 1f,
+    string? DeathType = null);
 
 /// <summary>
 /// Well-known projectile kinds.

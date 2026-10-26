@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using OpenGarrison.Protocol;
+using OpenGarrison.Core;
 
 namespace OpenGarrison.Server;
 
@@ -1026,7 +1027,9 @@ internal static class SnapshotDeltaBudgeter
         for (var index = list.Count - 1; index >= 0; index -= 1)
         {
             if (IsExplosionVisual(list[index].EffectName)
-                || string.Equals(list[index].EffectName, "AirBlast", StringComparison.OrdinalIgnoreCase))
+                || string.Equals(list[index].EffectName, "AirBlast", StringComparison.OrdinalIgnoreCase)
+                // A screen effect (a time stop) is rare and long; losing it would be noticed.
+                || GameplayVisualEffects.IsScreenEffectName(list[index].EffectName))
             {
                 continue;
             }

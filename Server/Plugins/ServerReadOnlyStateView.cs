@@ -226,6 +226,63 @@ internal sealed class ServerReadOnlyStateView(
             .ToArray();
     }
 
+    public IReadOnlyList<OpenGarrisonServerWorldPlayerInfo> FindWorldPlayers(OpenGarrisonServerWorldPlayerQuery query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        var hasCenter = query.CenterX.HasValue && query.CenterY.HasValue;
+        var radius = query.Radius is { } requestedRadius ? Math.Max(0f, requestedRadius) : (float?)null;
+        var limit = Math.Clamp(query.Limit, 1, 256);
+        var matches = new List<OpenGarrisonServerWorldPlayerInfo>();
+        foreach (var player in worldGetter().EnumerateSimulatedPlayers())
+        {
+            if ((query.AliveOnly && !player.IsAlive)
+                || (query.Team.HasValue && player.Team != query.Team.Value)
+                || (query.ExcludePlayerId.HasValue && player.Id == query.ExcludePlayerId.Value))
+            {
+                continue;
+            }
+
+            float? distance = null;
+            if (hasCenter)
+            {
+                var deltaX = player.X - query.CenterX!.Value;
+                var deltaY = player.Y - query.CenterY!.Value;
+                distance = MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+                if (radius.HasValue && distance.Value > radius.Value)
+                {
+                    continue;
+                }
+            }
+
+            matches.Add(new OpenGarrisonServerWorldPlayerInfo(
+                player.Id,
+                player.Team,
+                player.ClassId,
+                player.GameplayClassId,
+                player.IsAlive,
+                player.X,
+                player.Y,
+                player.Left,
+                player.Top,
+                player.Right,
+                player.Bottom,
+                player.HorizontalSpeed,
+                player.VerticalSpeed,
+                player.Health,
+                player.MaxHealth,
+                player.IsGrounded,
+                player.IsSourceFacingLeft,
+                distance));
+        }
+
+        if (hasCenter)
+        {
+            matches.Sort(static (left, right) => left.Distance!.Value.CompareTo(right.Distance!.Value));
+        }
+
+        return matches.Count > limit ? matches.GetRange(0, limit) : matches;
+    }
+
     public OpenGarrisonServerMapRegionInfo GetMapRegion(float centerX, float centerY, float radius, int limit = 128)
     {
         var world = worldGetter();

@@ -43,7 +43,7 @@ public static class CustomMapBuilderEntityCatalog
         Define("spawn", AllModes, "team=red;forward=false;priority=1;linkObjective=controlPoint1;useWhen=owned", 30, "Spawn", "Team spawn (red, blue, or neutral). Neutral spawns both teams. Forward spawn links to a control point and uses priority when multiple forwards are active.", "spawnS", 0),
         Define("barrier", AllModes, "xscale=1;yscale=1;redPlayers=block;bluePlayers=block;redShots=allow;blueShots=allow;redIntel=block;blueIntel=block", 50, "Barrier", "Resizable solid area. Blocks players and intel carriers by default. Set each target to Block or Allow.", "sprite45", 3),
         Define("directionalWall", AllModes, "passDirection=right;players=ignore;projectiles=ignore;xscale=1;yscale=1", 51, "Directional wall", "One-way wall. Set pass direction and whether players or projectiles are affected.", "sprite45", 3),
-        Define("controlPoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.Conquest | ScrModes, "index=1;capTimeMultiplier=1;initialOwner=modeDefault", 12, "Control point", "Neutral control point with configurable index (1-5).", "ControlPointNeutralS", 0),
+        Define("controlPoint", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.Conquest | ScrModes, "index=1;capTimeMultiplier=1;initialOwner=modeDefault", 12, "Control point", "Neutral control point with configurable index. Conquest supports three or more points.", "ControlPointNeutralS", 0),
         Define("spawnroom", AllModes, "xscale=1;yscale=1", 74, "Spawn room", "Players can instantly respawn in this area.", "sprite64", 1),
         Define("redspawn", AllModes, "", 30, "Red spawn", "Default spawn locator for the red team.", "spawnS", 0),
         Define("redspawn1", CustomMapBuilderGameMode.ControlPoint | CustomMapBuilderGameMode.AttackDefenseControlPoint | CustomMapBuilderGameMode.KingOfTheHill | CustomMapBuilderGameMode.DualKingOfTheHill, "", 34, "Red spawn 1", "Red forward spawn #1.", "spawnS", 1),
@@ -219,7 +219,7 @@ public static class CustomMapBuilderEntityCatalog
         Define(
             DamageableMetadata.DamageableEntityType,
             AllModes,
-            "xscale=1;yscale=1;health=100;healWhen=;showHealthBar=false;blockPlayers=false;disableWhenDestroyed=true;sentryTarget=true;stabbable=false",
+            "xscale=1;yscale=1;health=100;healWhen=;destroyWhen=;showHealthBar=false;blockPlayers=false;disableWhenDestroyed=true;sentryTarget=true;stabbable=false",
             50,
             "Damageable",
             "Resizable zone that blocks projectiles and takes damage from them.",
@@ -289,6 +289,15 @@ public static class CustomMapBuilderEntityCatalog
             12,
             "Timer",
             "Outputs true after a countdown. Can start from a logic trigger or automatically at round start.",
+            string.Empty,
+            0),
+        Define(
+            MapRoundEndMetadata.EntityType,
+            AllModes,
+            MapRoundEndMetadata.DefaultProperties,
+            12,
+            "Round End",
+            "Awards a round win after an optional delay and countdown. Outputs true while counting; On complete pulses only when the round is won.",
             string.Empty,
             0),
         Define(

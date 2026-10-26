@@ -21,6 +21,10 @@ public partial class Game1
 
         public bool RandomSpreadEnabled { get; set; } = true;
 
+        public int ConquestScoreLimit { get; set; } = ConquestRules.ScoreLimit;
+
+        public bool HardcoreEnabled { get; set; }
+
         public bool SniperAimIndicatorEnabled { get; set; } = true;
 
         public bool LocalPredictionEnabled { get; set; }
@@ -308,6 +312,8 @@ public partial class Game1
         {
             _advancedCvarEditBuffers.Clear();
             RandomSpreadEnabled = hostDefaults.RandomSpreadEnabled;
+            ConquestScoreLimit = hostDefaults.ConquestScoreLimit;
+            HardcoreEnabled = hostDefaults.HardcoreEnabled;
             SniperAimIndicatorEnabled = hostDefaults.SniperAimIndicatorEnabled;
             LocalPredictionEnabled = hostDefaults.LocalPredictionEnabled;
             RoundEndFriendlyFireEnabled = hostDefaults.RoundEndFriendlyFireEnabled;
@@ -360,6 +366,8 @@ public partial class Game1
             }
 
             hostDefaults.RandomSpreadEnabled = RandomSpreadEnabled;
+            hostDefaults.ConquestScoreLimit = Math.Clamp(ConquestScoreLimit, 1, ConquestRules.MaximumScoreLimit);
+            hostDefaults.HardcoreEnabled = HardcoreEnabled;
             hostDefaults.SniperAimIndicatorEnabled = SniperAimIndicatorEnabled;
             hostDefaults.LocalPredictionEnabled = LocalPredictionEnabled;
             hostDefaults.RoundEndFriendlyFireEnabled = RoundEndFriendlyFireEnabled;
@@ -399,6 +407,8 @@ public partial class Game1
             {
                 nameof(OpenGarrisonHostSettings.TimeLimitMinutes) => TimeLimitBuffer,
                 nameof(OpenGarrisonHostSettings.CapLimit) => CapLimitBuffer,
+                nameof(OpenGarrisonHostSettings.ConquestScoreLimit) => ConquestScoreLimit.ToString(CultureInfo.InvariantCulture),
+                nameof(OpenGarrisonHostSettings.HardcoreEnabled) => HardcoreEnabled ? "1" : "0",
                 nameof(OpenGarrisonHostSettings.RespawnSeconds) => RespawnSecondsBuffer,
                 nameof(OpenGarrisonHostSettings.AutoBalanceEnabled) => AutoBalanceEnabled ? "1" : "0",
                 nameof(OpenGarrisonHostSettings.SecondaryAbilitiesEnabled) => SecondaryAbilitiesEnabled ? "1" : "0",
@@ -442,6 +452,13 @@ public partial class Game1
         {
             switch (definition.HostSettingKey)
             {
+                case nameof(OpenGarrisonHostSettings.ConquestScoreLimit):
+                    if (int.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var conquestLimit))
+                        ConquestScoreLimit = Math.Clamp(conquestLimit, 1, ConquestRules.MaximumScoreLimit);
+                    break;
+                case nameof(OpenGarrisonHostSettings.HardcoreEnabled):
+                    HardcoreEnabled = ParseBool(rawValue);
+                    break;
                 case nameof(OpenGarrisonHostSettings.TimeLimitMinutes):
                     TimeLimitBuffer = rawValue;
                     break;

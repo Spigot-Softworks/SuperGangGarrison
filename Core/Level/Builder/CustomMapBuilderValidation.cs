@@ -44,6 +44,11 @@ public static class CustomMapBuilderValidator
         ValidateMapSolids(normalized, issues);
         ValidateControlPointSettings(normalized, issues);
         ValidateReferences(normalized.Entities, issues);
+        if (MapScriptMetadata.Validate(MapScriptMetadata.Read(normalized.Metadata)) is { } scriptError)
+            AddError(issues, "map_script_error", scriptError);
+        foreach (var group in normalized.Entities.Where(entity => MapObjectMetadata.Name(entity.Properties).Length > 0)
+            .GroupBy(entity => MapObjectMetadata.Name(entity.Properties), StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
+            AddError(issues, "duplicate_object_name", $"Object name '{group.Key}' is used more than once. Use Groups for collections.");
         return new CustomMapBuilderValidationResult(effectiveMode, issues);
     }
 
@@ -202,8 +207,8 @@ public static class CustomMapBuilderValidator
                 RequireExactly(entities, issues, "blueintel", 1, "ctf_blue_intel", "CTF needs exactly one blueintel.");
                 break;
             case CustomMapBuilderGameMode.Conquest:
-                RequireControlPoints(entities, issues, minimum: ConquestRules.PointCount, maximum: ConquestRules.PointCount, code: "cq_points", message: "Conquest needs exactly three control points.");
-                RequireAtLeast(entities, issues, "CapturePoint", 3, "cq_capture_zones", "Conquest needs a CapturePoint zone for each of its three points.");
+                RequireControlPoints(entities, issues, minimum: ConquestRules.MinimumPointCount, maximum: int.MaxValue, code: "cq_points", message: "Conquest needs at least three control points.");
+                RequireAtLeast(entities, issues, "CapturePoint", CustomMapBuilderEntityNormalization.CountControlPointsNormalized(entities), "cq_capture_zones", "Conquest needs a CapturePoint zone for each control point.");
                 break;
             case CustomMapBuilderGameMode.ControlPoint:
                 RequireControlPoints(entities, issues, minimum: 1, maximum: 5, code: "cp_points", message: "CP needs 1-5 control points.");

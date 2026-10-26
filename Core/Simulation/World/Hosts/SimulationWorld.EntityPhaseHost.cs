@@ -3,6 +3,7 @@ namespace OpenGarrison.Core;
 public sealed partial class SimulationWorld : IEntityPhaseHost
 {
     void IEntityPhaseHost.AdvanceBloodDrops() => PlayerRemains.AdvanceBloodDrops();
+    bool IEntityPhaseHost.PresentationTimeStopped => PresentationTimeStopped;
     void IEntityPhaseHost.AdvanceCivvieMoneyPickups() => AdvanceCivvieMoneyPickups();
     void IEntityPhaseHost.AdvanceCombatTraces() => WorldEffects.AdvanceCombatTraces();
     void IEntityPhaseHost.AdvanceDeadBodies() => PlayerRemains.AdvanceDeadBodies();

@@ -10,6 +10,7 @@ public static class BuilderReferenceProperties
         MapLogicMetadata.StartWhenPropertyKey, MapLogicMetadata.EndWhenPropertyKey, MapLogicMetadata.LogicSignalPropertyKey,
         MapLogicMetadata.LockedWhenLogicPropertyKey, MapLogicMetadata.UnlockedWhenLogicPropertyKey,
         DamageableMetadata.HealWhenPropertyKey, BotSpawnMetadata.TriggerPropertyKey, BotSpawnMetadata.DeathTriggerPropertyKey,
+        DamageableMetadata.DestroyWhenPropertyKey, MapRoundEndMetadata.OnCompletePropertyKey,
         DamageableMetadata.OnDestroyedPropertyKey, DamageableMetadata.OnRedDestroyedPropertyKey, DamageableMetadata.OnBlueDestroyedPropertyKey,
     });
     public static IReadOnlyList<string> Entity { get; } = Array.AsReadOnly(new[]

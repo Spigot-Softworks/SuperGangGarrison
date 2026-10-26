@@ -157,6 +157,9 @@ public partial class Game1
                 var scale = GetGarrisonBuilderBitmapFontScale();
                 DrawBitmapFontText(_builderPropertyEditorTitle, new Vector2(dock.X + 12f, dock.Y + 8f), Color.White, scale);
                 DrawBitmapFontText("Pick on the map.", new Vector2(dock.X + 12f, dock.Y + 40f), new Color(255, 226, 140), scale);
+                DrawBitmapFontText("Wheel: zoom", new Vector2(dock.X + 12f, dock.Y + 68f), new Color(200, 190, 168), scale);
+                DrawBitmapFontText("WASD / arrows: pan", new Vector2(dock.X + 12f, dock.Y + 92f), new Color(200, 190, 168), scale);
+                DrawBitmapFontText("Middle-drag: pan", new Vector2(dock.X + 12f, dock.Y + 116f), new Color(200, 190, 168), scale);
                 DrawBitmapFontText("Esc: back to properties", new Vector2(dock.X + 12f, dock.Bottom - 20f), new Color(200, 190, 168), scale);
             }
         }

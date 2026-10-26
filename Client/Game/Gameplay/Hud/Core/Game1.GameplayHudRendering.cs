@@ -304,6 +304,9 @@ public partial class Game1
         DrawNoticeHud();
         WriteGameplayRenderTrace("hud after notice");
         DrawGameplayMessageHud(cameraPosition);
+        DrawMapRoundEndCountdownHud();
+        DrawKingpinPrototypeHud();
+        ReportMapScriptError();
         DrawFirstPlayHints(cameraPosition);
         WriteGameplayRenderTrace("hud after gameplaymessage");
         DrawScoreboardHud();
@@ -415,6 +418,7 @@ public partial class Game1
 
         DrawTeamClassSelectionAndBattleCursor(mouse, cameraPosition);
 
+        DrawInputDisplayOverlay();
         if (_consoleOpen)
         {
             DrawConsoleOverlay();

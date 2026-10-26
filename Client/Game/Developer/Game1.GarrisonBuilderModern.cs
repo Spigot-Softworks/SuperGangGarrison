@@ -136,6 +136,7 @@ public partial class Game1
     {
         Properties,
         Recolor,
+        Groups,
         Clone,
         Remove,
     }
@@ -438,6 +439,35 @@ public partial class Game1
             : GarrisonBuilderTool.Place;
     }
 
+    private bool UpdateModernGarrisonBuilderMapPick(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
+    {
+        if (!_builderUseModernUi || !IsGarrisonBuilderPropertyMapPickActive) return false;
+
+        // Picking keeps its own input route: navigation must not be consumed by
+        // the suspended property editor, and edit/tool shortcuts must not run.
+        if (IsKeyPressed(keyboard, Keys.Escape))
+        {
+            CancelGarrisonBuilderObjectiveMapPick();
+            CancelGarrisonBuilderLogicMapPick();
+            CancelGarrisonBuilderEntityMapPick();
+            CancelGarrisonBuilderMultiEntityMapPick();
+            _builderMapPanDragging = false;
+            return true;
+        }
+        if (_builderMultiEntityMapPickActive && IsKeyPressed(keyboard, Keys.Enter))
+        {
+            CommitGarrisonBuilderMultiEntityMapPick();
+            return true;
+        }
+
+        UpdateModernGarrisonBuilderCamera(keyboard, mouse, deltaSeconds);
+        UpdateModernGarrisonBuilderZoom(mouse);
+        UpdateGarrisonBuilderMapEntityHover(mouse);
+        if (_builderMultiEntityMapPickActive || IsLeftMouseClickPressed(mouse, _previousMouse))
+            UpdateModernGarrisonBuilderMapInteraction(mouse);
+        return true;
+    }
+
     private void UpdateModernGarrisonBuilderCamera(KeyboardState keyboard, MouseState mouse, float deltaSeconds)
     {
         var mapViewport = GetModernGarrisonBuilderMapViewport();
@@ -496,7 +526,8 @@ public partial class Game1
     private void UpdateModernGarrisonBuilderZoom(MouseState mouse)
     {
         var wheelDelta = mouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
-        if (_builderValidationTooltipVisible && _builderValidationHoverBounds.Contains(mouse.Position))
+        if (!IsGarrisonBuilderPropertyMapPickActive
+            && _builderValidationTooltipVisible && _builderValidationHoverBounds.Contains(mouse.Position))
         {
             if (wheelDelta != 0)
                 _builderValidationScroll = Math.Clamp(_builderValidationScroll - Math.Sign(wheelDelta) * 3, 0, _builderValidationMaximumScroll);
@@ -508,12 +539,14 @@ public partial class Game1
         }
 
         if (_builderPropertyTarget != GarrisonBuilderPropertyTarget.None
+            && !IsGarrisonBuilderPropertyMapPickActive
             && GetGarrisonBuilderPropertyEditorBounds().Contains(mouse.Position))
         {
             return;
         }
 
-        if (ShouldSuppressGarrisonBuilderMapZoomForEntityRefListDropdown(mouse.Position))
+        if (!IsGarrisonBuilderPropertyMapPickActive
+            && ShouldSuppressGarrisonBuilderMapZoomForEntityRefListDropdown(mouse.Position))
         {
             return;
         }
@@ -1669,6 +1702,7 @@ public partial class Game1
                 ("Recover draft...", OpenGarrisonBuilderRecovery),
                 ("Save (Ctrl+S)", SaveGarrisonBuilderDocument),
                 ("Save as... (Ctrl+Shift+S)", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Save)),
+                ("Publish final map", PublishGarrisonBuilderFinalMap),
                 ("Load background...", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Background)),
                 ("Load walkmask...", () => BeginEditingGarrisonBuilderPath(GarrisonBuilderPathField.Walkmask)),
                 ("Load layer image...", BeginLoadForCurrentGarrisonBuilderLayer),
@@ -1695,6 +1729,7 @@ public partial class Game1
             ],
             GarrisonBuilderMenuBarMenu.Map =>
             [
+                ("Map script... (Lua)", OpenGarrisonBuilderMapScript),
                 ("Set game mode...", () => _builderGameModeMenuOpen = true),
                 ($"Top-down movement{(MapMovementModeMetadata.IsTopDown(_builderDocument.Metadata) ? " *" : string.Empty)}", ToggleGarrisonBuilderTopDownMode),
                 ($"Weather: {DescribeGarrisonBuilderWeather()}", CycleGarrisonBuilderWeather),
@@ -2016,6 +2051,7 @@ public partial class Game1
     {
         _builderEntityContextMenuActionsScratch.Clear();
         _builderEntityContextMenuActionsScratch.Add(GarrisonBuilderEntityContextAction.Properties);
+        _builderEntityContextMenuActionsScratch.Add(GarrisonBuilderEntityContextAction.Groups);
         if (_builderSelectedEntityIndex >= 0 && _builderSelectedEntityIndex < _builderEntities.Count)
         {
             var entity = _builderEntities[_builderSelectedEntityIndex];
@@ -2237,7 +2273,8 @@ public partial class Game1
         }
 
         var entity = _builderEntities[entityIndex];
-        return $"{entity.Type} @ {entity.X:0},{entity.Y:0}";
+        var name = MapObjectMetadata.Name(entity.Properties);
+        return $"{(name.Length > 0 ? name : entity.Type)} @ {entity.X:0},{entity.Y:0}";
     }
 
     private Rectangle GetGarrisonBuilderEntityOverlapPickerBounds()
@@ -2320,6 +2357,7 @@ public partial class Game1
         {
             GarrisonBuilderEntityContextAction.Properties => "Properties",
             GarrisonBuilderEntityContextAction.Recolor => "Recolor",
+            GarrisonBuilderEntityContextAction.Groups => "Set groups...",
             GarrisonBuilderEntityContextAction.Clone => "Clone",
             GarrisonBuilderEntityContextAction.Remove => "Remove",
             _ => string.Empty,
@@ -2394,6 +2432,9 @@ public partial class Game1
                 break;
             case GarrisonBuilderEntityContextAction.Recolor:
                 OpenGarrisonBuilderLogicRecolorDialog(_builderSelectedEntityIndex);
+                break;
+            case GarrisonBuilderEntityContextAction.Groups:
+                BeginGarrisonBuilderBulkGroups();
                 break;
             case GarrisonBuilderEntityContextAction.Clone:
                 CloneGarrisonBuilderSelectedEntity();
@@ -3427,6 +3468,7 @@ public partial class Game1
 
     private void BeginEditingGarrisonBuilderSelectedEntity()
     {
+        _builderBulkGroupTargets.Clear();
         if (_builderSelectedEntityIndex < 0 || _builderSelectedEntityIndex >= _builderEntities.Count)
         {
             return;
@@ -3437,7 +3479,8 @@ public partial class Game1
         var entity = _builderEntities[_builderSelectedEntityIndex];
         _builderPropertyTarget = GarrisonBuilderPropertyTarget.SelectedMapEntity;
         _builderPropertyEditMode = GarrisonBuilderPropertyEditMode.List;
-        _builderPropertyEditorTitle = $"{entity.Type} @ {entity.X:0},{entity.Y:0}";
+        var displayName = MapObjectMetadata.Name(entity.Properties);
+        _builderPropertyEditorTitle = $"{(displayName.Length > 0 ? displayName : entity.Type)} @ {entity.X:0},{entity.Y:0}";
         _builderPropertyScrollIndex = 0;
         _builderPropertyEditorValues = new Dictionary<string, string>(entity.Properties, StringComparer.OrdinalIgnoreCase);
         if (GameplayMessageMetadata.IsGameplayMessageEntityType(entity.Type))

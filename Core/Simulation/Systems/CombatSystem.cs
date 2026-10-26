@@ -176,6 +176,7 @@ public sealed class CombatSystem
             && playerTarget is not null)
         {
             _host.TryRegisterBuffBannerDamage(attacker, playerTarget, amount);
+            KingpinPrototype.RegisterCombatDamage(attacker, playerTarget, amount);
         }
     }
 
@@ -447,10 +448,12 @@ public sealed class CombatSystem
         }
 
         damage = _host.ApplyExperimentalIncomingDamageMultiplier(target, request.Attacker, damage);
+        damage = ApplyPluginDamageTakenScale(target, damage);
         damage = _host.ApplyLastToDieIncomingDamageMultiplier(target, damage, damageTraits);
         damageAfterIncomingModifiers = damage;
         damage = _host.ScaleConfiguredDamage(damage);
         damageAfterServerScaling = damage;
+        damage = (int)MathF.Ceiling(KingpinPrototype.ApplyProjectileGuard(target, damage, request));
         damage = target.AbsorbExperimentalShieldDamage(damage);
         damageAfterShield = damage;
         if (damage <= 0)
@@ -755,10 +758,12 @@ public sealed class CombatSystem
         }
 
         damage = _host.ApplyExperimentalIncomingDamageMultiplier(target, request.Attacker, damage);
+        damage = ApplyPluginDamageTakenScale(target, damage);
         damage = _host.ApplyLastToDieIncomingDamageMultiplier(target, damage, damageTraits);
         damageAfterIncomingModifiers = damage;
         damage = _host.ScaleConfiguredDamage(damage);
         damageAfterServerScaling = damage;
+        damage = KingpinPrototype.ApplyProjectileGuard(target, damage, request);
         damage = target.AbsorbExperimentalShieldDamage(damage);
         damageAfterShield = damage;
         if (damage <= 0f)
@@ -1306,6 +1311,19 @@ public sealed class CombatSystem
         string? weaponSpriteName)
     {
         return _host.ShouldCancelDeath(player, gibbed, killer, weaponSpriteName);
+    }
+
+    // A plugin's damage_taken_scale status (a stance that resists or takes extra damage).
+    private int ApplyPluginDamageTakenScale(PlayerEntity target, int damage)
+    {
+        var scale = target.GetPluginDamageTakenScale(_host.Frame);
+        return damage <= 0 || scale == 1f ? damage : Math.Max(1, (int)MathF.Round(damage * scale));
+    }
+
+    private float ApplyPluginDamageTakenScale(PlayerEntity target, float damage)
+    {
+        var scale = target.GetPluginDamageTakenScale(_host.Frame);
+        return damage <= 0f || scale == 1f ? damage : MathF.Max(0.01f, damage * scale);
     }
 }
 

@@ -108,6 +108,20 @@ public static class MapLogicEntityReference
 
         if (!string.IsNullOrWhiteSpace(mapEntityId))
         {
+            // Runtime markers retain their source IDs. Do not round-trip a stable
+            // reference through coordinates: multiple objects may share an origin.
+            for (var index = 0; index < roomObjects.Count; index++)
+            {
+                var marker = roomObjects[index];
+                if (string.Equals(marker.MapEntityId, mapEntityId, StringComparison.OrdinalIgnoreCase)
+                    && EntityTypeMatchesRoomObject(entityType, marker))
+                {
+                    roomObjectIndex = index;
+                    return true;
+                }
+            }
+
+            // Keep compatibility with callers that supply older, untagged markers.
             return importedEntities is not null
                 && TryResolveRoomObjectIndexByMapEntityId(
                     roomObjects,
@@ -260,7 +274,8 @@ public static class MapLogicEntityReference
                 entityType,
                 entity.X,
                 entity.Y,
-                out roomObjectIndex);
+                out roomObjectIndex,
+                onlyUnidentified: true);
         }
 
         return false;
@@ -271,7 +286,8 @@ public static class MapLogicEntityReference
         string entityType,
         float x,
         float y,
-        out int roomObjectIndex)
+        out int roomObjectIndex,
+        bool onlyUnidentified = false)
     {
         roomObjectIndex = -1;
         var bestIndex = -1;
@@ -279,6 +295,7 @@ public static class MapLogicEntityReference
         for (var index = 0; index < roomObjects.Count; index += 1)
         {
             var marker = roomObjects[index];
+            if (onlyUnidentified && !string.IsNullOrWhiteSpace(marker.MapEntityId)) continue;
             if (!EntityTypeMatchesRoomObject(entityType, marker))
             {
                 continue;

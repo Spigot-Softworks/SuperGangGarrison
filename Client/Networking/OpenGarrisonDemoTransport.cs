@@ -330,7 +330,7 @@ public sealed class OpenGarrisonDemoTransport : ISeekablePlaybackMessageTranspor
                             $"Demo welcome uses protocol {nextWelcome.Version}, expected {ProtocolVersion.Current}.");
                     }
 
-                    world = new SimulationWorld();
+                    world = new SimulationWorld { ClientPredictionMode = true };
                     if (!world.MapLifecycle.TryLoadLevel(nextWelcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: nextWelcome.MapScale))
                     {
                         throw new InvalidDataException($"Demo map '{nextWelcome.LevelName}' could not be loaded.");

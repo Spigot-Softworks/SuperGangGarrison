@@ -27,6 +27,8 @@ internal sealed class PluginHost
     private readonly OpenGarrisonPluginHostApi _hostApi = OpenGarrisonPluginHostApi.CreateServerDefault();
     private readonly List<PluginLoader.LoadedPlugin> _loadedPlugins = new();
     private readonly HashSet<string> _registeredManifestGameplayPackIds = new(StringComparer.Ordinal);
+    // Prefixes registry owner keys so two hosts in one process (practice and an embedded server) stay apart.
+    private readonly string _registrationOwnerPrefix = $"server-plugins:{Guid.NewGuid():N}";
 
     public PluginHost(
         Func<SimulationWorld> worldGetter,
@@ -77,7 +79,8 @@ internal sealed class PluginHost
             BuildPluginSearchDirectories(),
             CreateContext,
             _log,
-            ClearPluginRegistrations));
+            ClearPluginRegistrations,
+            BeginPluginRegistrationScope));
         foreach (var loadedPlugin in _loadedPlugins)
         {
             _log($"[plugin] loaded {loadedPlugin.Plugin.DisplayName} ({loadedPlugin.Plugin.Id} {loadedPlugin.Plugin.Version})");
@@ -92,7 +95,8 @@ internal sealed class PluginHost
             assemblies,
             CreateContext,
             _log,
-            ClearPluginRegistrations));
+            ClearPluginRegistrations,
+            BeginPluginRegistrationScope));
         foreach (var loadedPlugin in _loadedPlugins)
         {
             _log($"[plugin] loaded {loadedPlugin.Plugin.DisplayName} ({loadedPlugin.Plugin.Id} {loadedPlugin.Plugin.Version})");
@@ -411,7 +415,11 @@ internal sealed class PluginHost
             {
                 ClearPluginRegistrations(loadedPlugin.Plugin.Id);
                 loadedPlugin.Plugin.Shutdown();
-                loadedPlugin.Plugin.Initialize(loadedPlugin.Context);
+                using (BeginPluginRegistrationScope(loadedPlugin.Plugin.Id))
+                {
+                    RegisterManifestGameplayPacks(loadedPlugin.Context.Manifest, loadedPlugin.PluginDirectory);
+                    loadedPlugin.Plugin.Initialize(loadedPlugin.Context);
+                }
                 reloaded += 1;
             }
             catch (Exception ex)
@@ -568,13 +576,22 @@ internal sealed class PluginHost
             TryRegisterGameplayPrimaryWeaponBehavior,
             TryRegisterGameplayWeaponItem,
             TryRegisterGameplayLoadout,
+            TryRegisterGameplayClass,
             TryRegisterGameplaySlotItem,
             _registerServerVoteKind,
             _startServerVote,
             (playerId, velocityX, velocityY) => _worldGetter().Abilities.TryApplyGameplayImpulse(playerId, velocityX, velocityY),
+            (playerId, velocityX, velocityY) => _worldGetter().Abilities.TrySetGameplayVelocity(playerId, velocityX, velocityY),
+            (playerId, suffix, ticksPerFrame, loop, durationTicks) => _worldGetter().Abilities.TrySetGameplayPose(playerId, suffix, ticksPerFrame, loop, durationTicks),
+            (playerId, soundName) => _worldGetter().Abilities.TryPlayGameplaySound(playerId, soundName),
+            (playerId, directionDegrees, count) => _worldGetter().Abilities.TrySpawnGameplayBlood(playerId, directionDegrees, count),
+            (spriteName, x, y, rotationDegrees, flipX, ticksPerFrame) => _worldGetter().Abilities.TrySpawnGameplaySpriteEffect(spriteName, x, y, rotationDegrees, flipX, ticksPerFrame),
+            (effect, x, y, durationTicks) => _worldGetter().Abilities.TryPlayGameplayScreenEffect(effect, x, y, durationTicks),
+            (x, y, radius, ticks, travelPixels) => _worldGetter().Abilities.TryFreezeGameplayProjectiles(x, y, radius, ticks, travelPixels),
+            (playerId, x, y) => _worldGetter().Abilities.TryTeleportGameplayPlayer(playerId, x, y),
             (ownerId, playerId, cooldownKey, ticks) => TrySetGameplayAbilityCooldown(ownerId, playerId, cooldownKey, ticks),
-            (targetPlayerId, amount, attackerPlayerId, weaponSpriteName) => _worldGetter().Abilities.TryApplyGameplayDamage(targetPlayerId, amount, attackerPlayerId, weaponSpriteName),
-            (playerId, amount) => _worldGetter().Abilities.TryApplyGameplayHealing(playerId, amount),
+            (targetPlayerId, amount, attackerPlayerId, weaponSpriteName, deathType) => _worldGetter().Abilities.TryApplyGameplayDamage(targetPlayerId, amount, attackerPlayerId, weaponSpriteName, deathType),
+            (playerId, amount, silent) => _worldGetter().Abilities.TryApplyGameplayHealing(playerId, amount, silent),
             (playerId, statusEffectId, ticks, value) => _worldGetter().Abilities.TryApplyGameplayStatusEffect(playerId, statusEffectId, ticks, value),
             (GameplayProjectileSpawnRequest request, out int projectileId) => _worldGetter().Abilities.TrySpawnGameplayProjectile(request, out projectileId),
             _commandRegistry,
@@ -613,6 +630,8 @@ internal sealed class PluginHost
             }
 
             _registeredManifestGameplayPackIds.Add(modPack.Id);
+            // Plugin packs live outside the stock content roots; sprites load from (and servers publish) this folder.
+            CharacterClassCatalog.RuntimeRegistry.RegisterPackDirectory(modPack.Id, packDirectory);
             _log($"[plugin] registered gameplay pack {modPack.DisplayName} ({modPack.Id} {modPack.Version})");
         }
     }
@@ -629,6 +648,20 @@ internal sealed class PluginHost
     {
         _commandRegistry.UnregisterOwner(pluginId);
         _unregisterServerVoteKinds(pluginId);
+        if (CharacterClassCatalog.RuntimeRegistry.RemoveOwnedRegistrations(GetRegistrationOwnerKey(pluginId)))
+        {
+            _registeredManifestGameplayPackIds.RemoveWhere(packId => !CharacterClassCatalog.RuntimeRegistry.ModPacks.Any(modPack => modPack.Id == packId));
+        }
+    }
+
+    private IDisposable BeginPluginRegistrationScope(string pluginId)
+    {
+        return CharacterClassCatalog.RuntimeRegistry.BeginRegistrationScope(GetRegistrationOwnerKey(pluginId));
+    }
+
+    private string GetRegistrationOwnerKey(string pluginId)
+    {
+        return $"{_registrationOwnerPrefix}/{pluginId}";
     }
 
     private void TrySendMessageToClient(
@@ -860,6 +893,21 @@ internal sealed class PluginHost
         }
 
         _log($"[plugin] gameplay loadout registration rejected for {pluginId}: {errorMessage}");
+        return false;
+    }
+
+    private bool TryRegisterGameplayClass(string pluginId, GameplayClassRegistration registration, out string errorMessage)
+    {
+        var modPackId = string.IsNullOrWhiteSpace(registration.ModPackId)
+            ? $"plugin.{pluginId}"
+            : registration.ModPackId;
+        if (CharacterClassCatalog.RuntimeRegistry.TryRegisterGameplayClass(registration with { ModPackId = modPackId }, out errorMessage))
+        {
+            _log($"[plugin] registered gameplay class {registration.ClassId} for {pluginId}");
+            return true;
+        }
+
+        _log($"[plugin] gameplay class registration rejected for {pluginId}: {errorMessage}");
         return false;
     }
 

@@ -738,7 +738,7 @@ sealed class ServerSessionManager
             return false;
         }
 
-        var orderedLoadouts = GameplayLoadoutSelectionResolver.GetOrderedLoadouts(player.ClassId);
+        var orderedLoadouts = GameplayLoadoutSelectionResolver.GetOrderedLoadouts(player.ClassDefinition);
         var loadoutIndex = requestedLoadoutIndex - 1;
         if (loadoutIndex < 0 || loadoutIndex >= orderedLoadouts.Count)
         {

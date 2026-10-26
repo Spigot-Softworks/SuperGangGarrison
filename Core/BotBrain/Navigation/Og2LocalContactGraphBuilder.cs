@@ -57,7 +57,7 @@ public static class Og2LocalContactGraphBuilder
     // recipe can be structurally valid for another class yet fail when that
     // class executes it, so each distinct movement signature is probed here.
     // Identical movement signatures share one recipe and one capability mask.
-    private static readonly PlayerClass[] AllMovementClasses = Enum.GetValues<PlayerClass>();
+    private static readonly PlayerClass[] AllMovementClasses = PlayerClassSlots.Stock;
 
     public static NavGraph Build(SimpleLevel level)
     {
@@ -80,10 +80,10 @@ public static class Og2LocalContactGraphBuilder
         }
         stageStopwatch.Restart();
 
-        var maximumCollisionBottom = Enum.GetValues<PlayerClass>()
+        var maximumCollisionBottom = PlayerClassSlots.Stock
             .Select(CharacterClassCatalog.GetDefinition)
             .Max(static definition => definition.CollisionBottom);
-        var minimumCollisionBottom = Enum.GetValues<PlayerClass>()
+        var minimumCollisionBottom = PlayerClassSlots.Stock
             .Select(CharacterClassCatalog.GetDefinition)
             .Min(static definition => definition.CollisionBottom);
 
@@ -224,6 +224,14 @@ public static class Og2LocalContactGraphBuilder
         // contact pass. If that candidate has no certified edge in either
         // direction, remove the dead traversal sample while preserving
         // objective and spawn terminal nodes for their own validation rules.
+        for (var fromIndex = 0; fromIndex < nodes.Count; fromIndex++)
+        {
+            var from = nodes[fromIndex];
+            adjacency[fromIndex].RemoveAll(edge => edge.Kind == NavEdgeKind.Walk
+                && BotNavigationEnvironment.HasOpposingForce(level, from.X, from.Y,
+                    nodes[edge.ToNode].X, nodes[edge.ToNode].Y,
+                    -8f, -16f, 8f, maximumCollisionBottom));
+        }
         var postAnchorPruned = PruneIsolatedSurfaceNodes(
             nodes,
             adjacency,
@@ -691,6 +699,7 @@ public static class Og2LocalContactGraphBuilder
                 launchY = probe.Y;
                 launchHorizontalSpeed = probe.HorizontalSpeed;
             }
+            BotNavigationEnvironment.ApplyForces(level, probe);
             probe.Advance(
                 input,
                 jumpPressed,
@@ -698,6 +707,9 @@ public static class Og2LocalContactGraphBuilder
                 probeTeam,
                 1d / SimulationConfig.DefaultTicksPerSecond);
             previousInput = input;
+
+            if (!BotNavigationEnvironment.IsSafe(level, probe))
+                break;
 
             if (!probe.IsGrounded)
             {
@@ -1045,12 +1057,17 @@ public static class Og2LocalContactGraphBuilder
         probe.ResolveBlockingOverlap(level, team);
 
         var distance = MathF.Abs(toNode.X - fromNode.X);
+        if (BotNavigationEnvironment.HasOpposingForce(level, fromNode.X, probeY, toNode.X, probeY,
+                probe.CollisionLeftOffset, probe.CollisionTopOffset, probe.CollisionRightOffset, probe.CollisionBottomOffset))
+            return false;
         var samples = Math.Max(1, (int)MathF.Ceiling(distance / 8f));
         for (var sample = 0; sample <= samples; sample += 1)
         {
             var fraction = sample / (float)samples;
             var x = fromNode.X + ((toNode.X - fromNode.X) * fraction);
-            if (!probe.CanOccupy(level, team, x, probeY))
+            if (BotNavigationEnvironment.IntersectsLethalZone(level, x + probe.CollisionLeftOffset,
+                    probeY + probe.CollisionTopOffset, x + probe.CollisionRightOffset, probeY + probe.CollisionBottomOffset)
+                || !probe.CanOccupy(level, team, x, probeY))
             {
                 return false;
             }
@@ -1138,7 +1155,7 @@ public static class Og2LocalContactGraphBuilder
 
     private static NavEdgeLaunchRecipe CreateContactLaunchRecipe(ContactRecord contact)
     {
-        var playerClass = Enum.GetValues<PlayerClass>()
+        var playerClass = PlayerClassSlots.Stock
             .FirstOrDefault(candidate => ResolveMovementClassMask(candidate) == contact.SupportedClassMask);
         var definition = CharacterClassCatalog.GetDefinition(playerClass);
 
@@ -1737,12 +1754,15 @@ public static class Og2LocalContactGraphBuilder
         var objectiveHeight = objectiveMaxY - objectiveMinY;
         for (var tick = 0; tick < Math.Max(SweepTicks, 96); tick += 1)
         {
+            BotNavigationEnvironment.ApplyForces(level, player);
             player.Advance(
                 input,
                 jumpPressed: false,
                 level,
                 team,
                 1d / SimulationConfig.DefaultTicksPerSecond);
+            if (!BotNavigationEnvironment.IsSafe(level, player))
+                return false;
             if (player.IntersectsMarker(
                     objectiveCenterX,
                     objectiveCenterY,
@@ -1817,6 +1837,7 @@ public static class Og2LocalContactGraphBuilder
                     launchHorizontalSpeed = player.HorizontalSpeed;
                 }
 
+                BotNavigationEnvironment.ApplyForces(level, player);
                 player.Advance(
                     input,
                     jumpPressed,
@@ -1824,6 +1845,8 @@ public static class Og2LocalContactGraphBuilder
                     team,
                     1d / SimulationConfig.DefaultTicksPerSecond);
                 previousInput = input;
+                if (!BotNavigationEnvironment.IsSafe(level, player))
+                    break;
 
                 if (!launchCaptured
                     || !player.IntersectsMarker(
@@ -2375,7 +2398,7 @@ public static class Og2LocalContactGraphBuilder
     {
         var mask = 0;
         var signature = MovementSignature.For(playerClass);
-        foreach (var classId in Enum.GetValues<PlayerClass>())
+        foreach (var classId in PlayerClassSlots.Stock)
         {
             if (MovementSignature.For(classId) == signature)
             {

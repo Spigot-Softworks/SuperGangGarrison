@@ -23,7 +23,7 @@ internal sealed partial class ObjectiveRulesSystem
                 return;
             }
 
-            if (_host.RedCaps >= ConquestRules.ScoreLimit || _host.BlueCaps >= ConquestRules.ScoreLimit)
+            if (_host.RedCaps >= _host.MatchRules.CapLimit || _host.BlueCaps >= _host.MatchRules.CapLimit)
             {
                 _host.DecisionGate.TryEndRound(GetConquestScoreLeader(), "conquest_score_limit");
                 return;
@@ -90,7 +90,7 @@ internal sealed partial class ObjectiveRulesSystem
             // The existing team-score fields also carry TDM/SCR scores through snapshots.
             var score = point.Team == PlayerTeam.Red ? _host.RedCaps : _host.BlueCaps;
             _host.DecisionGate.TryAwardTeamScore(point.Team.Value,
-                score < ConquestRules.ScoreLimit ? 1 : 0, "conquest_point_held");
+                score < _host.MatchRules.CapLimit ? 1 : 0, "conquest_point_held");
         }
     }
 }

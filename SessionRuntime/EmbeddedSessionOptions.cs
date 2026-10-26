@@ -14,6 +14,8 @@ public sealed record EmbeddedSessionOptions
     public int MapArea { get; init; } = 1;
     public int TimeLimitMinutes { get; init; } = 15;
     public int CaptureLimit { get; init; } = 5;
+    public int ConquestScoreLimit { get; init; } = ConquestRules.ScoreLimit;
+    public bool Hardcore { get; init; }
     public int RespawnSeconds { get; init; } = 5;
     public int RedBots { get; init; }
     public int BlueBots { get; init; }
@@ -27,6 +29,7 @@ public sealed record EmbeddedSessionOptions
         if (MaximumPlayers is < 1 or > 4 || TickRate is not (30 or 60 or 120)
             || string.IsNullOrWhiteSpace(Map) || MapArea < 1
             || TimeLimitMinutes is < 5 or > 60 || CaptureLimit is < 1 or > 10
+            || ConquestScoreLimit is < 1 or > ConquestRules.MaximumScoreLimit
             || RespawnSeconds is not (0 or 3 or 5 or 10 or 15)
             || RedBots is < 0 or > 9 || BlueBots is < 0 or > 9
             || !Enum.IsDefined(Difficulty))

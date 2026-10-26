@@ -79,8 +79,25 @@ public static class CustomMapEntityRuntimeRegistry
         var args = new CustomMapEntityImportArgs(type, x, y, xScale, yScale, properties);
         foreach (var importer in Importers)
         {
+            var firstRoomObjectIndex = context.RoomObjects.Count;
+            var firstRedSpawnIndex = context.RedSpawns.Count;
+            var firstBlueSpawnIndex = context.BlueSpawns.Count;
             if (importer.TryImport(args, context))
             {
+                var mapEntityId = properties.GetValueOrDefault(MapLogicMetadata.MapEntityIdPropertyKey, "").Trim();
+                var name = MapObjectMetadata.Name(properties);
+                var groups = MapObjectMetadata.Groups(properties);
+                for (var index = firstRoomObjectIndex; index < context.RoomObjects.Count; index++)
+                    context.RoomObjects[index] = context.RoomObjects[index] with
+                        { MapEntityId = mapEntityId, ObjectName = name, ObjectGroups = groups };
+                void StampSpawns(IList<SpawnPoint> spawns, int first)
+                {
+                    for (var index = first; index < spawns.Count; index++)
+                        spawns[index] = spawns[index] with
+                            { MapEntityId = mapEntityId, ObjectName = name, ObjectGroups = groups };
+                }
+                StampSpawns(context.RedSpawns, firstRedSpawnIndex);
+                StampSpawns(context.BlueSpawns, firstBlueSpawnIndex);
                 return true;
             }
         }
@@ -488,7 +505,7 @@ internal sealed class ControlPointMapEntityRuntimeImporter : ICustomMapEntityRun
         if (properties.TryGetValue("index", out var rawValue)
             && int.TryParse(rawValue, out var index))
         {
-            return Math.Clamp(index, 1, 5);
+            return ControlPointIndexMetadata.ClampIndex(index);
         }
 
         return 1;

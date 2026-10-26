@@ -809,7 +809,7 @@ public sealed class SnapshotSystem
     public SnapshotControlPointState ToSnapshotControlPointState(ControlPointState point)
     {
         return new SnapshotControlPointState(
-            (byte)point.Index,
+            point.Index,
             (byte)(point.Team.HasValue ? point.Team.Value : 0),
             (byte)(point.CappingTeam.HasValue ? point.CappingTeam.Value : 0),
             (ushort)Math.Clamp((int)MathF.Round(point.CappingTicks), 0, ushort.MaxValue),

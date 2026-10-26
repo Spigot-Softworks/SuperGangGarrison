@@ -2,6 +2,23 @@ namespace OpenGarrison.Core;
 
 internal sealed partial class MapLogicSystem
 {
+    private bool _applyingDestroyWhen;
+
+    private void ApplyDamageableZoneDestroyWhenSignals()
+    {
+        if (_host.ClientPredictionMode || _applyingDestroyWhen) return;
+        _applyingDestroyWhen = true;
+        try
+        {
+            foreach (var index in _host.Level.GetRoomObjectIndices(RoomObjectType.DamageableZone))
+            {
+                var nodeIndex = _host.Level.GetRoomObject(index).DamageableZone.DestroyWhenNodeIndex;
+                if (nodeIndex >= 0 && _host.Level.LogicGraph.GetOutput(nodeIndex))
+                    TryApplyDamageableZoneDamage(index, GetDamageableZoneHealth(index));
+            }
+        }
+        finally { _applyingDestroyWhen = false; }
+    }
 
     internal float GetDamageableZoneHealth(int roomObjectIndex)
     {
@@ -131,6 +148,7 @@ internal sealed partial class MapLogicSystem
 
     private void ApplyDamageableZoneHealWhenSignals()
     {
+        ApplyDamageableZoneDestroyWhenSignals();
         if (_host.ClientPredictionMode) return;
         foreach (var index in _host.Level.GetRoomObjectIndices(RoomObjectType.DamageableZone))
         {

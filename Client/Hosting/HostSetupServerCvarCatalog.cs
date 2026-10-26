@@ -70,6 +70,8 @@ internal static class HostSetupServerCvarCatalog
     [
         Def("sv_timelimit", "Time Limit (min)", HostSetupCvarEditorKind.NumericText, HostSetupServerCvarValueType.Integer, 1, 255, hostSettingKey: nameof(OpenGarrisonHostSettings.TimeLimitMinutes)),
         Def("sv_caplimit", "Cap Limit", HostSetupCvarEditorKind.NumericText, HostSetupServerCvarValueType.Integer, 1, 255, hostSettingKey: nameof(OpenGarrisonHostSettings.CapLimit)),
+        Def("sv_conquest_scorelimit", "Conquest Point Limit", HostSetupCvarEditorKind.NumericText, HostSetupServerCvarValueType.Integer, 1, ConquestRules.MaximumScoreLimit, hostSettingKey: nameof(OpenGarrisonHostSettings.ConquestScoreLimit)),
+        Def("sv_experimental_hardcore", "Hardcore (experimental)", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.HardcoreEnabled)),
         Def("sv_respawnseconds", "Respawn Time (sec)", HostSetupCvarEditorKind.NumericText, HostSetupServerCvarValueType.Integer, 0, 255, hostSettingKey: nameof(OpenGarrisonHostSettings.RespawnSeconds)),
         Def("sv_autobalance", "Auto-balance", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.AutoBalanceEnabled)),
         Def("sv_specialabilities", "Special Abilities", HostSetupCvarEditorKind.Toggle, HostSetupServerCvarValueType.Boolean, hostSettingKey: nameof(OpenGarrisonHostSettings.SecondaryAbilitiesEnabled)),

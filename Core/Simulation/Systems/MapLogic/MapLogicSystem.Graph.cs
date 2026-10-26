@@ -64,6 +64,8 @@ internal sealed partial class MapLogicSystem
         EvaluateMapLogicDamageTriggersIfNeeded();
         EvaluateMapLogicScoreTriggersIfNeeded();
 
+        TickRoundEndCountdowns();
+
         var deltaSeconds = (float)_host.Config.FixedDeltaSeconds;
         if (_host.Level.LogicGraph.HasDamageTriggers)
         {
@@ -104,6 +106,7 @@ internal sealed partial class MapLogicSystem
 
         _host.MapRuntime.LogicTimersLastFrame = _host.Frame;
         TickMapLogicTimers();
+        TickMapScript();
     }
 
     internal bool PulseMapLogicNode(int nodeIndex)
@@ -177,7 +180,7 @@ internal sealed partial class MapLogicSystem
         if (!_host.Level.LogicGraph.HasNodes && !_host.Level.LogicActivators.HasActivators)
 
         {
-
+            if (force && resetStatefulNodes) ResetMapScript();
             return;
 
         }
@@ -210,6 +213,7 @@ internal sealed partial class MapLogicSystem
         {
             if (force && resetStatefulNodes)
             {
+                graph.ResetExternalPulses();
                 graph.ResetCpTriggerStates(_host.Objectives.ControlPoints.Points);
                 graph.ResetPlayerTriggerStates(CreatePlayerTriggerEvaluationContext());
                 graph.ResetIntelTriggerStates(CreateIntelTriggerEvaluationContext());
@@ -236,6 +240,8 @@ internal sealed partial class MapLogicSystem
         }
 
         ApplyMapLogicActivators();
+        if (force && resetStatefulNodes) ResetMapScript();
+        else QueueMapScriptSignalChanges();
     }
 
     private void ApplyControlPointLogicLockTriggers()
@@ -267,6 +273,7 @@ internal sealed partial class MapLogicSystem
 
         _host.MapRuntime.LogicActivatorRuntimeState.Reset();
         _host.MapRuntime.LogicScoreTriggerRuntimeState.Reset();
+        ResetRoundEndCountdowns();
         ResetSpritesheetPlaybackRuntime();
     }
 
@@ -331,6 +338,9 @@ internal sealed partial class MapLogicSystem
     private void ApplyMapLogicActivators()
 
     {
+        // Observe short pulses before another graph evaluation consumes them,
+        // including maps with no activators attached to the named node.
+        QueueMapScriptSignalChanges();
 
         if (!_host.Level.LogicActivators.HasActivators)
 

@@ -520,6 +520,21 @@ public sealed class GameplayAccountAttachRequestMessageSchema
 }
 
 [ReliableOrdered(ChannelType.Control)]
+/// <summary>The protocol-64 schema for the gameplay content sync message.</summary>
+public sealed class GameplayContentSyncMessageSchema
+    : Protocol64LegacyMessageSchema<GameplayContentSyncMessage>
+{
+    /// <summary>The maximum body size in bytes: the content plus its length prefix.</summary>
+    public const int MaxBodyBytes = GameplayContentSyncMessage.MaxContentBytes + sizeof(int);
+
+    /// <summary>Initializes a new instance of the <see cref="GameplayContentSyncMessageSchema"/> class.</summary>
+    public GameplayContentSyncMessageSchema()
+        : base(Protocol64EventId.GameplayContentSync, Protocol64Direction.ServerToClient, MaxBodyBytes)
+    {
+    }
+}
+
+[ReliableOrdered(ChannelType.Control)]
 /// <summary>The protocol-64 schema for the gameplay account attach result message message.</summary>
 public sealed class GameplayAccountAttachResultMessageSchema
     : Protocol64LegacyMessageSchema<GameplayAccountAttachResultMessage>
@@ -643,6 +658,7 @@ public static class Protocol64SchemaRegistryFactory
         registry.Register(new AudioRelayMessageSchema());
         registry.Register(new ServerAudioStateMessageSchema());
         registry.Register(new VoiceChannelMembershipMessageSchema());
+        registry.Register(new GameplayContentSyncMessageSchema());
         registry.Register(new Protocol64InputCommandSchema());
         registry.Register(new Protocol64InputCommandResultSchema());
         registry.Register(new Protocol64InputCommandResultAckSchema());

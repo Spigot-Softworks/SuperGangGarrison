@@ -48,6 +48,7 @@ public sealed class Protocol64MessageSchemaTests
             [Protocol64EventId.AudioRelay] = (typeof(AudioRelayMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.LastWins, ChannelType.Audio),
             [Protocol64EventId.ServerAudioState] = (typeof(ServerAudioStateMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.LastWins, ChannelType.Audio),
             [Protocol64EventId.VoiceChannelMembership] = (typeof(VoiceChannelMembershipMessage), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.LastWins, ChannelType.Audio),
+            [Protocol64EventId.GameplayContentSync] = (typeof(GameplayContentSyncMessage), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Control),
             [Protocol64EventId.InputCommand] = (typeof(Protocol64InputCommand), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Input),
             [Protocol64EventId.InputCommandResult] = (typeof(Protocol64InputCommandResult), Protocol64Direction.ServerToClient, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Input),
             [Protocol64EventId.InputCommandResultAck] = (typeof(Protocol64InputCommandResultAck), Protocol64Direction.ClientToServer, Protocol64DeliveryKind.ReliableOrdered, ChannelType.Input),
@@ -70,8 +71,8 @@ public sealed class Protocol64MessageSchemaTests
     {
         var registry = Protocol64SchemaRegistryFactory.CreateDefault();
 
-        Assert.Equal(53, registry.Count);
-        Assert.Equal(53, ExpectedSchemas.Count);
+        Assert.Equal(54, registry.Count);
+        Assert.Equal(54, ExpectedSchemas.Count);
 
         foreach (var (eventId, expected) in ExpectedSchemas)
         {

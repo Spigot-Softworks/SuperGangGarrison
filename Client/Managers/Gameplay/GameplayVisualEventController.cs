@@ -78,6 +78,11 @@ public sealed class GameplayVisualEventController
 
         public void PlayVisualEvent(string effectName, float x, float y, float directionDegrees, int count, OpenGarrison.Core.PlayerTeam team = OpenGarrison.Core.PlayerTeam.Neutral)
         {
+            if (_context.Gameplay.PluginEffects.TryPlayVisualEvent(effectName, x, y, directionDegrees, count))
+            {
+                return;
+            }
+
             if (_context.Gameplay.ImpactEffects.TryPlayVisualEvent(effectName, x, y, directionDegrees, count))
             {
                 _context.RecordPresentedExplosionVisual(effectName, x, y);

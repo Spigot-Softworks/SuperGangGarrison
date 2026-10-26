@@ -24,6 +24,7 @@ public sealed partial class PlayerEntity
         }
 
         if (!IsAlive || IsHeavyEating || IsTaunting
+            || (KingpinPrototype.IsKingpin(this) && KingpinPrototype.Read(this, "ticks") > 0)
             || IsCivviePogoActive
             || (IsSpyCloaked && !CanFireLastToDieProfessionalRevolverWhileCloaked)
             || IsExperimentalCryoFrozen

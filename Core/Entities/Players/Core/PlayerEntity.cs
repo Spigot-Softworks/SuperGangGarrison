@@ -954,6 +954,7 @@ public sealed partial class PlayerEntity : SimulationEntity
 
     public void Spawn(PlayerTeam team, float x, float y)
     {
+        KingpinPrototype.Reset(this);
         ResetLastToDieSpyCloakDynamicState();
         ResetLastToDieSpyInfiltrateDynamicState();
         Team = team;
@@ -964,6 +965,8 @@ public sealed partial class PlayerEntity : SimulationEntity
         IsAlive = true;
         IsGrounded = false;
         Health = MaxHealth;
+        TimeStopTicksRemainingValue = 0;
+        SetFacingLockTicks(0);
         IsCarryingIntel = false;
         IntelPickupCooldownTicks = 0;
         IntelRechargeTicks = 0f;
@@ -1004,6 +1007,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         RefreshLastToDieWeaponOverrideForClassDefinition();
         if (classChanged)
         {
+            KingpinPrototype.Reset(this);
             var defaultLoadout = CharacterClassCatalog.RuntimeRegistry.GetDefaultLoadout(GameplayClassId);
             SelectedGameplayLoadoutId = defaultLoadout.Id;
             SelectedGameplayPrimaryItemId = defaultLoadout.Primary?.DefaultItemId ?? defaultLoadout.PrimaryItemId;
@@ -1040,6 +1044,7 @@ public sealed partial class PlayerEntity : SimulationEntity
         ResetLastToDieSpyInfiltrateDynamicState();
         IsAlive = false;
         Health = 0;
+        TimeStopTicksRemainingValue = 0;
         HorizontalSpeed = 0f;
         VerticalSpeed = 0f;
         IsGrounded = false;

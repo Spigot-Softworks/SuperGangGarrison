@@ -73,6 +73,9 @@ public partial class Game1
                 case WelcomeMessage welcome:
                     HandleWelcomeMessage(welcome);
                     break;
+                case GameplayContentSyncMessage contentSync:
+                    HandleGameplayContentSyncMessage(contentSync);
+                    break;
                 case ConnectionDeniedMessage denied:
                     HandleConnectionDeniedMessage(denied);
                     break;

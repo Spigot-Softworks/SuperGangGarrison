@@ -69,7 +69,8 @@ public sealed class AnimatedMenuBackgroundController
                 var catalog = SimpleLevelFactory.GetAvailableSourceLevels();
                 var customMapNames = catalog
                     .Select(entry => entry.Name)
-                    .Where(name => !mapNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+                    .Where(name => !mapNames.Contains(name, StringComparer.OrdinalIgnoreCase)
+                        && !GarrisonBuilderQuickTestNaming.IsQuickTestLevel(name))
                     .ToList();
 
                 mapNames.AddRange(customMapNames);

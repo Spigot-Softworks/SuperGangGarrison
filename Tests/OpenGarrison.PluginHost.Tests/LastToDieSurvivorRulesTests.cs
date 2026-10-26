@@ -7,7 +7,7 @@ namespace OpenGarrison.PluginHost.Tests;
 
 public sealed class LastToDieSurvivorRulesTests
 {
-    public static IEnumerable<object[]> Classes => Enum.GetValues<PlayerClass>().Select(value => new object[] { value });
+    public static IEnumerable<object[]> Classes => PlayerClassSlots.Stock.Select(value => new object[] { value });
 
     [Theory]
     [MemberData(nameof(Classes))]

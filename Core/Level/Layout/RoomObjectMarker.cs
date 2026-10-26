@@ -25,6 +25,11 @@ public readonly record struct RoomObjectMarker(
     SpritesheetConfiguration Spritesheet = default,
     CatapultConfiguration Catapult = default)
 {
+    /// <summary>Stable source-entity identity for links between overlapping map objects.</summary>
+    public string MapEntityId { get; init; } = string.Empty;
+    public string ObjectName { get; init; } = string.Empty;
+    public string ObjectGroups { get; init; } = string.Empty;
+
     public int DestructibleZoneIndex { get; init; } = -1;
     public DestructiblePropSettings DestructionSettings { get; init; } = new(TransitionSeconds: 0.5f);
     public float Left => X;

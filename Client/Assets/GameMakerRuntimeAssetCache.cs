@@ -20,6 +20,8 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
     private readonly Dictionary<string, LoadedGameMakerSprite> _sprites = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Texture2D> _backgrounds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, SoundEffect> _sounds = new(StringComparer.OrdinalIgnoreCase);
+    // Plugin pack sounds by name -> file on disk; stock sounds with the same name win.
+    private readonly Dictionary<string, string> _externalSoundPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _missingSoundPaths = new(OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal);
@@ -340,17 +342,21 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
             return cached;
         }
 
-        if (!_manifest.Sounds.TryGetValue(soundName, out var soundAsset))
+        string audioPath;
+        if (_manifest.Sounds.TryGetValue(soundName, out var soundAsset))
+        {
+            if (OperatingSystem.IsBrowser())
+            {
+                return TryGetBrowserSound(soundName, soundAsset);
+            }
+
+            audioPath = ResolveDesktopSoundAssetPath(soundAsset.AudioPath, ContentRoot.Path);
+        }
+        else if (!_externalSoundPaths.TryGetValue(soundName, out audioPath!))
         {
             return null;
         }
 
-        if (OperatingSystem.IsBrowser())
-        {
-            return TryGetBrowserSound(soundName, soundAsset);
-        }
-
-        var audioPath = ResolveDesktopSoundAssetPath(soundAsset.AudioPath, ContentRoot.Path);
         if (_missingSoundPaths.Contains(audioPath))
         {
             return null;
@@ -449,11 +455,49 @@ public sealed class GameMakerRuntimeAssetCache : IDisposable
 
         if (!_manifest.Sounds.TryGetValue(soundName, out var soundAsset))
         {
-            return true;
+            return !_externalSoundPaths.TryGetValue(soundName, out var externalPath)
+                || _missingSoundPaths.Contains(externalPath);
         }
 
         var audioPath = ResolveDesktopSoundAssetPath(soundAsset.AudioPath, ContentRoot.Path);
         return _missingSoundPaths.Contains(audioPath);
+    }
+
+    /// <summary>
+    /// Adds a plugin pack sound playable by name. A stock sound with the same name keeps playing
+    /// instead. Re-registering a name replaces its file.
+    /// </summary>
+    public void RegisterExternalSound(string soundName, string fullPath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_manifest.Sounds.ContainsKey(soundName))
+        {
+            return;
+        }
+
+        if (_externalSoundPaths.TryGetValue(soundName, out var previousPath)
+            && string.Equals(previousPath, fullPath, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        UnregisterExternalSound(soundName);
+        _externalSoundPaths[soundName] = fullPath;
+        _missingSoundPaths.Remove(fullPath);
+    }
+
+    public void UnregisterExternalSound(string soundName)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_externalSoundPaths.Remove(soundName))
+        {
+            return;
+        }
+
+        if (_sounds.Remove(soundName, out var loaded))
+        {
+            loaded.Dispose();
+        }
     }
 
     internal static string ResolveDesktopSoundAssetPath(string audioPath, string contentRoot)

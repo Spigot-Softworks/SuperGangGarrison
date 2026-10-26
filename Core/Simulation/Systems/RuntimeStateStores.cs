@@ -7,6 +7,8 @@ internal sealed class MatchSettingsState(int timeLimitMinutes, int capLimit, int
 
     public int CapLimit { get; set; } = capLimit;
 
+    public int ConquestScoreLimit { get; set; } = ConquestRules.ScoreLimit;
+
     public int RespawnSeconds { get; set; } = respawnSeconds;
 
     public int RespawnTicks { get; set; } = respawnTicks;
@@ -63,6 +65,11 @@ internal sealed class ClientSnapshotState
 /// <summary>Owns per-map runtime state: damageable zones, map logic activators, and sprite-sheet playback.</summary>
 internal sealed class MapRuntimeState
 {
+    public MapScriptRuntime? MapScript { get; set; }
+    public string? AuthoritativeMapScriptError { get; set; }
+    public SimpleLevel? MapScriptLevel { get; set; }
+    public Dictionary<string, bool> MapScriptSignals { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Queue<(string Name, bool Active)> MapScriptSignalEvents { get; } = new();
     public float[] DamageableZoneHealth { get; set; } = [];
     public long[] DamageableZoneChangedFrame { get; set; } = [];
 
@@ -178,7 +185,8 @@ internal readonly record struct PresentationHitBoundsCacheKey(
     bool IsSniperScoped,
     bool IsSourceFacingLeft,
     bool IsCarryingIntel,
-    bool IsHumiliated);
+    bool IsHumiliated,
+    int PoseState = 0);
 
 internal readonly record struct PresentationHitBoundsCacheEntry(
     PresentationHitBoundsCacheKey Key,

@@ -2312,7 +2312,144 @@
         }
       ],
       "legsBodySprite": "ElkondoHeavy{team}LegsS",
-      "torsoBodySprite": "ElkondoHeavy{team}TorsoS"
+      "torsoBodySprite": "ElkondoHeavy{team}TorsoS",
+      "weapons": [
+        {
+          "itemId": "weapon.tommy-gun",
+          "matchSprite": "SmgS",
+          "sprite": "ElkondoHeavy{team}TommyGunS",
+          "pivot": [
+            16,
+            16
+          ],
+          "canvas": [
+            48,
+            32
+          ],
+          "idleFrame": {
+            "file": "tommygun/idle/idle.png"
+          },
+          "torsoSprite": "ElkondoHeavy{team}TommyTorsoS",
+          "torsoFrame": {
+            "file": "tommygun/body.png"
+          },
+          "fireSprite": "ElkondoHeavy{team}TommyFireS",
+          "reloadSprite": "ElkondoHeavy{team}TommyReloadS",
+          "fireLoopStart": 0,
+          "fireFrameMilliseconds": 50,
+          "reloadFrameMilliseconds": 65,
+          "reloadDurationSeconds": 1.755,
+          "fireFrames": [
+            {
+              "file": "tommygun/fire/alt_tommygun2.png"
+            },
+            {
+              "file": "tommygun/fire/alt_tommygun3.png"
+            },
+            {
+              "file": "tommygun/fire/alt_tommygun4.png"
+            },
+            {
+              "file": "tommygun/fire/alt_tommygun5.png"
+            },
+            {
+              "file": "tommygun/fire/alt_tommygun6.png"
+            },
+            {
+              "file": "tommygun/fire/alt_tommygun7.png"
+            },
+            {
+              "file": "tommygun/fire/alt_tommygun8.png"
+            },
+            {
+              "file": "tommygun/fire/alt_tommygun9.png"
+            }
+          ],
+          "reloadFrames": [
+            {
+              "file": "tommygun/reload/alt_tommygun10.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun11.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun12.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun13.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun14.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun15.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun16.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun17.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun18.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun19.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun20.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun21.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun22.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun23.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun24.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun25.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun26.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun27.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun28.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun29.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun30.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun31.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun32.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun33.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun34.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun35.png"
+            },
+            {
+              "file": "tommygun/reload/alt_tommygun36.png"
+            }
+          ]
+        }
+      ]
     },
     "elkondo-medic": {
       "source": "Elkondo/Medic",
@@ -3250,7 +3387,84 @@
       "legsBodySprite": "ElkondoSpy{team}LegsS",
       "torsoBodySprite": "ElkondoSpy{team}TorsoS",
       "cloakedLegsBodySprite": "ElkondoSpy{team}CloakedLegsS",
-      "cloakedTorsoBodySprite": "ElkondoSpy{team}CloakedTorsoS"
+      "cloakedTorsoBodySprite": "ElkondoSpy{team}CloakedTorsoS",
+      "weapon": {
+        "itemId": "weapon.revolver",
+        "matchSprite": "RevolverS",
+        "sprite": "ElkondoSpy{team}WeaponS",
+        "pivot": [
+          16,
+          16
+        ],
+        "canvas": [
+          32,
+          32
+        ],
+        "idleFrame": {
+          "file": "weapon/idle/idle.png"
+        },
+        "fireSprite": "ElkondoSpy{team}FireS",
+        "reloadSprite": "ElkondoSpy{team}ReloadS",
+        "fireDurationSeconds": 0.3,
+        "reloadDurationSeconds": 0.715,
+        "fireFrameMilliseconds": 50,
+        "reloadFrameMilliseconds": 65,
+        "fireFrames": [
+          {
+            "file": "weapon/fire/revolver_{color}2.png"
+          },
+          {
+            "file": "weapon/fire/revolver_{color}3.png"
+          },
+          {
+            "file": "weapon/fire/revolver_{color}4.png"
+          },
+          {
+            "file": "weapon/fire/revolver_{color}5.png"
+          },
+          {
+            "file": "weapon/fire/revolver_{color}6.png"
+          },
+          {
+            "file": "weapon/fire/revolver_{color}7.png"
+          }
+        ],
+        "reloadFrames": [
+          {
+            "file": "weapon/reload/revolver_{color}8.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}9.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}10.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}11.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}12.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}13.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}14.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}15.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}16.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}17.png"
+          },
+          {
+            "file": "weapon/reload/revolver_{color}18.png"
+          }
+        ]
+      }
     },
     "amogus-impostor": {
       "source": "Amogus",

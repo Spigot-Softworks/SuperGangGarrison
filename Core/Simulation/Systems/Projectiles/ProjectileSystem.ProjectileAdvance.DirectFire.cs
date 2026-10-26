@@ -14,6 +14,12 @@ public sealed partial class ProjectileSystem
                 continue;
             }
 
+            if (IsProjectileFrozen(shot.X, shot.Y))
+            {
+                shot.HoldStill();
+                continue;
+            }
+
             shot.AdvanceOneTick(ResolveProjectileGravityScale());
             var movementX = shot.X - shot.PreviousX;
             var movementY = shot.Y - shot.PreviousY;
@@ -202,8 +208,15 @@ public sealed partial class ProjectileSystem
                 continue;
             }
 
+            if (IsProjectileFrozen(blade.X, blade.Y, blade.DistanceFromSpawn(blade.X, blade.Y)))
+            {
+                blade.HoldStill();
+                continue;
+            }
+
             var owner = FindPlayerById(blade.OwnerId);
             blade.AdvanceOneTick();
+            ClampBladeToFreezeTravel(blade);
             var ammoDrainTicks = blade.AdvanceAmmoDrain(
                 LegacyMovementModel.SourceTicksPerSecond / Math.Max(1f, Config.TicksPerSecond));
             for (var ammoDrainTick = 0; ammoDrainTick < ammoDrainTicks; ammoDrainTick += 1)
@@ -231,8 +244,8 @@ public sealed partial class ProjectileSystem
                         if (!hitResult.HitPlayer.IsUbered)
                         {
                             hitResult.HitPlayer.AddImpulse(
-                                blade.VelocityX * 0.4f * LegacyMovementModel.SourceTicksPerSecond,
-                                blade.VelocityY * 0.4f * LegacyMovementModel.SourceTicksPerSecond);
+                                blade.VelocityX * 0.4f * blade.KnockbackScale * LegacyMovementModel.SourceTicksPerSecond,
+                                blade.VelocityY * 0.4f * blade.KnockbackScale * LegacyMovementModel.SourceTicksPerSecond);
                         }
                         var hitDamage = ApplyExperimentalAirshotDamageMultiplier(owner, hitResult.HitPlayer, (int)MathF.Round(blade.HitDamage * blade.CriticalDamageMultiplier), out var damageFlags);
                         if (ApplyPlayerDamageWithContext(
@@ -246,7 +259,8 @@ public sealed partial class ProjectileSystem
                                 additionalTraits: PlayerDamageTraits.DirectProjectile,
                                 targetWasGrounded: targetWasGrounded))
                         {
-                            KillPlayer(hitResult.HitPlayer, killer: owner, weaponSpriteName: "BladeKL");
+                            GameplayDeathTypes.Resolve(blade.DeathType, out var gibbed, out var animationKind);
+                            KillPlayer(hitResult.HitPlayer, gibbed: gibbed, killer: owner, weaponSpriteName: "BladeKL", deadBodyAnimationKind: animationKind);
                         }
                     }
                     else if (hitResult.HitSentry is not null && ApplySentryDamage(hitResult.HitSentry, (int)MathF.Round(blade.HitDamage * blade.CriticalDamageMultiplier), owner))
@@ -293,6 +307,12 @@ public sealed partial class ProjectileSystem
             var needle = _needles[needleIndex];
             if (!ShouldAdvanceProjectileForClientPrediction(needle.OwnerId))
             {
+                continue;
+            }
+
+            if (IsProjectileFrozen(needle.X, needle.Y))
+            {
+                needle.HoldStill();
                 continue;
             }
 
@@ -612,6 +632,12 @@ public sealed partial class ProjectileSystem
             var shot = _revolverShots[shotIndex];
             if (!ShouldAdvanceProjectileForClientPrediction(shot.OwnerId))
             {
+                continue;
+            }
+
+            if (IsProjectileFrozen(shot.X, shot.Y))
+            {
+                shot.HoldStill();
                 continue;
             }
 

@@ -109,6 +109,22 @@ public sealed partial class PlayerEntity
         }
 
         AimDirectionDegrees = NormalizeDegrees(DeterministicMath.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI));
+        KeepAimToFacingLock();
+    }
+
+    // Under a facing lock an aim the other way is mirrored back to the locked side.
+    private void KeepAimToFacingLock()
+    {
+        var locked = FacingLockDirection;
+        if (locked != 0 && GetSourceFacingDirectionX(AimDirectionDegrees) != locked)
+        {
+            AimDirectionDegrees = NormalizeDegrees(180f - AimDirectionDegrees);
+            if (GetSourceFacingDirectionX(AimDirectionDegrees) != locked)
+            {
+                // Straight up or down: level, to the locked side.
+                AimDirectionDegrees = locked > 0 ? 0f : 180f;
+            }
+        }
     }
 
     internal void ApplyPredictionAimWorld(float aimWorldX, float aimWorldY)
@@ -123,6 +139,7 @@ public sealed partial class PlayerEntity
         }
 
         AimDirectionDegrees = NormalizeDegrees(DeterministicMath.Atan2(aimDeltaY, aimDeltaX) * (180f / MathF.PI));
+        KeepAimToFacingLock();
     }
 
     internal void ApplyPredictionSniperChargeTicks(int chargeTicks)

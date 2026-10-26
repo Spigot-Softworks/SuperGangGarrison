@@ -195,6 +195,7 @@ public static class Og2RuntimeContactPlanner
                         launchHorizontalSpeed = probe.HorizontalSpeed;
                     }
 
+                    BotNavigationEnvironment.ApplyForces(level, probe);
                     probe.AdvanceNavigationProbe(
                         input,
                         jumpPressed,
@@ -202,6 +203,8 @@ public static class Og2RuntimeContactPlanner
                         team,
                         1d / SimulationConfig.DefaultTicksPerSecond);
                     previousInput = input;
+                    if (!BotNavigationEnvironment.IsSafe(level, probe))
+                        break;
                     hasBeenAirborne |= !probe.IsGrounded;
 
                     if (!launchCaptured

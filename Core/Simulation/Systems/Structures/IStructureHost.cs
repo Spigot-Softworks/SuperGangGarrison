@@ -32,5 +32,6 @@ internal interface IStructureHost
     bool ApplyPlayerDamage(PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha = 0f, DamageEventFlags damageFlags = DamageEventFlags.None, bool allowOsmosisHealOwnedSentries = true, bool allowCivvieUmbrellaShield = true, float? civvieUmbrellaThreatSourceX = null, float? civvieUmbrellaThreatSourceY = null, int? civvieUmbrellaDrainTicks = null, bool civvieUmbrellaCriticalBoost = false);
     IEnumerable<PlayerEntity> EnumerateSimulatedPlayers();
     PlayerEntity? FindPlayerById(int playerId);
+    bool IsInFreezeZone(float x, float y);
     float GetExplosionImpulseMagnitude(PlayerEntity player, float originX, float originY, float knockbackPerTick, float distanceFactor, bool useMineVectorProfile);
 }

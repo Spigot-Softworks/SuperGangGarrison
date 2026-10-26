@@ -23,8 +23,13 @@ public sealed class ConquestModeTests
         Assert.Equal("cq", CustomMapDirectoryLayout.GetModeFolderName(name));
     }
 
-    [Fact]
-    public void BuilderMetadataAndValidationRequireThreePointsAndZones()
+    [Theory]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(6)]
+    [InlineData(12)]
+    [InlineData(300)]
+    public void BuilderMetadataAndValidationAllowThreeOrMorePointsAndTheirZones(int pointCount)
     {
         Assert.True(MapGameModeMetadata.TryParseGameMode("CQ", out var mode));
         Assert.Equal(GameModeKind.Conquest, mode);
@@ -34,7 +39,7 @@ public sealed class ConquestModeTests
             CustomMapBuilderEntity.Create("redspawn", 0, 0),
             CustomMapBuilderEntity.Create("bluespawn", 900, 0),
         };
-        for (var i = 1; i <= 3; i++)
+        for (var i = 1; i <= pointCount; i++)
         {
             entities.Add(CustomMapBuilderEntity.Create("controlPoint", i * 200, 100,
                 new Dictionary<string, string> { ["index"] = i.ToString(), ["initialOwner"] = "red" }));
@@ -51,6 +56,8 @@ public sealed class ConquestModeTests
         Assert.Equal(CustomMapBuilderGameMode.Conquest,
             CustomMapBuilderValidator.Validate(document with { Metadata = new Dictionary<string, string>() }).Mode);
         Assert.DoesNotContain(validation.Issues, issue => issue.Code.StartsWith("cq_"));
+        Assert.Contains(CustomMapBuilderValidator.Validate(document with { Entities = entities.Take(entities.Count - 1).ToArray() }).Issues,
+            issue => issue.Code == "cq_capture_zones");
         Assert.Contains(CustomMapBuilderValidator.Validate(document with { Entities = entities.Take(6).ToArray() }).Issues,
             issue => issue.Code == "cq_points");
         Assert.Contains(CustomMapBuilderValidator.Validate(document with
@@ -127,10 +134,13 @@ public sealed class ConquestModeTests
         Assert.False(world.MatchState.IsEnded);
     }
 
-    [Fact]
-    public void OpponentCanCaptureAnyOwnedPointWithoutCapturingItsNeighbors()
+    [Theory]
+    [InlineData(3)]
+    [InlineData(6)]
+    [InlineData(20)]
+    public void OpponentCanCaptureAnyOwnedPointWithoutCapturingItsNeighbors(int pointCount)
     {
-        var world = CreateWorld();
+        var world = CreateWorld(pointCount: pointCount);
         foreach (var point in world.ControlPoints)
         {
             point.Team = PlayerTeam.Blue;
@@ -140,7 +150,7 @@ public sealed class ConquestModeTests
         Assert.True(world.NetworkPlayers.TrySetNetworkPlayerTeam(SimulationWorld.LocalPlayerSlot,
             PlayerTeam.Red, respawnLivePlayerImmediately: true));
         world.NetworkPlayers.CompleteLocalPlayerJoin(PlayerClass.Scout);
-        var target = world.ControlPoints[2];
+        var target = world.ControlPoints[^1];
         target.IsLocked = true;
         target.CappingTeam = PlayerTeam.Red;
         target.CappingTicks = target.CapTimeTicks - 2;
@@ -212,10 +222,44 @@ public sealed class ConquestModeTests
         });
     }
 
+    [Theory]
+    [InlineData(3)]
+    [InlineData(350)]
+    [InlineData(1000)]
+    public void ConfiguredScoreLimitEndsTheRoundWithoutOvershooting(int limit)
+    {
+        var world = CreateWorld();
+        world.MapLifecycle.SetConquestScoreLimit(limit);
+        foreach (var point in world.ControlPoints) point.Team = PlayerTeam.Red;
+        world.ObjectiveRules.UpdatePointScoringState();
+        ((IObjectiveRulesHost)world).RedCaps = limit - 1;
+        foreach (var point in world.ControlPoints) point.ConquestOwnedTicks = 89;
+        Advance(world, 1);
+        Assert.Equal(limit, world.RedCaps);
+        Assert.True(world.MatchState.IsEnded);
+        Assert.Equal(PlayerTeam.Red, world.MatchState.WinnerTeam);
+        world.MapLifecycle.RestartCurrentRound(preservePlayerStats: true);
+        Assert.Equal(limit, world.MatchRules.CapLimit);
+        Assert.Equal(15, world.MatchRules.TimeLimitMinutes);
+    }
+
+    [Fact]
+    public void LoweringScoreLimitEndsAnAlreadyQualifiedRoundOnTheNextTick()
+    {
+        var world = CreateWorld();
+        ((IObjectiveRulesHost)world).BlueCaps = 75;
+        world.MapLifecycle.SetConquestScoreLimit(50);
+        Advance(world, 1);
+        Assert.True(world.MatchState.IsEnded);
+        Assert.Equal(PlayerTeam.Blue, world.MatchState.WinnerTeam);
+    }
+
     [Fact]
     public void ScoresAndAllThreePointStatesRoundTripToClient()
     {
         var server = CreateWorld();
+        server.MapLifecycle.SetConquestScoreLimit(450);
+        server.ConfigureExperimentalGameplaySettings(new ExperimentalGameplaySettings(EnableHardcore: true));
         server.ControlPoints[0].Team = PlayerTeam.Red;
         server.ControlPoints[1].Team = PlayerTeam.Blue;
         Advance(server, 90);
@@ -232,7 +276,8 @@ public sealed class ConquestModeTests
         var client = CreateWorld();
         Assert.True(client.SnapshotApply.ApplySnapshot(Assert.IsType<SnapshotMessage>(decoded)));
         Assert.Equal(GameModeKind.Conquest, client.MatchRules.Mode);
-        Assert.Equal(200, client.MatchRules.CapLimit);
+        Assert.Equal(450, client.MatchRules.CapLimit);
+        Assert.Equal(75, client.LocalPlayer.MaxHealth);
         Assert.Equal(server.MatchRules.TimeLimitTicks, client.MatchRules.TimeLimitTicks);
         Assert.Equal(1, client.RedCaps);
         Assert.Equal(1, client.BlueCaps);
@@ -301,23 +346,89 @@ public sealed class ConquestModeTests
         Assert.Contains(world.ControlPoints, point => point.HealingAuraCenterX == goal.X && point.HealingAuraCenterY == goal.Y);
     }
 
-    private static SimulationWorld CreateWorld(int ticksPerSecond = 30)
+    [Theory]
+    [InlineData(4)]
+    [InlineData(6)]
+    [InlineData(20)]
+    [InlineData(300)]
+    public void EveryPointStartsNeutralAndScoresIndependently(int pointCount)
+    {
+        var world = CreateWorld(pointCount: pointCount);
+        world.MapLifecycle.SetConquestScoreLimit(10000);
+        Assert.Equal(pointCount, world.ControlPoints.Count);
+        Assert.All(world.ControlPoints, point => { Assert.Null(point.Team); Assert.False(point.IsLocked); });
+        foreach (var point in world.ControlPoints) point.Team = PlayerTeam.Red;
+        Advance(world, 90);
+        Assert.Equal(pointCount, world.RedCaps);
+        Assert.Equal(0, world.BlueCaps);
+        Assert.False(world.MatchState.IsEnded);
+        world.MapLifecycle.RestartCurrentRound(preservePlayerStats: true);
+        Assert.All(world.ControlPoints, point => Assert.Null(point.Team));
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(254)]
+    [InlineData(255)]
+    [InlineData(300)]
+    public void SnapshotPreservesEveryPointAndIndexesAcrossTheByteBoundary(int pointCount)
+    {
+        var world = CreateWorld(pointCount: pointCount);
+        var manager = new ServerBotManager(world, world.Config, new BotBrainPracticeBotController());
+        var broadcaster = new SnapshotBroadcaster(world, world.Config, new Dictionary<byte, ClientSession>(),
+            24, manager, 0, new ServerMapMetadataResolver(world), static (_, _, _) => { });
+        world.ControlPoints[^1].Team = PlayerTeam.Blue;
+        var snapshot = broadcaster.CaptureCanonicalDemoSnapshot() with
+        { Players = [world.Snapshots.ToSnapshotPlayerState(1, world.LocalPlayer, null, static _ => 0)] };
+        var encoded = ProtocolCodec.Serialize(snapshot, ProtocolCompressionSettings.Disabled);
+        Assert.True(ProtocolCodec.TryDeserialize(encoded, out var decoded));
+        var received = Assert.IsType<SnapshotMessage>(decoded);
+        Assert.Equal(pointCount, received.ControlPoints.Count);
+        Assert.Equal(pointCount, received.ControlPoints[^1].Index);
+        var client = CreateWorld(pointCount: pointCount);
+        Assert.True(client.SnapshotApply.ApplySnapshot(received));
+        Assert.Equal(pointCount, client.ControlPoints.Count);
+        Assert.Equal(PlayerTeam.Blue, client.ControlPoints[^1].Team);
+        Assert.False(client.ControlPointSetupActive);
+    }
+
+    [Theory]
+    [InlineData(6)]
+    [InlineData(300)]
+    public void PointIndexesSurviveBuilderExportAndRuntimeImport(int index)
+    {
+        var entity = CustomMapBuilderEntity.Create("controlPoint", 100, 100,
+            new Dictionary<string, string> { ["index"] = index.ToString() });
+        var exported = CustomMapBuilderEntityNormalization.ResolveEntityForExport(entity);
+        Assert.Equal($"controlPoint{index}", exported.Type);
+        var reopened = CustomMapBuilderEntityNormalization.NormalizeEntityForEditor(exported);
+        Assert.Equal(index.ToString(), reopened.Properties["index"]);
+        Assert.True(CustomMapRoomObjectFactory.TryCreate(exported.Type, 100, 100, 1, 1, exported.Properties, out var marker));
+        Assert.True(ControlPointMarkerIndex.TryGetIndex(marker, out var importedIndex));
+        Assert.Equal(index, importedIndex);
+        Assert.True(ControlPointIndexMetadata.TryParse(index.ToString(), out var parsed));
+        Assert.Equal(index, parsed);
+    }
+
+    private static SimulationWorld CreateWorld(int ticksPerSecond = 30, int pointCount = 3)
     {
         var world = new SimulationWorld(new SimulationConfig { EnableLocalDummies = false, TicksPerSecond = ticksPerSecond });
-        world.TestSetLevel(new SimpleLevel("cq_test", GameModeKind.Conquest, new WorldBounds(1024, 768), 1, null,
+        world.TestSetLevel(new SimpleLevel("cq_test", GameModeKind.Conquest, new WorldBounds(1024, Math.Max(768, ((pointCount - 1) / 10 + 1) * 64 + 140)), 1, null,
             1, 1, new SpawnPoint(100, 100), [new SpawnPoint(100, 100)], [new SpawnPoint(900, 100)], [],
-            CreateMarkers(), 768, [], false, controlPointSettings: new CustomMapControlPointSettings(true)));
+            CreateMarkers(pointCount), 768, [], false, controlPointSettings: new CustomMapControlPointSettings(true)));
         return world;
     }
 
-    private static RoomObjectMarker[] CreateMarkers()
+    private static RoomObjectMarker[] CreateMarkers(int pointCount = 3)
     {
         var markers = new List<RoomObjectMarker>();
-        for (var i = 1; i <= 3; i++)
+        for (var i = 1; i <= pointCount; i++)
         {
-            markers.Add(new RoomObjectMarker(RoomObjectType.ControlPoint, 200 * i, 92, 48, 24, "",
+            var x = pointCount > 4 ? 120 + (i - 1) % 10 * 80 : 200 * i;
+            var y = pointCount > 4 ? 92 + (i - 1) / 10 * 64 : 92;
+            markers.Add(new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 48, 24, "",
                 SourceName: $"ControlPoint{i}", InitialOwnership: ControlPointInitialOwnership.Red));
-            markers.Add(new RoomObjectMarker(RoomObjectType.CaptureZone, 200 * i - 16, 72, 80, 64, ""));
+            markers.Add(new RoomObjectMarker(RoomObjectType.CaptureZone, x - 16, y - 20, 80, 64, ""));
         }
 
         markers.Add(new RoomObjectMarker(RoomObjectType.ControlPointSetupGate, 240, 72, 60, 6, ""));

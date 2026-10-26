@@ -115,6 +115,7 @@ public partial class Game1
         if (IsPracticeSessionActive)
         {
             _practiceSessionElapsedTicks += 1;
+            TickPracticePluginRuntime();
         }
 
         AdvanceLastToDieSimulationTick();

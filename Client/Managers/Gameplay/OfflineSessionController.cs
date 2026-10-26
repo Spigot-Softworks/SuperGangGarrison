@@ -204,6 +204,16 @@ public sealed class OfflineSessionController
 
             _context.ReinitializeSimulationForTickRate(tickRate);
             _context.ResetGameplayRuntimeState();
+            // Restarted every session so plugin content and hooks match the (possibly reused) world.
+            if (sessionKind == GameplaySessionKind.Practice)
+            {
+                _context.RestartPracticePluginRuntime();
+            }
+            else
+            {
+                _context.StopPracticePluginRuntime();
+            }
+
             _context._world.ConfigureExperimentalGameplaySettings(experimentalSettings);
             _context._world.ObjectiveRules.ConfigureSpecialCaptureTheFlagRules(enableInstantRedTeamIntelCaptureWin);
             _context._world.MapLifecycle.ConfigureMatchDefaults(
@@ -216,12 +226,15 @@ public sealed class OfflineSessionController
             }
             LogBrowserPracticeStartupStep("configure-world");
 
+            _context._world.ClientPredictionMode = false;
             if (!_context._world.MapLifecycle.TryLoadLevel(levelName))
             {
                 _context._menuStatusMessage = $"Failed to load local map: {levelName}";
                 return false;
             }
             LogBrowserPracticeStartupStep("load-level");
+            if (sessionKind == GameplaySessionKind.Practice && _context._world.MatchRules.Mode == GameModeKind.Conquest)
+                _context._world.MapLifecycle.SetConquestScoreLimit(capLimit);
 
             var forcedBlockingTeamGates = TeamGateLockMask.None;
             if (sessionKind == GameplaySessionKind.LastToDie && _context._lastToDieRun is not null)

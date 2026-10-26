@@ -105,8 +105,10 @@ public sealed record ExperimentalGameplaySettings(
     bool DisableSelfDamage = false,
     bool EnableFriendlyExplosionBoost = true,
     bool EnableFriendlyAirblastKnockback = false,
-    bool EnableFriendlyAirburstKnockback = true)
+    bool EnableFriendlyAirburstKnockback = true,
+    bool EnableHardcore = false)
 {
+    public const int HardcoreMaxHealth = 75;
     public const float CapturedPointHealingPerSecond = 8f;
     public const float DefaultEnemyHealthPackDropChance = 0.1f;
     public const float DefaultHealOnDamageFraction = 0.35f;

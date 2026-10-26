@@ -16,6 +16,7 @@ public enum MapLogicNodeKind
     DamageTrigger,
     RisingEdge,
     Latch,
+    RoundEnd,
 }
 
 public readonly struct DamageTriggerEvaluationContext(
@@ -317,7 +318,9 @@ internal sealed class MapLogicOscillatorNodeState
 public sealed class MapLogicGraph
 {
     private readonly MapLogicNode[] _nodes;
+    public IReadOnlyList<MapRoundEndDefinition> RoundEnds { get; internal set; } = Array.Empty<MapRoundEndDefinition>();
     private readonly bool[] _outputs;
+    private readonly bool[] _roundEndOutputs;
     private readonly bool[] _externalPulseOutputs;
     private readonly bool[] _externalPulseConsumed;
     private readonly int[] _evaluationOrder;
@@ -332,6 +335,7 @@ public sealed class MapLogicGraph
 
     public MapLogicGraph(IReadOnlyList<MapLogicNode> nodes, int[] evaluationOrder)
     {
+        _roundEndOutputs = new bool[nodes.Count];
         _nodes = nodes.ToArray();
         _outputs = new bool[_nodes.Length];
         _externalPulseOutputs = new bool[_nodes.Length];
@@ -458,6 +462,14 @@ public sealed class MapLogicGraph
         return _outputs[nodeIndex];
     }
 
+    internal void SetRoundEndOutput(int nodeIndex, bool value)
+    {
+        if (_roundEndOutputs[nodeIndex] == value && _outputs[nodeIndex] == value) return;
+        _roundEndOutputs[nodeIndex] = value;
+        _outputs[nodeIndex] = value;
+        EvaluateCombinatorialPropagators();
+    }
+
     public bool PulseExternalOutput(int nodeIndex)
     {
         if (nodeIndex < 0 || nodeIndex >= _outputs.Length)
@@ -472,7 +484,21 @@ public sealed class MapLogicGraph
         return true;
     }
 
+    internal void ClearExternalOutput(int nodeIndex)
+    {
+        if ((uint)nodeIndex >= (uint)_outputs.Length) return;
+        _externalPulseOutputs[nodeIndex] = false;
+        _externalPulseConsumed[nodeIndex] = false;
+        _outputs[nodeIndex] = false;
+    }
+
     public bool HasPendingExternalPulses => Array.Exists(_externalPulseOutputs, static value => value);
+
+    internal void ResetExternalPulses()
+    {
+        Array.Clear(_externalPulseOutputs);
+        Array.Clear(_externalPulseConsumed);
+    }
 
 
     public void Evaluate(IReadOnlyList<ControlPointState> controlPoints)
@@ -502,7 +528,19 @@ public sealed class MapLogicGraph
             }
 
             var node = _nodes[nodeIndex];
-            if (node.Kind is MapLogicNodeKind.Timer or MapLogicNodeKind.Oscillator or MapLogicNodeKind.DamageTrigger or MapLogicNodeKind.IntelTrigger)
+            // Re-evaluation may run several times between simulation ticks. Timers
+            // and oscillators keep their output until their next scheduled advance.
+            if (node.Kind == MapLogicNodeKind.Timer)
+            {
+                _outputs[nodeIndex] = _timerStates![nodeIndex].Output;
+                continue;
+            }
+            if (node.Kind == MapLogicNodeKind.Oscillator)
+            {
+                _outputs[nodeIndex] = _oscillatorStates![nodeIndex].Output;
+                continue;
+            }
+            if (node.Kind is MapLogicNodeKind.DamageTrigger or MapLogicNodeKind.IntelTrigger)
             {
                 continue;
             }
@@ -519,6 +557,7 @@ public sealed class MapLogicGraph
                 MapLogicNodeKind.Not => !ReadInput(node.InputNodeIndex),
                 MapLogicNodeKind.RisingEdge => EvaluateRisingEdge(nodeIndex, node),
                 MapLogicNodeKind.Latch => EvaluateLatch(nodeIndex, node),
+                MapLogicNodeKind.RoundEnd => _roundEndOutputs[nodeIndex],
                 _ => false,
             };
         }

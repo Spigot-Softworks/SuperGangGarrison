@@ -3,6 +3,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
 using OpenGarrison.Core;
 
 namespace OpenGarrison.Client;
@@ -33,7 +34,9 @@ public partial class Game1
         if (!acceptSelectionInput) return;
         if (IsClassSelectCivilianShortcutPressed(keyboard))
         {
-            if (ApplyDirectGameplayClassSelection(ResolveClassSelectCivilianShortcutGameplayClassId()))
+            var shortcutClass = keyboard.IsKeyDown(Keys.LeftShift) || keyboard.IsKeyDown(Keys.RightShift)
+                ? KingpinPrototype.GameplayClassId : ResolveClassSelectCivilianShortcutGameplayClassId();
+            if (ApplyDirectGameplayClassSelection(shortcutClass))
             {
                 CloseGameplaySelectionMenus();
             }
@@ -62,7 +65,13 @@ public partial class Game1
         }
 
         var panelLeft = GetClassSelectPanelLeft(ViewportWidth);
+        var pluginClasses = GetClassSelectPluginClasses();
         var mouseHoverIndex = GetClassSelectHoverIndex(mouse.X, mouse.Y, panelLeft);
+        if (mouseHoverIndex < 0)
+        {
+            mouseHoverIndex = GetClassSelectPluginClassHoverIndex(mouse.X, mouse.Y, panelLeft, pluginClasses.Count);
+        }
+
         if (ShouldUseMouseMenuHover(mouse) && mouseHoverIndex >= 0)
         {
             _teamClassSelectionState.ClassSelectHoverIndex = mouseHoverIndex;
@@ -74,7 +83,10 @@ public partial class Game1
 
         if (TryConsumeControllerMenuNavigation(out var horizontalStep, out _) && horizontalStep != 0)
         {
-            _teamClassSelectionState.ClassSelectHoverIndex = MoveControllerMenuSelectionClamped(_teamClassSelectionState.ClassSelectHoverIndex, 10, horizontalStep);
+            _teamClassSelectionState.ClassSelectHoverIndex = MoveControllerMenuSelectionClamped(
+                _teamClassSelectionState.ClassSelectHoverIndex,
+                ClassSelectDoorCount + pluginClasses.Count,
+                horizontalStep);
         }
         else if (IsControllerMenuInputActive() && _teamClassSelectionState.ClassSelectHoverIndex < 0)
         {
@@ -127,12 +139,15 @@ public partial class Game1
         DrawClassSelectBackground(panelLeft, viewportWidth, alpha);
 
         var previewTeam = _teamClassSelectionState.PendingClassSelectTeam ?? _world.LocalPlayerTeam;
-        if (_teamClassSelectionState.ClassSelectPanelY >= 120f && _teamClassSelectionState.ClassSelectHoverIndex >= 0 && _teamClassSelectionState.ClassSelectHoverIndex < 10)
+        if (_teamClassSelectionState.ClassSelectPanelY >= 120f && _teamClassSelectionState.ClassSelectHoverIndex >= 0)
         {
-            var teamOffset = previewTeam == PlayerTeam.Blue ? 10 : 0;
-            var drawX = GetClassSelectDrawX(_teamClassSelectionState.ClassSelectHoverIndex);
-            var previewPosition = new Vector2(panelLeft + drawX, 0f);
-            TryDrawScreenSprite("ClassSelectSpritesS", _teamClassSelectionState.ClassSelectHoverIndex + teamOffset, previewPosition, Color.White * alpha, Vector2.One);
+            if (_teamClassSelectionState.ClassSelectHoverIndex < ClassSelectDoorCount)
+            {
+                var teamOffset = previewTeam == PlayerTeam.Blue ? 10 : 0;
+                var drawX = GetClassSelectDrawX(_teamClassSelectionState.ClassSelectHoverIndex);
+                var previewPosition = new Vector2(panelLeft + drawX, 0f);
+                TryDrawScreenSprite("ClassSelectSpritesS", _teamClassSelectionState.ClassSelectHoverIndex + teamOffset, previewPosition, Color.White * alpha, Vector2.One);
+            }
 
             var lines = GetClassSelectDescription(_teamClassSelectionState.ClassSelectHoverIndex);
             float[] lineY = [80f, 100f, 120f, 130f, 140f];
@@ -141,6 +156,11 @@ public partial class Game1
             {
                 DrawBitmapFontText(lines[index], new Vector2(panelLeft + 495f, lineY[index]), Color.White * alpha, 1f);
             }
+        }
+
+        if (_teamClassSelectionState.ClassSelectPanelY >= 120f)
+        {
+            DrawClassSelectPluginClasses(panelLeft, alpha);
         }
 
         if (_teamClassSelectionState.ClassSelectPanelY >= 120f
@@ -195,8 +215,83 @@ public partial class Game1
         return -1;
     }
 
+    // Custom-slot plugin classes are listed as text buttons below the stock door panel.
+    // Their hover indices follow the ten doors.
+    private const int ClassSelectDoorCount = 10;
+    private const float ClassSelectPluginClassHeaderY = 248f;
+    private const float ClassSelectPluginClassRowY = 262f;
+    private const float ClassSelectPluginClassLeft = 24f;
+    private const float ClassSelectPluginClassButtonWidth = 112f;
+    private const float ClassSelectPluginClassButtonHeight = 16f;
+    private const float ClassSelectPluginClassButtonSpacing = 8f;
+    private const float ClassSelectPluginClassRowSpacing = 20f;
+    private const int ClassSelectPluginClassesPerRow = 6;
+
+    private IReadOnlyList<GameplayClassRuntimeBinding> GetClassSelectPluginClasses()
+    {
+        return _networkClient.Profile.StockClassesOnly
+            ? []
+            : CharacterClassCatalog.RuntimeRegistry.CustomSlotClassBindings;
+    }
+
+    private static Rectangle GetClassSelectPluginClassBounds(int pluginClassIndex, float panelLeft)
+    {
+        var column = pluginClassIndex % ClassSelectPluginClassesPerRow;
+        var row = pluginClassIndex / ClassSelectPluginClassesPerRow;
+        return new Rectangle(
+            (int)(panelLeft + ClassSelectPluginClassLeft + (column * (ClassSelectPluginClassButtonWidth + ClassSelectPluginClassButtonSpacing))),
+            (int)(ClassSelectPluginClassRowY + (row * ClassSelectPluginClassRowSpacing)),
+            (int)ClassSelectPluginClassButtonWidth,
+            (int)ClassSelectPluginClassButtonHeight);
+    }
+
+    private static int GetClassSelectPluginClassHoverIndex(int mouseX, int mouseY, float panelLeft, int pluginClassCount)
+    {
+        for (var index = 0; index < pluginClassCount; index += 1)
+        {
+            if (GetClassSelectPluginClassBounds(index, panelLeft).Contains(mouseX, mouseY))
+            {
+                return ClassSelectDoorCount + index;
+            }
+        }
+
+        return -1;
+    }
+
+    private void DrawClassSelectPluginClasses(float panelLeft, float alpha)
+    {
+        var pluginClasses = GetClassSelectPluginClasses();
+        if (pluginClasses.Count == 0)
+        {
+            return;
+        }
+
+        DrawBitmapFontText("PLUGIN CLASSES", new Vector2(panelLeft + ClassSelectPluginClassLeft, ClassSelectPluginClassHeaderY), Color.White * alpha, 1f);
+        for (var index = 0; index < pluginClasses.Count; index += 1)
+        {
+            var bounds = GetClassSelectPluginClassBounds(index, panelLeft);
+            var hovered = _teamClassSelectionState.ClassSelectHoverIndex == ClassSelectDoorCount + index;
+            _spriteBatch.Draw(_pixel, bounds, (hovered ? Color.DarkGoldenrod : Color.DimGray) * (alpha * 0.85f));
+            var label = CharacterClassCatalog.RuntimeRegistry.GetRequiredClass(pluginClasses[index].ClassId).DisplayName.ToUpperInvariant();
+            while (label.Length > 1 && MeasureBitmapFontWidth(label, 1f) > bounds.Width - 8f)
+            {
+                label = label[..^1];
+            }
+
+            DrawBitmapFontText(label, new Vector2(bounds.X + 4f, bounds.Y + 3f), Color.White * alpha, 1f);
+        }
+    }
+
     private bool ApplyClassSelection(int hoverIndex)
     {
+        if (hoverIndex >= ClassSelectDoorCount)
+        {
+            var pluginClasses = GetClassSelectPluginClasses();
+            var pluginClassIndex = hoverIndex - ClassSelectDoorCount;
+            return pluginClassIndex < pluginClasses.Count
+                && ApplyDirectGameplayClassSelection(pluginClasses[pluginClassIndex].ClassId);
+        }
+
         if (hoverIndex == 9)
         {
             return ApplyDirectGameplayClassSelection(ResolveClassSelectRandomDoorGameplayClassId());
@@ -264,7 +359,7 @@ public partial class Game1
         }
 
         var warmupTeam = _teamClassSelectionState.PendingClassSelectTeam ?? _world.LocalPlayerTeam;
-        if (CharacterClassCatalog.IsQuoteCurlyGameplayClassId(gameplayClassId))
+        if (CharacterClassCatalog.IsQuoteCurlyGameplayClassId(gameplayClassId) || selectedClass == PlayerClass.Custom)
         {
             WarmBrowserGameplayClassAssets(gameplayClassId, warmupTeam, includeExtendedAnimations: true);
         }
@@ -372,6 +467,21 @@ public partial class Game1
 
     private string[] GetClassSelectDescription(int hoverIndex)
     {
+        if (hoverIndex >= ClassSelectDoorCount)
+        {
+            var pluginClasses = GetClassSelectPluginClasses();
+            var pluginClassIndex = hoverIndex - ClassSelectDoorCount;
+            if (pluginClassIndex >= pluginClasses.Count)
+            {
+                return [];
+            }
+
+            var pluginClassId = pluginClasses[pluginClassIndex].ClassId;
+            var pluginClass = CharacterClassCatalog.RuntimeRegistry.GetRequiredClass(pluginClassId);
+            var pluginPrimaryItem = CharacterClassCatalog.RuntimeRegistry.GetPrimaryItem(pluginClassId);
+            return [pluginClass.DisplayName, $"Weapon: {pluginPrimaryItem.DisplayName}", $"Health: {pluginClass.Movement.MaxHealth}", "Plugin class", string.Empty];
+        }
+
         if (_networkClient.Profile.StockClassesOnly)
         {
             if (hoverIndex == 4)

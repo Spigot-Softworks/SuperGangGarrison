@@ -93,7 +93,8 @@ public partial class Game1
         string? AbilitySpriteName = null,
         float AbilityDurationSeconds = 0f,
         int RecoilLoopStartFrame = -1,
-        float RecoilFramesPerSecond = 0f)
+        float RecoilFramesPerSecond = 0f,
+        float ReloadFramesPerSecond = 0f)
     {
         public bool HasCompanionTorso => !string.IsNullOrWhiteSpace(TorsoSpriteName);
 

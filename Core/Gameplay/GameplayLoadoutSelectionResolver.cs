@@ -9,8 +9,21 @@ public static class GameplayLoadoutSelectionResolver
 {
     public static IReadOnlyList<GameplayClassLoadoutDefinition> GetOrderedLoadouts(PlayerClass playerClass)
     {
-        return CharacterClassCatalog.RuntimeRegistry
-            .GetClassDefinition(playerClass)
+        // Unbound slots (Custom) have no loadouts of their own; callers holding a player
+        // should pass its class definition instead.
+        return CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(playerClass, out var binding)
+            ? GetOrderedLoadouts(CharacterClassCatalog.RuntimeRegistry.GetRequiredClass(binding.ClassId))
+            : [];
+    }
+
+    public static IReadOnlyList<GameplayClassLoadoutDefinition> GetOrderedLoadouts(CharacterClassDefinition classDefinition)
+    {
+        return GetOrderedLoadouts(CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(classDefinition));
+    }
+
+    private static IReadOnlyList<GameplayClassLoadoutDefinition> GetOrderedLoadouts(GameplayClassDefinition gameplayClass)
+    {
+        return gameplayClass
             .Loadouts
             .Values
             .OrderBy(loadout => loadout.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -22,8 +35,13 @@ public static class GameplayLoadoutSelectionResolver
     {
         loadoutId = string.Empty;
         var runtimeRegistry = CharacterClassCatalog.RuntimeRegistry;
-        var gameplayClass = runtimeRegistry.GetClassDefinition(playerClass);
-        var candidates = GetOrderedLoadouts(playerClass);
+        if (!runtimeRegistry.TryGetClassBinding(playerClass, out var binding))
+        {
+            return false;
+        }
+
+        var gameplayClass = runtimeRegistry.GetRequiredClass(binding.ClassId);
+        var candidates = GetOrderedLoadouts(gameplayClass);
         var trimmedSelection = selection.Trim();
         if (trimmedSelection.Length == 0)
         {

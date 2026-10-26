@@ -46,7 +46,7 @@ public sealed class GameplayPlayerRenderController
             _game.BeginCharacterLighting(player, renderPosition, cameraPosition, visibilityAlpha);
             _game.TryDrawWeaponSpriteBackdrop(player, cameraPosition, spriteTint, visibilityAlpha, bodySelection);
 
-            var shouldDrawWeapon = !_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting
+            var shouldDrawWeapon = !KingpinPrototype.IsKingpin(player) && !_game.GetPlayerIsHeavyEating(player) && !player.IsTaunting
                 && !_game.GetPlayerIsCivviePogoActive(player) && !_game._world.IsPlayerHumiliated(player);
             var drawWeaponBehindBody = shouldDrawWeapon
                 && _game.GameplayWeaponRenderer.GetWeaponRenderDefinitionProxy(player).DrawBehindBody;

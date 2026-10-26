@@ -1,0 +1,110 @@
+{
+  "spriteName": "ElkondoSpyBlueWeaponS",
+  "frameCount": 1,
+  "angleCount": 24,
+  "angleStartDegrees": -90,
+  "angleStepDegrees": 7.5,
+  "frames": [
+    {
+      "canvasSize": 46,
+      "angles": [
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        },
+        {
+          "originX": 23,
+          "originY": 23
+        }
+      ]
+    }
+  ]
+}

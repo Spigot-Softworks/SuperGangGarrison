@@ -141,7 +141,8 @@ public static class VerifiedNavCandidateBuilder
             return false;
         }
 
-        if (!probe.CanOccupy(level, team, x, y))
+        if (BotNavigationEnvironment.IntersectsLethalZone(level, left, top, right, bottom)
+            || !probe.CanOccupy(level, team, x, y))
         {
             return false;
         }

@@ -44,6 +44,7 @@ public sealed partial class SimulationWorld
         DefaultRespawnSeconds * SimulationConfig.DefaultTicksPerSecond);
     internal ClientSnapshotState ClientSnapshots { get; } = new();
     internal MapRuntimeState MapRuntime { get; } = new();
+    public string? MapScriptError => ClientPredictionMode ? MapRuntime.AuthoritativeMapScriptError : MapRuntime.MapScript?.Error;
     internal CombatRuntimeState CombatRuntime { get; } = new();
     internal LocalSimulationState LocalState { get; } = new();
     internal MatchLifecycleState Lifecycle { get; } = new();
@@ -163,6 +164,8 @@ public sealed partial class SimulationWorld
 
     public int ConfiguredRespawnSeconds => MatchSettings.RespawnSeconds;
 
+    public int ConfiguredConquestScoreLimit => MatchSettings.ConquestScoreLimit;
+
     public float ConfiguredPlayerScale => MatchSettings.PlayerScale;
 
     public float ConfiguredMapScale => MatchSettings.MapScale;
@@ -229,6 +232,10 @@ public sealed partial class SimulationWorld
 
 
     public IReadOnlyList<PlayerGibEntity> PlayerGibs => WorldObjects.PlayerGibs;
+
+    // Set by the client while a plugin's time stop shows (online it can't see the server's freeze
+    // zones): blood, gibs and bodies hold still with it.
+    public bool PresentationTimeStopped { get; set; }
 
     public IReadOnlyList<BloodDropEntity> BloodDrops => WorldObjects.BloodDrops;
 

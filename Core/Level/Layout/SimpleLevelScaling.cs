@@ -49,21 +49,17 @@ internal static class SimpleLevelScaling
             level.Weather,
             level.IndoorRegions.Select(region => region.Scale(clampedScale)).ToArray(),
             level.MapLights.Select(light => light.Scale(clampedScale)).ToArray(),
-            level.Lighting)
+            level.Lighting,
+            level.MapScriptSource,
+            level.MapScriptNodeNames)
         {
             ControlPointSetupGatesActive = level.ControlPointSetupGatesActive,
             ForcedBlockingTeamGates = level.ForcedBlockingTeamGates,
         };
     }
 
-    private static SpawnPoint Scale(SpawnPoint spawn, float scale) => new(
-        spawn.X * scale,
-        spawn.Y * scale,
-        spawn.Role,
-        spawn.LinkedControlPointIndex,
-        spawn.UseCondition,
-        spawn.Priority,
-        spawn.LogicSignalNodeIndex);
+    private static SpawnPoint Scale(SpawnPoint spawn, float scale)
+        => spawn with { X = spawn.X * scale, Y = spawn.Y * scale };
 
     private static IntelBaseMarker Scale(IntelBaseMarker marker, float scale) => new(marker.Team, marker.X * scale, marker.Y * scale);
 
@@ -91,6 +87,9 @@ internal static class SimpleLevelScaling
         marker.ForegroundSprite,
         marker.Spritesheet)
     {
+        MapEntityId = marker.MapEntityId,
+        ObjectName = marker.ObjectName,
+        ObjectGroups = marker.ObjectGroups,
         DestructibleZoneIndex = marker.DestructibleZoneIndex,
         DestructionSettings = marker.DestructionSettings,
     };

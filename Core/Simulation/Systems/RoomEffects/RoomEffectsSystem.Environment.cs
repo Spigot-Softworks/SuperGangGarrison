@@ -9,6 +9,7 @@ internal sealed partial class RoomEffectsSystem
         var usingHealingCabinet = false;
         foreach (var index in _host.Level.GetRoomObjectIndices(RoomObjectType.HealingCabinet))
         {
+            if (!_host.Level.IsRoomObjectActive(index)) continue;
             ref readonly var roomObject = ref _host.Level.GetRoomObject(index);
 
             if (!player.IntersectsMarker(

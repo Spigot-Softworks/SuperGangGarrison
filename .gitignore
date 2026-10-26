@@ -73,6 +73,7 @@ Tests/BrowserSmoke/node_modules/
 /docs/*
 !/docs/README.md
 !/docs/CODEBASE_ORIENTATION.md
+!/docs/MAP_SCRIPTING.md
 !/docs/SERVER_MANAGEMENT.md
 !/docs/manual-performance-capture.md
 !/docs/server-registry/
@@ -129,3 +130,12 @@ __pycache__/
 *.pdb
 *.dll
 *.exe
+
+# Ported fighting-game classes (DIO, Kano): their art and sounds are ripped from the original
+# games, so the plugins, their tests and the extraction tools stay local and ship as separate
+# plugin packages.
+/Plugins/Templates/ServerLua.DioClass/
+/Plugins/Templates/ServerLua.KanoClass/
+/Tests/OpenGarrison.PluginHost.Tests/DioTemplatePluginTests.cs
+/Tests/OpenGarrison.PluginHost.Tests/KanoTemplatePluginTests.cs
+/Tools/HftfAssetExtract/

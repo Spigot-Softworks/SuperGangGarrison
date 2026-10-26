@@ -5,6 +5,7 @@ namespace OpenGarrison.Core;
 /// </summary>
 internal interface IPlayerInputHost : ISimulationWorldState, ISimulationPlayerDirectory
 {
+    void AdvanceKingpinPlayer(PlayerEntity player, PlayerInputSnapshot input, PlayerInputSnapshot previousInput);
     GameplayAbilitySystem Abilities { get; }
     AirblastRulesSystem AirblastRules { get; }
     bool ClientPredictionMode { get; }

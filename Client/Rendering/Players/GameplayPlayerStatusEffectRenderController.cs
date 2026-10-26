@@ -407,15 +407,18 @@ public sealed class GameplayPlayerStatusEffectRenderController
                 return;
             }
 
-            var sprite = _game.GetResolvedSprite("FlameS");
+            var animated = _game.GetResolvedSprite(AnimatedFlamePresentation.SpriteName(player.Team));
+            var sprite = animated ?? _game.GetResolvedSprite("FlameS");
             var flameColor = Color.White * (burnAlpha * visibilityAlpha);
             for (var flameIndex = 0; flameIndex < count; flameIndex += 1)
             {
                 player.GetBurnVisualOffset(flameIndex, sourceFrame, out var offsetX, out var offsetY);
                 if (sprite is not null && sprite.Frames.Count > 0)
                 {
-                    var frameIndex = player.GetBurnVisualFrameIndex(flameIndex, sourceFrame, sprite.Frames.Count);
-                    _game.DrawLoadedSpriteFrame(_game.GetTeamFireSpriteFrame(sprite.Frames[frameIndex], player.Team), new Vector2(renderPosition.X + offsetX - cameraPosition.X, renderPosition.Y + offsetY - cameraPosition.Y), null, flameColor, 0f, sprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+                    var frameIndex = animated is null ? player.GetBurnVisualFrameIndex(flameIndex, sourceFrame, sprite.Frames.Count)
+                        : AnimatedFlamePresentation.LoopFrame(_game._world.Frame / (double)_game._config.TicksPerSecond, sprite.Frames.Count, flameIndex);
+                    var frame = animated is null ? _game.GetTeamFireSpriteFrame(sprite.Frames[frameIndex], player.Team) : sprite.Frames[frameIndex];
+                    _game.DrawLoadedSpriteFrame(frame, new Vector2(renderPosition.X + offsetX - cameraPosition.X, renderPosition.Y + offsetY - cameraPosition.Y), null, flameColor, 0f, sprite.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
                     continue;
                 }
 

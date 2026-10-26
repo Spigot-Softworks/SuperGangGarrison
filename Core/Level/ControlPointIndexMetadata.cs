@@ -7,12 +7,14 @@ public static class ControlPointIndexMetadata
 {
     public const string PropertyKey = "index";
     public const int MinIndex = 1;
+    // Traditional CP's cyclic selector and numbered sprite frames stop at five.
+    // Indexed entities themselves also support larger Conquest maps.
     public const int MaxIndex = 5;
     public const string DefaultPropertyValue = "1";
 
     public static int ClampIndex(int index)
     {
-        return Math.Clamp(index, MinIndex, MaxIndex);
+        return Math.Max(index, MinIndex);
     }
 
     public static bool TryParse(string? value, out int index)

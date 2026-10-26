@@ -2,6 +2,8 @@ namespace OpenGarrison.Core;
 
 public sealed partial class SimulationWorld : IPlayerInputHost
 {
+    void IPlayerInputHost.AdvanceKingpinPlayer(PlayerEntity player, PlayerInputSnapshot input, PlayerInputSnapshot previousInput)
+        => KingpinPrototype.Advance(this, player, input, previousInput);
     GameplayAbilitySystem IPlayerInputHost.Abilities => Abilities;
     AirblastRulesSystem IPlayerInputHost.AirblastRules => AirblastRules;
     bool IPlayerInputHost.ClientPredictionMode => ClientPredictionMode;

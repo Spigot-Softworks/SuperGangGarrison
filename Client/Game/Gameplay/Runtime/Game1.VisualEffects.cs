@@ -119,6 +119,10 @@ public partial class Game1
     {
         ClearPredictedWeaponFireVisuals();
         _gameplayManager.ImpactEffects.ResetTransientEffects();
+        _gameplayManager.PluginEffects.ResetTransientEffects();
+        // A time stop cut short by a reset mustn't leave the clock paused.
+        _world.PresentationTimeStopped = false;
+        SyncTimeStopPresentationClock(false);
         ResetRetainedDeadBodies();
         ResetImmediateNetworkDeadBodies();
         _gameplayManager.GoreEffects.ResetTransientEffects();
@@ -340,6 +344,7 @@ public partial class Game1
     private void AdvanceImpactVisuals()
     {
         _gameplayManager.ImpactEffects.AdvanceImpactVisuals();
+        _gameplayManager.PluginEffects.AdvanceEffects();
     }
 
     private void AdvanceStuckArrowVisuals()
@@ -1292,6 +1297,7 @@ public partial class Game1
     private void DrawImpactVisuals(Vector2 cameraPosition)
     {
         _gameplayManager.ImpactEffects.DrawImpactVisuals(cameraPosition);
+        _gameplayManager.PluginEffects.DrawSpriteEffects(cameraPosition);
     }
 
     private void DrawStuckArrowVisuals(Vector2 cameraPosition)

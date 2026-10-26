@@ -296,6 +296,7 @@ public static class GameMakerRoomMetadataImporter
             "ControlPoint3" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: objectName),
             "ControlPoint4" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: objectName),
             "ControlPoint5" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: objectName),
+            _ when ControlPointMarkerIndex.TryParseSourceName(objectName, out _) => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: objectName),
             "KothControlPoint" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointNeutralS", SourceName: objectName),
             "KothRedControlPoint" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointRedS", SourceName: objectName),
             "KothBlueControlPoint" => new RoomObjectMarker(RoomObjectType.ControlPoint, x, y, 42f, 42f, "ControlPointBlueS", SourceName: objectName),

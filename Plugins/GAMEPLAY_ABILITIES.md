@@ -52,8 +52,91 @@ Loadouts use `primary.defaultItemId`, `primary.itemIds`, `secondary.itemId`, and
 The current Scout loadout offers Scattergun and Nailgun as primary choices and
 uses the Scout Pistol as its secondary weapon.
 
-Adding a class outside the existing enum requires protocol, class selection,
-server commands, bots, replay, and UI changes as well as a data definition.
+Plugin classes do not need a slot of their own. A class that sets
+`runtime.basePlayerClass` to a stock class (Crewmate uses `"Quote"`) inherits
+that class's built-in behavior. A class that sets it to `"Custom"` uses the
+neutral `PlayerClass.Custom` slot: no stock class-specific behavior applies,
+and the engine identifies the class by its gameplay class id. Any number of
+Custom classes can be registered at once. Custom classes cannot set
+`runtime.playerClass`, never drop acquired weapons, and use Scout's bot graph
+unless `runtime.botGraphPlayerClass` names a stock class.
+
+Custom classes appear in a "Plugin classes" row under the class-select doors
+(hidden on GG2 servers). Bots, replays and some HUD code still only know the
+stock classes.
+
+Server Lua plugins can register a Custom class during `initialize` without a
+gameplay pack. Register its weapons and abilities first, then the class with
+its default loadout:
+
+```lua
+host.register_gameplay_class({
+    classId = "kano",
+    displayName = "Kano",
+    botGraphPlayerClass = "Soldier",      -- optional, defaults to Scout
+    killFeedSprite = "KanoKL",            -- optional
+    movement = {
+        maxHealth = 150,                  -- required
+        runPower = 1.2,                   -- other fields default to Civilian's
+        jumpStrength = 8.3,
+        maxAirJumps = 0,
+        collisionLeft = -7, collisionTop = -12,
+        collisionRight = 8, collisionBottom = 12,
+        tauntLengthFrames = 16
+    },
+    presentation = {                      -- optional
+        spritePrefix = "Kano",
+        runSuffix = "RunS",
+        jumpSuffix = "JumpS",
+        deadSuffix = "DeadS",
+        standFramesPerSecond = 10,        -- animate the standing sprite (0 = first frame only)
+        poses = { [1] = "PunchS", [2] = "KickS" },  -- move poses for try_set_player_pose
+        projectileSprites = { blade = "KanoKnifeProjS" },  -- own look for a projectile kind it fires
+        spawnSound = "KanoNameSnd"       -- played on respawn instead of RespawnSnd
+    },
+    loadout = {
+        loadoutId = "kano.stock",
+        displayName = "Stock",
+        primaryItemId = "weapon.kano-knife",
+        secondaryItemId = "ability.kano-cannonball"
+    }
+})
+```
+
+Plugin-registered classes, items, loadouts and primary weapon behaviors are
+sent to each client right after it joins (`GameplayContentSync`), and removed
+again when the client disconnects. Offline practice loads server Lua plugins
+from `Plugins/Server` and runs them against the practice world; practice
+plugins get registrations, executors, decision hooks, scheduled tasks and
+heartbeats, but not player/damage/death event notifications, messaging, votes
+or admin actions that need a server.
+
+Class art ships as a gameplay pack inside the plugin, declared in `plugin.json`
+`gameplayPacks` (for example `Gameplay/kano.gg2` with `pack.json`, `sprites/*.json`
+and PNG frames under `assets/`, the same format as the stock pack). Name sprites
+`<spritePrefix><Red|Blue><suffix>` (for example `KanoRedS`, `KanoBlueRunS`); names
+that already exist in the stock atlas cannot be replaced. Clients that don't have
+the plugin download the pack's frames from the server's HTTP endpoint
+(`/opengarrison/plugin-packs/<packId>/<hash>/...`, next to custom map downloads)
+after joining, verify every file's SHA-256, cache them under
+`<user data>/PluginPacks/` by content hash, and drop them on disconnect. The class
+draws with fallback sprites until its art arrives. Packs are limited to 4,096 files
+and 64 MiB.
+
+Packs can ship sounds the same way: one `sounds/<name>.json` per sound,
+`{ "id": "KanoPunchHitSnd", "path": "assets/sounds/punch-land.ogg" }`, with the file
+in the pack (`.ogg` or 16-bit `.wav`; mono plays best with positional audio). Names are at
+most 64 bytes, and a stock sound with the same name wins. Sounds download, verify and
+cache with the pack's art, and play by name like stock sounds; until they arrive they are
+silent.
+
+`projectileSprites` maps a projectile kind (`blade` so far) to a sprite in the class's
+pack. Clients draw that class's shots of the kind with it, animated through its frames and
+facing the way they fly, instead of the stock projectile; other classes keep the stock look.
+
+Registrations a plugin makes while loading belong to it and are removed when
+the plugin shuts down or reloads, so `lua reload` and restarting practice can
+register the same ids again.
 
 ## Stock Ability Item Template
 
@@ -530,12 +613,86 @@ the full replacement set you want to keep.
 Server Lua ability and primary weapon executors can use these bounded
 operations:
 
-- `try_apply_gameplay_impulse(playerId, velocityX, velocityY)`
+- `try_apply_gameplay_impulse(playerId, velocityX, velocityY)` sets both velocity axes
+- `try_set_player_velocity(playerId, velocityX, velocityY)` sets velocity; pass `nil`
+  for an axis to keep it (for example a ground roll that should still fall)
+- `try_set_player_pose(playerId, suffix, { ticksPerFrame = 2, loop = false, durationTicks = 0 })`
+  plays a move animation: the body draws `<spritePrefix><team><suffix>` instead of
+  its stand/run/jump sprite, one frame every `ticksPerFrame` source ticks, looping
+  or holding the last frame. `durationTicks = 0` keeps it until
+  `try_set_player_pose(playerId, nil)` clears it. The suffix must be listed in the
+  class presentation's `poses` (at most 127). Setting the same pose again restarts
+  it. The pose rides in the player's replicated state, so every client sees it.
+  While a pose is set, the player's hit mask comes from the pose sprite's mask (a
+  crouch pose with a shorter mask makes a smaller target) until the pose is
+  replaced or cleared, so clear timed poses whose mask differs from the standing one.
+- `try_play_sound(playerId, soundName)` plays a stock or pack sound at the player's
+  position for everyone nearby. Decision hooks such as `before_damage` can't play sounds;
+  queue them for the next tick instead.
 - `try_set_gameplay_ability_cooldown(playerId, cooldownKey, ticks)`
 - `try_apply_gameplay_damage(targetPlayerId, amount, attackerPlayerId, weaponSpriteName)`
 - `try_apply_gameplay_healing(playerId, amount)`
-- `try_apply_gameplay_status_effect(playerId, statusEffectId, ticks, value)`
+- `try_apply_gameplay_status_effect(playerId, statusEffectId, ticks, value)` (ids include
+  `stun`, hitstun that ignores the player's input for the ticks, and `damage_taken_scale`,
+  which multiplies all damage the player takes by `value` (0.05 to 10; below 1 resists) for
+  the ticks; refresh it to keep it up, or set 1 to end it), and `time_stop`, which holds the
+  player's health where it is for the ticks: nothing heals them (medics, dispensers,
+  cabinets, regeneration); set 0 to end it), and `facing_lock`, which keeps the player
+  facing the way they face now for the ticks, wherever they aim (the sprite doesn't flip);
+  set 0 to end it)
+- `try_spawn_blood(playerId, directionDegrees, count = 3)` sprays blood from a player like a
+  weapon hit (0 degrees flies right, 180 left)
 - `try_spawn_gameplay_projectile(request)`
+- `try_spawn_effect({ sprite, x, y, rotation = 0, flipX = false, ticksPerFrame = 2 })` plays a
+  sprite from a loaded gameplay pack once at a world position, on every client (hit sparks,
+  dust, text). Clients still downloading the pack skip it.
+- `try_play_screen_effect({ effect, x, y, durationTicks })` covers every client's world view
+  with a screen effect starting from a world position. `time_stop` is the only one so far:
+  an inverted sphere bursts out and holds over the stopped area while it lasts, and a negative
+  flash ends it. Both ride the ordinary visual event stream as `sprite:<name>` and
+  `screen:<effect>`.
+- `try_apply_gameplay_healing(playerId, amount, silent)`: `silent` (optional) heals without the
+  healing particles and numbers, for a passive regen.
+- `try_teleport_player(playerId, x, y)` moves a player straight toward a world position at
+  once, stopping short where walls, gates or player walls would block them.
+- `try_apply_gameplay_damage(target, amount, attacker, weaponSprite, deathType)`: `deathType`
+  (optional) says how a kill leaves the body: `"gib"`, `"decapitated"`, `"bisected"`,
+  `"severe"` or `"rifle"`; projectile spawns take the same `deathType` (blades), plus
+  `lifetimeTicks` and `knockbackScale`.
+- `try_freeze_projectiles({ x, y, radius, ticks, travelPixels = 0 })` holds every projectile
+  inside the circle still for `ticks` (no movement, lifetime or fuse), whoever fired it; each
+  carries on as it was when the freeze ends. Blades thrown inside it fly `travelPixels` first.
+- `find_players({ x, y, radius, team, excludePlayerId, aliveOnly = true, limit = 64 })`
+  returns every simulated player matching the filters, bots included (unlike
+  `get_players`, which lists connected clients). With `x`/`y` the results are
+  sorted by `distance`. Each entry has `playerId`, `team`, `playerClass`,
+  `gameplayClassId`, `isAlive`, `worldX`/`worldY`, collision `left`/`top`/`right`/`bottom`,
+  `velocityX`/`velocityY`, `health`/`maxHealth`, `isGrounded`, `isFacingLeft` and
+  `distance`.
+
+Ability and primary weapon events include the acting player's `gameplayClassId`,
+`isAlive`, `playerX`/`playerY`, `velocityX`/`velocityY`, `isGrounded` and
+`isFacingLeft`, alongside the existing aim and source position fields.
+
+Ability events also carry the player's buttons this tick and last tick as
+`input` and `previousInput`, each with `left`, `right`, `up`, `down`,
+`firePrimary`, `fireSecondary`, `useAbility` and `taunt`. A button is pressed
+this tick when it is set in `input` and not in `previousInput`. A `passive_tick`
+ability sees them every tick, which is enough to buffer direction presses and
+recognize fighting-game combos (keep recent direction presses with their frame and
+match them against each combo's steps, with the timing in a JSON config file).
+
+Player velocities are in pixels per second (30 source ticks per second);
+projectile velocities are in pixels per source tick.
+
+Lists returned by the host are indexed from 1. Read them with `list[i]` or
+`pairs`: in the bundled MoonSharp build, `#list` reports 0 for host-built lists.
+
+Moves that last several ticks (rolls, dashes, charges) can run from a hidden
+`passive_tick` ability in the class loadout's `abilityItemIds`: the server calls
+its executor once per tick for every player who has it. Keep per-player move
+state in a Lua table keyed by `playerId`. The executor runs on the server only,
+so clients see these moves through normal state updates, not prediction.
 
 The executor return value controls dispatcher outcome:
 

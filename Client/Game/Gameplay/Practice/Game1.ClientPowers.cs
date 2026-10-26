@@ -31,6 +31,7 @@ public partial class Game1
         PracticeBotsPrioritizeKills,
         FriendlyExplosionBoost,
         FriendlyAirburstKnockback,
+        Hardcore,
     }
 
     public readonly record struct ClientPowerToggleEntry(
@@ -47,6 +48,7 @@ public partial class Game1
 
     private static readonly ClientPowerToggleEntry[] ClientPowerEntries =
     [
+        new(ClientPowerToggleKind.Hardcore, "Hardcore", "Cap every class at 75 health."),
         new(ClientPowerToggleKind.StickyGibBlood, "Sticky gib blood", "Gib blood coats nearby players for 10s, then fades out."),
         new(ClientPowerToggleKind.HealOnDamage, "Heal on damage", "Restore 35% of dealt damage."),
         new(ClientPowerToggleKind.HealOnKill, "Heal on kill", "Restore 25 health on kill."),
@@ -413,6 +415,7 @@ public partial class Game1
     {
         return kind switch
         {
+            ClientPowerToggleKind.Hardcore => _practiceExperimentalGameplaySettings.EnableHardcore,
             ClientPowerToggleKind.StickyGibBlood => _practiceStickyGibBloodEnabled,
             ClientPowerToggleKind.HealOnDamage => _practiceExperimentalGameplaySettings.EnableHealOnDamage,
             ClientPowerToggleKind.HealOnKill => _practiceExperimentalGameplaySettings.EnableHealOnKill,
@@ -439,6 +442,10 @@ public partial class Game1
     {
         switch (kind)
         {
+            case ClientPowerToggleKind.Hardcore:
+                _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with
+                { EnableHardcore = !_practiceExperimentalGameplaySettings.EnableHardcore };
+                break;
             case ClientPowerToggleKind.StickyGibBlood:
                 _practiceStickyGibBloodEnabled = !_practiceStickyGibBloodEnabled;
                 break;

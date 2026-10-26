@@ -33,6 +33,7 @@ internal sealed class ServerIncomingMessageDispatcher(
     Action<ClientSession, CustomBubbleUploadMessage>? receiveCustomBubbleUpload = null,
     Action<ClientSession>? receiveCustomBubbleClear = null,
     Action<ServerTransportPeer>? sendCustomBubbleStates = null,
+    Action<ServerTransportPeer>? sendGameplayContent = null,
     Func<bool>? localPredictionEnabledGetter = null,
     Action<ClientSession, Protocol64StateResyncRequest>? sendProtocol64StateResync = null,
     Action<ClientSession, LastToDieCommandMessage>? receiveLastToDieCommand = null,
@@ -366,6 +367,7 @@ internal sealed class ServerIncomingMessageDispatcher(
                 existingMapMetadata.MapContentHash,
                 world.Level.MapScale,
                 localPredictionEnabledGetter?.Invoke() == true));
+            sendGameplayContent?.Invoke(remotePeer);
             if (passwordRequired && !existingClient.IsAuthorized)
             {
                 sendMessage(remotePeer, new PasswordRequestMessage());
@@ -484,6 +486,7 @@ internal sealed class ServerIncomingMessageDispatcher(
             mapMetadata.MapContentHash,
             world.Level.MapScale,
             localPredictionEnabledGetter?.Invoke() == true));
+        sendGameplayContent?.Invoke(remotePeer);
         if (passwordRequired && !client.IsAuthorized)
         {
             sendMessage(remotePeer, new PasswordRequestMessage());

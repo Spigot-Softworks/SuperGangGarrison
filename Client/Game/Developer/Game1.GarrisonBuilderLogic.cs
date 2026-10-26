@@ -1260,6 +1260,8 @@ public partial class Game1
             || key.Equals(GameplayMessageMetadata.OnEndTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(BotSpawnMetadata.DeathTriggerPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DamageableMetadata.HealWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(DamageableMetadata.DestroyWhenPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapRoundEndMetadata.OnCompletePropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DamageableMetadata.OnDestroyedPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DamageableMetadata.OnRedDestroyedPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DamageableMetadata.OnBlueDestroyedPropertyKey, StringComparison.OrdinalIgnoreCase)
@@ -1296,6 +1298,18 @@ public partial class Game1
                 PlayerTriggerMetadata.MaxFiresPropertyKey,
                 MapLogicMetadata.NodePriorityPropertyKey,
             ]
+            : MapRoundEndMetadata.IsEntityType(entityType)
+            ?
+            [
+                MapLogicMetadata.LogicInputPropertyKey,
+                MapRoundEndMetadata.WinnerPropertyKey,
+                MapRoundEndMetadata.DelayPropertyKey,
+                MapLogicMetadata.CountdownSecondsPropertyKey,
+                MapRoundEndMetadata.ContinuousPropertyKey,
+                MapRoundEndMetadata.ShowPropertyKey,
+                MapRoundEndMetadata.TickSoundPropertyKey,
+                MapRoundEndMetadata.OnCompletePropertyKey,
+            ]
             : entityType.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             ?
             [
@@ -1322,6 +1336,7 @@ public partial class Game1
             [
                 DamageableMetadata.HealthPropertyKey,
                 DamageableMetadata.HealWhenPropertyKey,
+                DamageableMetadata.DestroyWhenPropertyKey,
                 DamageableMetadata.ShowHealthBarPropertyKey,
                 DamageableMetadata.BlockPlayersPropertyKey,
                 DamageableMetadata.DisableWhenDestroyedPropertyKey,
@@ -1610,7 +1625,9 @@ public partial class Game1
                 return "none";
             }
 
-            return $"{source.Type} ({logicKey})";
+            var name = MapObjectMetadata.Name(source.Properties);
+            return name.Length > 0 ? name : CustomMapBuilderEntityCatalog.TryGetDefinition(source.Type, out var sourceDefinition)
+                ? sourceDefinition.Label : source.Type;
         }
 
         return value;
@@ -1648,6 +1665,8 @@ public partial class Game1
         }
 
         var entity = _builderEntities[entityIndex];
+        var name = MapObjectMetadata.Name(entity.Properties);
+        if (name.Length > 0) return name;
         if (CustomMapBuilderEntityCatalog.TryGetDefinition(entity.Type, out var definition))
         {
             return definition.Label;
@@ -1702,6 +1721,12 @@ public partial class Game1
         if (definition.Type.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase))
         {
             DrawGarrisonBuilderLogicCircleLabel(entity, "SCR");
+            return true;
+        }
+
+        if (MapRoundEndMetadata.IsEntityType(definition.Type))
+        {
+            DrawGarrisonBuilderLogicNode(entity, "END", GetGarrisonBuilderLogicScreenOutlineThicknessPx());
             return true;
         }
 
@@ -2234,6 +2259,14 @@ public partial class Game1
                 continue;
             }
 
+            if (MapRoundEndMetadata.IsEntityType(entity.Type))
+            {
+                DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.LogicInputPropertyKey, 0);
+                if (TryFindGarrisonBuilderLogicSource(GetEntityProperty(entity.Properties, MapRoundEndMetadata.OnCompletePropertyKey, ""), out var completeTarget, out _))
+                    DrawGarrisonBuilderLogicLink(entity, completeTarget);
+                continue;
+            }
+
             if (entity.Type.Equals(MapLogicMetadata.OscillatorEntityType, StringComparison.OrdinalIgnoreCase))
             {
                 DrawGarrisonBuilderLogicNodeInputLink(entity, MapLogicMetadata.StartWhenPropertyKey, 0, 2);
@@ -2260,6 +2293,8 @@ public partial class Game1
                 DrawGarrisonBuilderLogicConsumerLink(
                     entity,
                     GetEntityProperty(entity.Properties, DamageableMetadata.HealWhenPropertyKey, string.Empty));
+                DrawGarrisonBuilderLogicConsumerLink(entity,
+                    GetEntityProperty(entity.Properties, DamageableMetadata.DestroyWhenPropertyKey, string.Empty));
                 foreach (var key in new[] { DamageableMetadata.OnDestroyedPropertyKey, DamageableMetadata.OnRedDestroyedPropertyKey, DamageableMetadata.OnBlueDestroyedPropertyKey })
                     if (TryFindGarrisonBuilderLogicSource(GetEntityProperty(entity.Properties, key, ""), out var target, out _))
                         DrawGarrisonBuilderLogicLink(entity, target);
@@ -2565,12 +2600,12 @@ public partial class Game1
 
         if (key.Equals(MapLogicMetadata.ActivatorBehaviorPropertyKey, StringComparison.OrdinalIgnoreCase))
         {
-            return $"Behavior: {MapLogicMetadata.GetActivatorBehaviorDisplayLabel(value)}";
+            return $"Action: {MapLogicMetadata.GetActivatorBehaviorDisplayLabel(value)}";
         }
 
         if (key.Equals(MapLogicMetadata.ActivatorEntityPropertyKey, StringComparison.OrdinalIgnoreCase))
         {
-            return $"Entity: {GetGarrisonBuilderActivatorEntityDisplayValue(value)}";
+            return $"Targets: {GetGarrisonBuilderActivatorEntityDisplayValue(value)}";
         }
 
         if (key.Equals(TeleportMetadata.TeleportExitPropertyKey, StringComparison.OrdinalIgnoreCase))
@@ -2604,11 +2639,13 @@ public partial class Game1
         if (key.Equals(MapLogicMetadata.ActivateOnStartPropertyKey, StringComparison.OrdinalIgnoreCase))
         {
             var enabled = value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1";
-            return $"Activate on start: {(enabled ? "on" : "off")}";
+            return $"Run at map start: {(enabled ? "on" : "off")}";
         }
 
         if (key.Equals(MapLogicMetadata.CountdownSecondsPropertyKey, StringComparison.OrdinalIgnoreCase))
         {
+            if (TryGetGarrisonBuilderEditedEntityType(out var countdownEntityType) && MapRoundEndMetadata.IsEntityType(countdownEntityType))
+                return $"Countdown (sec): {MapRoundEndMetadata.ParseSeconds(value):0.###}";
             return $"Countdown (sec): {MapLogicMetadata.ToCountdownSecondsPropertyValue(MapLogicMetadata.ParseCountdownSeconds(value))}";
         }
 
@@ -2695,7 +2732,7 @@ public partial class Game1
                 _ when key.Equals(MapLogicMetadata.LogicInputPropertyKey, StringComparison.OrdinalIgnoreCase)
                     && TryGetGarrisonBuilderEditedEntityType(out var editedType)
                     && editedType.Equals(MapLogicMetadata.TimerEntityType, StringComparison.OrdinalIgnoreCase) => "Trigger",
-                _ when key.Equals(MapLogicMetadata.LogicInputPropertyKey, StringComparison.OrdinalIgnoreCase) => "Input",
+                _ when key.Equals(MapLogicMetadata.LogicInputPropertyKey, StringComparison.OrdinalIgnoreCase) => "When",
                 _ when key.Equals(MapLogicMetadata.LogicInput1PropertyKey, StringComparison.OrdinalIgnoreCase) => "Input1",
                 _ when key.Equals(MapLogicMetadata.LogicInput2PropertyKey, StringComparison.OrdinalIgnoreCase) => "Input2",
                 _ when key.Equals(MapLogicMetadata.LogicInput3PropertyKey, StringComparison.OrdinalIgnoreCase) => "Input3 (optional)",
@@ -2704,6 +2741,8 @@ public partial class Game1
                 _ when key.Equals(MapLogicMetadata.LockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase) => "Lock when",
                 _ when key.Equals(MapLogicMetadata.UnlockedWhenLogicPropertyKey, StringComparison.OrdinalIgnoreCase) => "Unlock when",
                 _ when key.Equals(DamageableMetadata.HealWhenPropertyKey, StringComparison.OrdinalIgnoreCase) => "Heal when",
+                _ when key.Equals(DamageableMetadata.DestroyWhenPropertyKey, StringComparison.OrdinalIgnoreCase) => "Destroy when",
+                _ when key.Equals(MapRoundEndMetadata.OnCompletePropertyKey, StringComparison.OrdinalIgnoreCase) => "On complete",
                 _ when GetDestructionPropertyLabel(key) is { } label => label,
                 _ when key.Equals(MapLightMetadata.FollowInputKey, StringComparison.OrdinalIgnoreCase) => "Power input",
                 _ when key.Equals(MapLightMetadata.OnInputKey, StringComparison.OrdinalIgnoreCase) => "On trigger",

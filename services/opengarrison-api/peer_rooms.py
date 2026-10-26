@@ -25,6 +25,8 @@ class PracticeSettings(BaseModel):
     tickRate: int = Field(default=30, ge=30, le=120)
     timeLimitMinutes: int = Field(default=15, ge=5, le=60)
     captureLimit: int = Field(default=5, ge=1, le=10)
+    conquestScoreLimit: int = Field(default=200, ge=1, le=65535)
+    hardcore: bool = False
     respawnSeconds: int = Field(default=5, ge=0, le=15)
     redBots: int = Field(default=0, ge=0, le=9)
     blueBots: int = Field(default=1, ge=0, le=9)

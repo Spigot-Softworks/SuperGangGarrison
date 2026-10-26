@@ -562,10 +562,10 @@ public sealed class LocalMotionController
         {
             var input = CreateProbeInput(probe, target, candidate, tick);
             var jumpPressed = input.Up && !previousInput.Up;
-            probe.Advance(input, jumpPressed, world.Level, self.Team, 1d / SimulationConfig.DefaultTicksPerSecond);
+            BotNavigationEnvironment.AdvanceProbe(world.Level, probe, input, jumpPressed, self.Team);
             previousInput = input;
 
-            if (!probe.IsAlive
+            if (!BotNavigationEnvironment.IsSafe(world.Level, probe)
                 || probe.Bottom < -64f
                 || probe.Bottom > world.Level.Bounds.Height + 128f
                 || !probe.CanOccupy(world.Level, self.Team, probe.X, probe.Y)
@@ -580,6 +580,9 @@ public sealed class LocalMotionController
                 bestDistance = distance;
             }
         }
+
+        if (!BotNavigationEnvironment.HasSafeLanding(world.Level, probe, self.Team, previousInput))
+            return false;
 
         var finalDistance = Distance(probe.X, probe.Y, target.X, target.Y);
         var progress = startDistance - bestDistance;

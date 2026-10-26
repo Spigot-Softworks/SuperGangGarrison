@@ -99,8 +99,8 @@ public static class CombatDecisionResolver
     private static readonly ConditionalWeakTable<SimpleLevel, LineOfSightLevelCache> LineOfSightLevelCaches = new();
     private static readonly ConditionalWeakTable<SimulationWorld, LineOfSightFrameCache> LineOfSightFrameCaches = new();
 
-    private const int HeavyIdleEatHealth = 100;
-    private const int HeavyCombatEatHealth = 30;
+    private const float HeavyIdleEatHealthFraction = 0.5f;
+    private const float HeavyCombatEatHealthFraction = 0.15f;
     private const float MaxPracticalFireRange = 500f;
     private const float SniperDangerDistance = 300f;
     private const float SoldierShotgunDistance = 260f;
@@ -528,7 +528,7 @@ public static class CombatDecisionResolver
             return false;
         }
 
-        if (self.ClassId == PlayerClass.Heavy && ShouldHeavyEat(self, isBeingHealed, HeavyCombatEatHealth))
+        if (self.ClassId == PlayerClass.Heavy && ShouldHeavyEat(self, isBeingHealed, HeavyCombatEatHealthFraction))
         {
             return false;
         }
@@ -579,7 +579,7 @@ public static class CombatDecisionResolver
 
         if (self.ClassId == PlayerClass.Heavy)
         {
-            return ShouldHeavyEat(self, isBeingHealed, combatTarget is null ? HeavyIdleEatHealth : HeavyCombatEatHealth);
+            return ShouldHeavyEat(self, isBeingHealed, combatTarget is null ? HeavyIdleEatHealthFraction : HeavyCombatEatHealthFraction);
         }
 
         if (self.ClassId == PlayerClass.Pyro && ShouldPyroAirblastIncomingProjectile(world, self, memory))
@@ -1504,13 +1504,14 @@ public static class CombatDecisionResolver
         return target.FacingDirectionX >= 0f ? -1f : 1f;
     }
 
-    private static bool ShouldHeavyEat(PlayerEntity self, bool isBeingHealed, int healthThreshold)
+    private static bool ShouldHeavyEat(PlayerEntity self, bool isBeingHealed, float healthFraction)
     {
         return self.ClassId == PlayerClass.Heavy
             && !isBeingHealed
             && !self.IsHeavyEating
             && self.HeavyEatCooldownTicksRemaining <= 0
-            && self.Health <= healthThreshold;
+            && self.Health < self.MaxHealth
+            && self.Health <= self.MaxHealth * healthFraction;
     }
 
     private static bool ShouldDetonateMines(SimulationWorld world, PlayerEntity self)

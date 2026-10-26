@@ -240,7 +240,7 @@ internal static class TopDownNavigationGraphBuilder
 
     private static CollisionEnvelope CreateCollisionEnvelope()
     {
-        var definitions = Enum.GetValues<PlayerClass>()
+        var definitions = PlayerClassSlots.Stock
             .Select(CharacterClassCatalog.GetDefinition)
             .ToArray();
         return new CollisionEnvelope(

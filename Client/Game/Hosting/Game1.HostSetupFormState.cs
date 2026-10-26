@@ -588,6 +588,11 @@ public partial class Game1
             var customDefaultOrder = OpenGarrisonStockMapCatalog.Definitions.Count + 1;
             foreach (var sourceLevel in sourceLevels)
             {
+                if (GarrisonBuilderQuickTestNaming.IsQuickTestLevel(sourceLevel.Name))
+                {
+                    continue; // builder quick test copies are not maps to host
+                }
+
                 var isCustomMap = sourceLevel.IsCustomMap;
                 var hasStockDefinition = stockDefinitions.TryGetValue(sourceLevel.Name, out var definition);
                 var displayName = hasStockDefinition ? definition.DisplayName : sourceLevel.Name;

@@ -91,6 +91,9 @@ internal static class Og2NavigationGraphCache
             keyParts.Add(dynamicObjectiveAttachment);
         }
 
+        if (BotNavigationEnvironment.HasTraversalEffects(level))
+            keyParts.Add("room-force-hazard-navigation-v1");
+
         keyParts.Add(levelFingerprint);
         return string.Join('|', keyParts);
     }
@@ -139,7 +142,7 @@ internal static class Og2NavigationGraphCache
         // (with a small number of v49 fallbacks). Existing platformer maps
         // must load those snapshots instead of rebuilding them at runtime;
         // an old platformer graph is never valid for a top-down map.
-        if (level.IsTopDown)
+        if (level.IsTopDown || BotNavigationEnvironment.HasTraversalEffects(level))
         {
             return false;
         }

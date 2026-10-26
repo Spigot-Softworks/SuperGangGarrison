@@ -31,7 +31,8 @@ public partial class Game1
         TickRate: _practiceSetupState.TickRate, TimeLimitMinutes: _practiceSetupState.TimeLimitMinutes,
         CaptureLimit: _practiceSetupState.CapLimit, RespawnSeconds: _practiceSetupState.RespawnSeconds,
         RedBots: _practiceSetupState.FriendlyBotCount, BlueBots: _practiceSetupState.EnemyBotCount,
-        SpecialAbilities: true);
+        SpecialAbilities: true, ConquestScoreLimit: _practiceSetupState.ConquestScoreLimit,
+        Hardcore: _practiceExperimentalGameplaySettings.EnableHardcore);
 
     private void OpenPracticeCoOpMenu()
     {
@@ -231,6 +232,8 @@ public partial class Game1
         _practiceSetupState.TickRate = settings.TickRate;
         _practiceSetupState.TimeLimitMinutes = settings.TimeLimitMinutes;
         _practiceSetupState.CapLimit = settings.CaptureLimit;
+        _practiceSetupState.ConquestScoreLimit = settings.ConquestScoreLimit;
+        _practiceExperimentalGameplaySettings = _practiceExperimentalGameplaySettings with { EnableHardcore = settings.Hardcore };
         _practiceSetupState.RespawnSeconds = settings.RespawnSeconds;
         _practiceSetupState.FriendlyBotCount = settings.RedBots;
         _practiceSetupState.EnemyBotCount = settings.BlueBots;

@@ -42,7 +42,8 @@ partial class GameServer
         transientEventReplayTicks: (ulong)options.TickRate * 2,
         persistentGameplayOwnershipEnabled: false, persistentGameplayOwnershipIdentityMode: PersistentGameplayOwnershipIdentityMode.Disabled,
         persistentGameplayOwnershipFile: "", hostGameplayDefaults: new OpenGarrisonHostSettings
-        { AutoBalanceEnabled = false, HlxEnabled = false, SecondaryAbilitiesEnabled = options.SpecialAbilities },
+        { AutoBalanceEnabled = false, HlxEnabled = false, SecondaryAbilitiesEnabled = options.SpecialAbilities,
+          ConquestScoreLimit = options.ConquestScoreLimit, HardcoreEnabled = options.Hardcore },
         gameplayVariant: options.LastToDie ? GameplayVariantKind.LastToDie : GameplayVariantKind.Standard,
         lastToDieDifficulty: options.Difficulty, lastToDieSeed: options.Seed,
         serverManagementConfiguration: new ServerManagementConfiguration())

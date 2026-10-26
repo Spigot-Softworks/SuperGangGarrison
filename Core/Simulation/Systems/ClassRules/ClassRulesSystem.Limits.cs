@@ -14,7 +14,7 @@ internal sealed partial class ClassRulesSystem
 
     internal void SetClassLimit(PlayerClass playerClass, int limit)
     {
-        if (!Enum.IsDefined(playerClass))
+        if (!PlayerClassSlots.IsStock(playerClass))
         {
             return;
         }
@@ -96,7 +96,7 @@ internal sealed partial class ClassRulesSystem
 
             var candidateDefinition = _host.NetworkPlayers.GetNetworkPlayerClassDefinition(candidateSlot);
             if (!CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(candidateDefinition.GameplayClassId, out var candidateBinding)
-                || candidateBinding.PlayerClass != binding.PlayerClass)
+                || !CountsAsSameLimitedClass(binding, candidateBinding))
             {
                 continue;
             }
@@ -109,6 +109,14 @@ internal sealed partial class ClassRulesSystem
         }
 
         return true;
+    }
+
+    // Custom-slot classes share one enum value, so they are told apart by gameplay class id.
+    private static bool CountsAsSameLimitedClass(GameplayClassRuntimeBinding binding, GameplayClassRuntimeBinding candidateBinding)
+    {
+        return binding.PlayerClass == PlayerClass.Custom
+            ? string.Equals(binding.ClassId, candidateBinding.ClassId, StringComparison.Ordinal)
+            : candidateBinding.PlayerClass == binding.PlayerClass;
     }
 
     private int GetEffectiveClassLimit(PlayerClass playerClass)

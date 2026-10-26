@@ -10,7 +10,7 @@ public sealed class SimulationPerformanceClassMaskTests
     [Fact]
     public void CachedCertifiedProfileCoverageMatchesCurrentMovementRulesForEveryMask()
     {
-        var classes = Enum.GetValues<PlayerClass>();
+        var classes = PlayerClassSlots.Stock;
         var registry = CharacterClassCatalog.RuntimeRegistry;
         var profiles = CreateCertifiedProfiles(registry);
         var maskCount = 1 << classes.Length;

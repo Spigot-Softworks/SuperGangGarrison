@@ -16,6 +16,19 @@ public sealed partial class MovementSystem
         return true;
     }
 
+    // A null axis keeps the player's current speed on that axis.
+    public bool TrySetGameplayVelocity(int playerId, float? velocityX, float? velocityY)
+    {
+        var player = FindPlayerById(playerId);
+        if (player is null || !player.IsAlive)
+        {
+            return false;
+        }
+
+        player.ApplyVelocityImpulse(velocityX ?? player.HorizontalSpeed, velocityY ?? player.VerticalSpeed);
+        return true;
+    }
+
     public bool TryCancelSpySuperjumpChargeFromJumpInput(PlayerEntity player, bool jumpPressed, bool useAbilityHeld)
     {
         if (!jumpPressed

@@ -27,6 +27,7 @@ internal interface IEntityPhaseHost
     RoomEffectsSystem RoomEffects { get; }
     SnapshotApplySystem SnapshotApply { get; }
     bool SniperAimIndicatorEnabled { get; }
+    bool PresentationTimeStopped { get; }
     StructureSystem Structures { get; }
     SupportRulesSystem SupportRules { get; }
     WorldObjectStore WorldObjects { get; }

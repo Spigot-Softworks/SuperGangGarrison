@@ -39,11 +39,22 @@ internal sealed class EntityTickPhase : IEntityTickPhase
         _host.Projectiles.AdvanceRockets();
         _host.Projectiles.AdvanceMines();
         _host.Projectiles.AdvanceGrenades();
+        if (IsTimeStopped())
+        {
+            return;
+        }
+
         _host.AdvancePlayerGibs();
         _host.AdvanceBloodDrops();
         _host.AdvanceDeadBodies();
         _host.AdvanceSentryGibs();
         _host.AdvanceJumpPadGibs();
+    }
+
+    // A time stop (a freeze zone, or the client showing one) holds blood, gibs and bodies still.
+    private bool IsTimeStopped()
+    {
+        return _host.PresentationTimeStopped || _host.Projectiles.HasActiveFreezeZone;
     }
 
     private bool HasProjectileOrTransientStateToAdvance()
@@ -127,6 +138,11 @@ internal sealed class EntityTickPhase : IEntityTickPhase
         AdvanceTimedPhase("rockets", _host.Projectiles.AdvanceRockets);
         AdvanceTimedPhase("mines", _host.Projectiles.AdvanceMines);
         AdvanceTimedPhase("grenades", _host.Projectiles.AdvanceGrenades);
+        if (IsTimeStopped())
+        {
+            return;
+        }
+
         AdvanceTimedPhase("playerGibs", _host.AdvancePlayerGibs);
         AdvanceTimedPhase("bloodDrops", _host.AdvanceBloodDrops);
         AdvanceTimedPhase("deadBodies", _host.AdvanceDeadBodies);

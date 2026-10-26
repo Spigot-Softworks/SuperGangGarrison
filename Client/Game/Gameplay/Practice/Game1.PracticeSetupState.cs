@@ -25,6 +25,7 @@ public partial class Game1
         public static readonly int[] TickRateOptions = [30, 60, 120];
         public static readonly int[] TimeLimitOptions = [5, 10, 15, 20, 30, 45, 60];
         public static readonly int[] CapLimitOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        public static readonly int[] ConquestScoreLimitOptions = [50, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
         public static readonly int[] RespawnOptions = [0, 3, 5, 10, 15];
         public static readonly int[] BotCountOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         public static readonly (string LevelName, string DisplayName)[] OrderedPracticeMapOptions =
@@ -34,6 +35,7 @@ public partial class Game1
             ("Harvest", "Harvest"),
             ("koth_bloodmoon_reborn", "Bloodmoon Reborn"),
             ("cp_powerstrip", "Powerstrip"),
+            ("cq_circuits", "Circuits"),
             ("Docking", "Docking"),
             ("Conflict", "Conflict"),
             ("Gallery", "Gallery"),
@@ -64,6 +66,8 @@ public partial class Game1
         public int TickRate { get; set; } = SimulationConfig.DefaultTicksPerSecond;
         public int TimeLimitMinutes { get; set; } = 15;
         public int CapLimit { get; set; } = 5;
+        public int ConquestScoreLimit { get; set; } = ConquestRules.ScoreLimit;
+        public bool IsConquestMapSelected => GetSelectedMapEntry()?.Mode == GameModeKind.Conquest;
         public int RespawnSeconds { get; set; } = 5;
         public int EnemyBotCount { get; set; }
         public int FriendlyBotCount { get; set; }
@@ -103,6 +107,7 @@ public partial class Game1
             TickRate = NormalizeOption(TickRate, TickRateOptions, SimulationConfig.DefaultTicksPerSecond);
             TimeLimitMinutes = NormalizeOption(TimeLimitMinutes, TimeLimitOptions, 15);
             CapLimit = NormalizeOption(CapLimit, CapLimitOptions, 5);
+            ConquestScoreLimit = Math.Clamp(ConquestScoreLimit, 1, ConquestRules.MaximumScoreLimit);
             RespawnSeconds = NormalizeOption(RespawnSeconds, RespawnOptions, 5);
             EnemyBotCount = NormalizeOption(EnemyBotCount, BotCountOptions, 0);
             FriendlyBotCount = NormalizeOption(FriendlyBotCount, BotCountOptions, 0);
@@ -317,7 +322,10 @@ public partial class Game1
 
         public void CycleCapLimit(int direction)
         {
-            CapLimit = CycleOption(CapLimit, CapLimitOptions, direction, 5);
+            if (IsConquestMapSelected)
+                ConquestScoreLimit = CycleOption(ConquestScoreLimit, ConquestScoreLimitOptions, direction, ConquestRules.ScoreLimit);
+            else
+                CapLimit = CycleOption(CapLimit, CapLimitOptions, direction, 5);
         }
 
         public void CycleRespawn(int direction)
@@ -508,7 +516,8 @@ public partial class Game1
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var entries = SimpleLevelFactory.GetAvailableSourceLevels()
-                .Where(level => !hiddenStockLevelNames.Contains(level.Name))
+                .Where(level => !hiddenStockLevelNames.Contains(level.Name)
+                    && !GarrisonBuilderQuickTestNaming.IsQuickTestLevel(level.Name))
                 .Select(level =>
                 {
                     var hasStockDefinition = stockDefinitions.TryGetValue(level.Name, out var definition);
@@ -609,8 +618,12 @@ public partial class Game1
 
     public int _practiceCapLimit
     {
-        get => _practiceSetupState.CapLimit;
-        set => _practiceSetupState.CapLimit = value;
+        get => _practiceSetupState.IsConquestMapSelected ? _practiceSetupState.ConquestScoreLimit : _practiceSetupState.CapLimit;
+        set
+        {
+            if (_practiceSetupState.IsConquestMapSelected) _practiceSetupState.ConquestScoreLimit = value;
+            else _practiceSetupState.CapLimit = value;
+        }
     }
 
     public int _practiceRespawnSeconds

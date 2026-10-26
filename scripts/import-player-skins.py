@@ -67,11 +67,15 @@ def write_sprite(name: str, images: list[Image.Image], origin: list[int], check:
             obsolete.unlink()
 
 
-def build(catalog: Path, check: bool) -> None:
+def build(catalog: Path, check: bool, skin_ids: list[str] | None = None) -> None:
     data = json.loads(catalog.read_text(encoding="utf-8"))
     if data["version"] != 2:
         raise ValueError("Unsupported player skin version")
-    for skin in data["skins"].values():
+    if skin_ids and set(skin_ids) - data["skins"].keys():
+        raise ValueError("Unknown skin: " + ", ".join(sorted(set(skin_ids) - data["skins"].keys())))
+    for skin_id, skin in data["skins"].items():
+        if skin_ids and skin_id not in skin_ids:
+            continue
         for name, clip in skin["clips"].items():
             if not clip["frames"] or any(frame < 0 or frame >= len(skin["poses"]) for frame in clip["frames"]):
                 raise ValueError(f"Invalid pose sequence in {skin['bodySprite']}: {name}")
@@ -137,21 +141,23 @@ def build(catalog: Path, check: bool) -> None:
                                                if is_leg_layer(layer) == is_legs], team, skin["canvas"])
                               for pose in skin["poses"]]
                     write(skin[part], frames, skin["origin"])
-            weapon = skin.get("weapon")
-            if weapon is not None:
+            weapons = ([skin["weapon"]] if skin.get("weapon") else []) + skin.get("weapons", [])
+            for weapon in weapons:
                 # A weapon may be drawn on a wider box than the body (flamethrower, minigun:
                 # 48x32), anchored at the same top-left corner.
                 weapon_canvas = weapon.get("canvas", skin["canvas"])
                 normal = []
-                for pose in skin["poses"]:
+                for pose in ([{}] if "idleFrame" in weapon else skin["poses"]):
                     # The exported full-canvas weapon frames already contain the pose offset.
                     # Normalize around a shared pivot; the runtime applies that offset once.
-                    image = compose(source, [pose["weapon"]], team, weapon_canvas)
+                    image = compose(source, [weapon.get("idleFrame") or pose["weapon"]], team, weapon_canvas)
                     normalized = Image.new("RGBA", tuple(weapon_canvas))
                     # paste (not alpha_composite) accepts negative offsets; the canvas is empty.
                     normalized.paste(image, tuple(-v for v in pose.get("weaponOffset", [0, 0])))
                     normal.append(normalized)
                 write(weapon["sprite"], normal, weapon["pivot"])
+                if weapon.get("torsoSprite"):
+                    write(weapon["torsoSprite"], [compose(source, [weapon["torsoFrame"]], team, skin["canvas"])], weapon["pivot"])
                 for action in ("fire", "reload", "ability"):
                     frames = weapon.get(action + "Frames", [])
                     if frames:
@@ -179,5 +185,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--catalog", type=Path, default=ROOT / "Core/Content/PlayerSkins.json")
     parser.add_argument("--check", action="store_true", help="Verify generated art without changing files")
+    parser.add_argument("--skin", action="append", help="Import only this skin ID (repeat for multiple skins)")
     args = parser.parse_args()
-    build(args.catalog, args.check)
+    build(args.catalog, args.check, args.skin)

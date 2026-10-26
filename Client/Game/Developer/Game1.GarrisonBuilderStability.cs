@@ -147,9 +147,8 @@ public partial class Game1
             && _builderPropertyTarget == GarrisonBuilderPropertyTarget.None && !_builderEntityDragging)
         {
             var document = _builderDocument with { Entities = _builderEntities.ToArray() };
-            var path = Path.Combine(BuilderRecoveryDirectory, _builderRecoveryId + BuilderProjectStore.Extension);
             _builderRecoveryElapsed = 0;
-            _builderRecoveryTask = Task.Run(() => BuilderProjectStore.Save(document, path));
+            _builderRecoveryTask = StartGarrisonBuilderRecoveryDraftWrite(document);
         }
     }
 
@@ -277,6 +276,7 @@ public partial class Game1
         _builderCachedValidation = null;
         _builderResourceDecodeTasks.Clear();
         _builderRecoveryId = Guid.NewGuid().ToString("N");
+        _builderRecoveryWrittenPath = null;
         _builderRecoveryElapsed = 0;
     }
 }

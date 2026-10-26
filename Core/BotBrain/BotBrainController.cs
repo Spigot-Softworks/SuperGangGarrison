@@ -35,6 +35,7 @@ public sealed class BotBrainController
     private readonly AimResolver _aimResolver = new();
     private readonly CombatDecisionMemory _combatMemory = new();
     private readonly LocalMotionController _localMotionController = new();
+    private readonly BotEnvironmentSteeringGuard _environmentSteeringGuard = new();
     private readonly StochasticLocalMotionPlanner _stochasticLocalMotionPlanner = new();
     private readonly INavigationGraphProvider _navigationGraphProvider;
 
@@ -901,6 +902,7 @@ public sealed class BotBrainController
         {
             ApplyCaptureArrivalHold(world, self, team, ref steeringOutput);
         }
+        ApplyEnvironmentSteeringSafety(world, self, ref steeringOutput);
         ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
         TraceRuntimeRecipeExecution(self, team, steeringOutput);
@@ -961,6 +963,31 @@ public sealed class BotBrainController
             && previousInput.Up
             ? previousInput with { Up = false }
             : previousInput;
+    }
+
+    private bool ApplyEnvironmentSteeringSafety(SimulationWorld world, PlayerEntity self, ref SteeringOutput steering)
+    {
+        if (!_environmentSteeringGuard.Apply(world, self, ref steering))
+            return false;
+        LastSemanticRecoveryTrace = $"environmentSafety={_environmentSteeringGuard.Reason}";
+        if (_environmentSteeringGuard.StartedEscape)
+        {
+            if (_currentPath is { CurrentIndex: > 0 } path && path.TryGetCurrentEdge(out var edge))
+            {
+                _blockedEdges[new NavEdgeBlock(path.GetWaypoint(path.CurrentIndex - 1), edge.ToNode, edge.Kind)] = FailedEdgeBlockTicks;
+                _blockedEdgesVersion++;
+            }
+            _currentPath = null;
+            _goalNodeIndex = -1;
+            _hasDynamicRouteTarget = false;
+            _repathCooldownTicks = 0;
+            _alphaRecoverySearchFailure = null;
+            MarkAlphaRecoveryPending();
+            _steering.Reset();
+            _localMotionController.AbortActivePlan();
+            _stochasticLocalMotionPlanner.Reset();
+        }
+        return true;
     }
 
     /// <summary>
@@ -1052,6 +1079,7 @@ public sealed class BotBrainController
             }
         }
 
+        ApplyEnvironmentSteeringSafety(world, self, ref steeringOutput);
         ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
         TraceRuntimeRecipeExecution(self, team, steeringOutput);
@@ -1148,6 +1176,7 @@ public sealed class BotBrainController
             }
         }
 
+        ApplyEnvironmentSteeringSafety(world, self, ref steeringOutput);
         ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
         TraceRuntimeRecipeExecution(self, team, steeringOutput);
@@ -1328,6 +1357,8 @@ public sealed class BotBrainController
         {
             ApplyCaptureArrivalHold(world, self, team, ref steeringOutput);
         }
+        if (ApplyEnvironmentSteeringSafety(world, self, ref steeringOutput))
+            inputOverride = null;
         ApplyTopDownAllySeparation(world, self, team, ref steeringOutput);
         LastSteeringOutput = steeringOutput;
 
@@ -2426,6 +2457,7 @@ public sealed class BotBrainController
     /// </summary>
     public void Reset()
     {
+        _environmentSteeringGuard.Reset();
         _navGraph = null;
         LastNavigationGraphSource = "none";
         _currentPath = null;
@@ -2587,6 +2619,7 @@ public sealed class BotBrainController
 
     private void ResetTransientNavigationStateForNewLife()
     {
+        _environmentSteeringGuard.Reset();
         _currentPath = null;
         _hasDynamicRouteTarget = false;
         _dynamicRouteTargetPosition = default;

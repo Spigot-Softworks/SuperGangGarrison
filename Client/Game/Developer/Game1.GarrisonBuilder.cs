@@ -265,6 +265,7 @@ public partial class Game1
                 if (UpdateGarrisonBuilderFileDialog(keyboard)) return;
                 if (_builderMapNameCollisionDialogOpen) { UpdateGarrisonBuilderMapNameCollisionDialog(keyboard, mouse); return; }
                 if (UpdateGarrisonBuilderUnsavedPrompt(keyboard, mouse)) return;
+                if (UpdateGarrisonBuilderMapScript(keyboard, mouse)) return;
             }
             UpdateGarrisonBuilderEditorCore(keyboard, mouse, deltaSeconds);
         }
@@ -309,6 +310,7 @@ public partial class Game1
 
         TryApplyPendingGarrisonBuilderCameraCenter();
         UpdateLegacyGarrisonBuilderAnimation(deltaSeconds);
+        if (UpdateModernGarrisonBuilderMapPick(keyboard, mouse, deltaSeconds)) return;
         if (UpdateGarrisonBuilderLightMaskPainting(keyboard, mouse, deltaSeconds)) return;
         if (UpdateGarrisonBuilderPropertyEditor(keyboard, mouse)) return;
         if (UpdateGarrisonBuilderLayerParallaxDialog(keyboard, mouse)) return;
@@ -529,6 +531,7 @@ public partial class Game1
             DrawModernGarrisonBuilderEditorOverlay(mouse);
             DrawGarrisonBuilderLightMaskPainting(mouse);
             DrawGarrisonBuilderStabilityOverlays(mouse);
+            DrawGarrisonBuilderMapScript(mouse);
             return;
         }
 
@@ -557,6 +560,7 @@ public partial class Game1
         DrawGarrisonBuilderTransientStatus();
         DrawGarrisonBuilderLightMaskPainting(mouse);
         DrawGarrisonBuilderStabilityOverlays(mouse);
+        DrawGarrisonBuilderMapScript(mouse);
     }
 
     private float GetGarrisonBuilderEditorZoom()
@@ -4946,6 +4950,8 @@ public partial class Game1
 
     public bool HandleGarrisonBuilderTextInput(char character)
     {
+        if (HandleBuilderScriptText(character)) return true;
+        if (_builderEditorEnabled && IsGarrisonBuilderPropertyMapPickActive) return true;
         if (_builderDialogTask is not null || _builderFileWorkTask is not null) return _builderEditorEnabled;
         if (_builderDialogFallback)
         {
@@ -5837,6 +5843,12 @@ public partial class Game1
             ApplyGarrisonBuilderPropertyEditorLivePreview();
             MarkGarrisonBuilderPropertyEditorChanged();
         }
+        else if (key.Equals(MapRoundEndMetadata.WinnerPropertyKey, StringComparison.OrdinalIgnoreCase))
+        {
+            _builderPropertyEditorValues[key] = MapRoundEndMetadata.CycleWinner(value);
+            ApplyGarrisonBuilderPropertyEditorLivePreview();
+            MarkGarrisonBuilderPropertyEditorChanged();
+        }
         else if (key.Equals(MapLogicScoreTriggerMetadata.ScoreTeamPropertyKey, StringComparison.OrdinalIgnoreCase)
             && TryGetGarrisonBuilderEditedEntityType(out var scoreTeamEntity)
             && scoreTeamEntity.Equals(MapLogicMetadata.ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase))
@@ -6080,7 +6092,8 @@ public partial class Game1
             MarkGarrisonBuilderPropertyEditorChanged();
         }
         else if (key.Equals(ControlPointIndexMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase)
-            && IsEditingGarrisonBuilderControlPointEntity())
+            && IsEditingGarrisonBuilderControlPointEntity()
+            && _builderSelectedGameMode != CustomMapBuilderGameMode.Conquest)
         {
             _builderPropertyEditorValues[key] = ControlPointIndexMetadata.CyclePropertyValue(value);
             ApplyGarrisonBuilderPropertyEditorLivePreview();
@@ -6519,6 +6532,13 @@ public partial class Game1
                 var multiplier = value.Length == 0 ? 1f : ControlPointCapTimeMultiplierMetadata.ParseMultiplier(value);
                 ControlPointCapTimeMultiplierMetadata.MarkCustom(_builderPropertyEditorValues, multiplier);
             }
+            else if (TryGetGarrisonBuilderEditedEntityType(out var roundEndType) && MapRoundEndMetadata.IsEntityType(roundEndType)
+                && (_builderPropertyEditKey.Equals(MapRoundEndMetadata.DelayPropertyKey, StringComparison.OrdinalIgnoreCase)
+                    || _builderPropertyEditKey.Equals(MapLogicMetadata.CountdownSecondsPropertyKey, StringComparison.OrdinalIgnoreCase)))
+            {
+                _builderPropertyEditorValues[_builderPropertyEditKey] = MapRoundEndMetadata.ParseSeconds(value)
+                    .ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            }
             else if (_builderPropertyEditKey.Equals(MapLogicMetadata.CountdownSecondsPropertyKey, StringComparison.OrdinalIgnoreCase))
             {
                 _builderPropertyEditorValues[_builderPropertyEditKey] =
@@ -6637,6 +6657,7 @@ public partial class Game1
         }
 
         CompleteGarrisonBuilderPropertyTransaction(applyChanges);
+        _builderBulkGroupTargets.Clear();
         CancelGarrisonBuilderObjectiveMapPick();
         CancelGarrisonBuilderLogicMapPick();
         CancelGarrisonBuilderEntityMapPick();
@@ -6655,6 +6676,8 @@ public partial class Game1
         IReadOnlyDictionary<string, string> sourceProperties,
         IDictionary<string, string> destinationProperties)
     {
+        foreach (var key in new[] { MapLogicMetadata.MapEntityIdPropertyKey, MapLogicMetadata.LogicKeyPropertyKey })
+            if (sourceProperties.TryGetValue(key, out var identifier)) destinationProperties[key] = identifier;
         if (sourceProperties.TryGetValue(MapLogicNodeColorMetadata.PropertyKey, out var logicColor)
             && !string.IsNullOrWhiteSpace(logicColor))
         {
@@ -6727,6 +6750,7 @@ public partial class Game1
                 properties,
                 entity.XScale,
                 entity.YScale).NormalizeForEditing();
+            ApplyGarrisonBuilderBulkGroups(properties);
             UpdateGarrisonBuilderDocumentEntities();
             _builderDirty = true;
             _builderStatus = "entity properties updated";
@@ -6742,6 +6766,15 @@ public partial class Game1
     }
 
     private List<string> GetGarrisonBuilderPropertyRows()
+    {
+        var rows = GetGarrisonBuilderPropertyRowsCore();
+        if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties) return rows;
+        rows.RemoveAll(key => key.Equals(MapObjectMetadata.NameKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapObjectMetadata.GroupsKey, StringComparison.OrdinalIgnoreCase));
+        return [MapObjectMetadata.NameKey, MapObjectMetadata.GroupsKey, .. rows];
+    }
+
+    private List<string> GetGarrisonBuilderPropertyRowsCore()
     {
         if (_builderPropertyTarget != GarrisonBuilderPropertyTarget.MapProperties) EnsureGarrisonBuilderDestructionPropertyRows();
         if (_builderPropertyTarget == GarrisonBuilderPropertyTarget.MapProperties)
@@ -8332,6 +8365,14 @@ public partial class Game1
 
     private bool IsGarrisonBuilderBooleanProperty(string key, string value)
     {
+        if (key.Equals(MapRoundEndMetadata.DelayPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapRoundEndMetadata.TickSoundPropertyKey, StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapRoundEndMetadata.WinnerPropertyKey, StringComparison.OrdinalIgnoreCase)) return false;
+        // Conquest indexes are entered as numbers rather than cycling through
+        // the five indexes used by the traditional CP modes.
+        if (_builderSelectedGameMode == CustomMapBuilderGameMode.Conquest
+            && key.Equals(ControlPointIndexMetadata.PropertyKey, StringComparison.OrdinalIgnoreCase))
+            return false;
         if (key.Equals(DirectionalWallConfiguration.PassDirectionPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DirectionalWallConfiguration.PlayersPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals(DirectionalWallConfiguration.ProjectilesPropertyKey, StringComparison.OrdinalIgnoreCase)
@@ -8425,6 +8466,16 @@ public partial class Game1
 
     private string FormatGarrisonBuilderPropertyRowLabel(string key, string value)
     {
+        if (key.Equals(MapRoundEndMetadata.WinnerPropertyKey, StringComparison.OrdinalIgnoreCase))
+            return $"Winner: {value}";
+        if (key.Equals(MapRoundEndMetadata.DelayPropertyKey, StringComparison.OrdinalIgnoreCase))
+            return $"Delay before countdown (sec): {value}";
+        if (key.Equals(MapRoundEndMetadata.ContinuousPropertyKey, StringComparison.OrdinalIgnoreCase))
+            return $"Require continuous signal: {value}";
+        if (key.Equals(MapRoundEndMetadata.ShowPropertyKey, StringComparison.OrdinalIgnoreCase))
+            return $"Show countdown: {value}";
+        if (key.Equals(MapRoundEndMetadata.TickSoundPropertyKey, StringComparison.OrdinalIgnoreCase))
+            return $"Tick sound: {value}";
         if (FormatDestructionPropertyValue(key, value) is { } destructionValue) return destructionValue;
         if (FormatGarrisonBuilderLightPropertyRowLabel(key, value) is { } lightLabel)
         {
@@ -9126,6 +9177,8 @@ public partial class Game1
 
     private static string FormatGarrisonBuilderPropertyKeyLabel(string key)
     {
+        if (key.Equals(MapObjectMetadata.NameKey, StringComparison.OrdinalIgnoreCase)) return "Name";
+        if (key.Equals(MapObjectMetadata.GroupsKey, StringComparison.OrdinalIgnoreCase)) return "Groups (comma-separated)";
         if (GetDestructionPropertyLabel(key) is { } destructionLabel) return destructionLabel;
         if (key.Equals(GarrisonBuilderMapPropertyNameKey, StringComparison.Ordinal))
         {
@@ -9831,6 +9884,7 @@ public partial class Game1
     private static bool IsSkippedGarrisonBuilderPropertyKey(string key)
     {
         return key.Equals("type", StringComparison.OrdinalIgnoreCase)
+            || key.Equals(MapLogicMetadata.MapEntityIdPropertyKey, StringComparison.OrdinalIgnoreCase)
             || key.Equals("x", StringComparison.OrdinalIgnoreCase)
             || key.Equals("y", StringComparison.OrdinalIgnoreCase)
             || key.Equals("xscale", StringComparison.OrdinalIgnoreCase)
@@ -9924,6 +9978,8 @@ public partial class Game1
     {
         _builderEditorEnabled = true;
         SnapGarrisonBuilderPropertyDock();
+        // Quick tests play a temporary copy; back in the editor it is no longer needed.
+        CleanUpGarrisonBuilderQuickTestCopies();
         SyncGarrisonBuilderPathBuffers();
         _builderStatus = "builder enabled";
         RequestGarrisonBuilderCameraCenter();

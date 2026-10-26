@@ -15,4 +15,5 @@ internal interface IMapLogicHost : ISimulationWorldState, ISimulationPlayerDirec
     TeamIntelligenceState RedIntel { get; }
 
     bool TryModifyTeamScore(PlayerTeam team, int delta, string reason, int actorPlayerId = -1);
+    bool TryEndRound(PlayerTeam? winner, string reason);
 }

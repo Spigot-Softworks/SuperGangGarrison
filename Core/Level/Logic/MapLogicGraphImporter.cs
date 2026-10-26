@@ -35,6 +35,16 @@ public static class MapLogicGraphImporter
                 continue;
             }
 
+            if (MapRoundEndMetadata.IsEntityType(entity.Type))
+            {
+                definitions.Add(new MapLogicNodeDefinition
+                {
+                    LogicKey = logicKey, Kind = MapLogicNodeKind.RoundEnd,
+                    InputRef = ReadProperty(properties, MapLogicMetadata.LogicInputPropertyKey),
+                });
+                continue;
+            }
+
             if (entity.Type.Equals(MapLogicMetadata.ActivatorEntityType, StringComparison.OrdinalIgnoreCase))
             {
                 // A destruction output can select the activator directly. Its signal also
@@ -241,7 +251,9 @@ public static class MapLogicGraphImporter
             }
         }
 
-        return MapLogicGraphBuilder.Build(definitions);
+        var graph = MapLogicGraphBuilder.Build(definitions);
+        if (graph.HasNodes) graph.RoundEnds = MapRoundEndMetadata.Import(entities, graph);
+        return graph;
     }
 
     public static int ResolveLogicSignalNodeIndex(MapLogicGraph graph, string? logicSignalRef)

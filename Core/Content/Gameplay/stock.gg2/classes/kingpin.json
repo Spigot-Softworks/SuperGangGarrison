@@ -1,0 +1,51 @@
+{
+  "id": "kingpin",
+  "displayName": "Kingpin (Prototype)",
+  "runtime": {
+    "basePlayerClass": "Heavy",
+    "botGraphPlayerClass": "Heavy",
+    "supportsExperimentalAcquiredWeapon": false,
+    "primaryWeaponKillFeedSprite": "WhipKL"
+  },
+  "movement": {
+    "maxHealth": 200,
+    "collisionLeft": -9,
+    "collisionTop": -12,
+    "collisionRight": 10,
+    "collisionBottom": 24,
+    "runPower": 0.8,
+    "jumpStrength": 8.3,
+    "maxAirJumps": 0,
+    "tauntLengthFrames": 11
+  },
+  "presentation": {
+    "spritePrefix": "Kingpin",
+    "baseSuffix": "S",
+    "standSuffix": "StandS",
+    "walkSuffix": "StandS",
+    "runSuffix": "StandS",
+    "jumpSuffix": "StandS",
+    "tauntSuffix": "TauntS",
+    "humiliationSuffix": "StandS",
+    "deadSuffix": "DeadS",
+    "intelSuffix": "S"
+  },
+  "loadouts": {
+    "kingpin.prototype": {
+      "id": "kingpin.prototype",
+      "displayName": "Prototype",
+      "primary": {
+        "defaultItemId": "weapon.kingpin-fists",
+        "itemIds": [
+          "weapon.kingpin-fists"
+        ],
+        "switchPolicy": "primary_swap_station",
+        "selectionPersistence": "same_class_loadout"
+      },
+      "abilities": [
+        "ability.kingpin-special"
+      ]
+    }
+  },
+  "defaultLoadoutId": "kingpin.prototype"
+}

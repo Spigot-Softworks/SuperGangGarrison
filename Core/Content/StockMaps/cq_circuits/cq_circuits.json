@@ -1,0 +1,4115 @@
+{
+  "formatVersion": 1,
+  "name": "cq_circuits",
+  "scale": 6,
+  "visualScale": 6,
+  "backgroundImage": "background-dd2c94abad59ceb872965674675382adc313bf5d3406b844d09d08a33b3969d7.png",
+  "walkmaskImage": "walkmask.png",
+  "metadata": {
+    "background": "ffffff",
+    "entity_schema": "modern",
+    "gameMode": "cq",
+    "lightBandClip": "off",
+    "lightBandPixel": "2",
+    "lightBandSteps": "8",
+    "lightBeamHaze": "0",
+    "lightBloodColor": "f4f0e0",
+    "lightBloodGlow": "37",
+    "lightBodySaturation": "0",
+    "lightBodyShade": "6",
+    "lightBrightness": "100",
+    "lightBuildingGlow": "20",
+    "lightEffectRange": "100",
+    "lightEffects": "80",
+    "lightFireTeamColor": "on",
+    "lightGlow": "94",
+    "lightGroundTint": "5f9db1",
+    "lightHealGlow": "12",
+    "lighting": "toxic",
+    "lightMedicBeams": "23",
+    "lightMuzzleFlash": "60",
+    "lightMuzzleLength": "3",
+    "lightMuzzleSize": "100",
+    "lightPlayerRange": "72",
+    "lightPlayers": "100",
+    "lightPlayerTeamColor": "on",
+    "lightPulse": "35",
+    "lightRim": "100",
+    "lightRimBlend": "normal",
+    "lightRimColor": "team",
+    "lightRimCustomColor": "7cef1a",
+    "lightRimOpacity": "89",
+    "lightRimSky": "99",
+    "lightRimSource": "both",
+    "lightRimWidth": "1",
+    "lightRimWrap": "25",
+    "lightShadow": "0",
+    "lightShadowDistance": "3",
+    "lightSkyReach": "95",
+    "lightSkyTint": "4e5f6e",
+    "lightStyle": "smooth",
+    "lightUberRim": "off",
+    "lightVignette": "35",
+    "void": "000000"
+  },
+  "entities": [
+    {
+      "type": "redspawn",
+      "x": 774,
+      "y": 414,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9ad74fcc"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 462,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e49b6579"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 462,
+      "y": 984,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b3d21e83"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 462,
+      "y": 1014,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "048dfd85"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 456,
+      "y": 1020,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a4f77d14"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 456,
+      "y": 984,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2e50e27d"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 456,
+      "y": 972,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f75c7c4a"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 456,
+      "y": 960,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ed40f465"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 456,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3a1fc0fa"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 456,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0b50e308"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 672,
+      "y": 396,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "927c169c"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 666,
+      "y": 390,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "02cec47e"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 912,
+      "y": 408,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "39dc6680"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 906,
+      "y": 408,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a9944272"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 906,
+      "y": 426,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "02c37620"
+      }
+    },
+    {
+      "type": "redteamgate",
+      "x": 912,
+      "y": 426,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bedf25b0"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 744,
+      "y": 414,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3903aa8b"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 780,
+      "y": 414,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9edf31cf"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 780,
+      "y": 396,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9a7ef7ef"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 684,
+      "y": 336,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3593f0a9"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 684,
+      "y": 354,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9bd8cee0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 684,
+      "y": 384,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d4a4cef4"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 684,
+      "y": 408,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ff726220"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 684,
+      "y": 432,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a0ad25e5"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 708,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fe30cf81"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 726,
+      "y": 432,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "51ee5e91"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 750,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c1289adf"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 768,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "23a68aa0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 810,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "54251fbe"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 852,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2f3c396a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 864,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "60d7546e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 864,
+      "y": 396,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3e112329"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 864,
+      "y": 360,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4c6dcd19"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 864,
+      "y": 336,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f9b5640d"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 822,
+      "y": 336,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f71a066f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 822,
+      "y": 372,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "73bbc2ce"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 822,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "beb87809"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 786,
+      "y": 396,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3eb0d9cd"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 780,
+      "y": 360,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "13b15293"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 780,
+      "y": 330,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e6d50b12"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 738,
+      "y": 330,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "23717241"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 738,
+      "y": 366,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "184ef1e2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 744,
+      "y": 396,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ed2e5cc0"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 720,
+      "y": 396,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8f8313ee"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 714,
+      "y": 354,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d7d6dae3"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 714,
+      "y": 330,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fa4fb611"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 846,
+      "y": 951,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "82418aa1"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 846,
+      "y": 915,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fbcc3c5b"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 879,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "206a89bf"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 924,
+      "y": 912,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bd239160"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 924,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0433328e"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 882,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "63635fa3"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 474,
+      "y": 1692,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e57f5f38"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 516,
+      "y": 1692,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a819dc7d"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 474,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b612920b"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 516,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "39be3993"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 1212,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "12520e4d"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 1236,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c9b8eadc"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 1380,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "82a9052d"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 1404,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d2216f3f"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 2154,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6763f04d"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 2178,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6f012f51"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 2322,
+      "y": 1728,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ad07da6e"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 2346,
+      "y": 1728,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e0fff530"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1212,
+      "y": 1698,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "07ff5110"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1236,
+      "y": 1698,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bf553d7b"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1380,
+      "y": 1698,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8541c39e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 1404,
+      "y": 1698,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "db4acb29"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2154,
+      "y": 1698,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f75e5eea"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2178,
+      "y": 1698,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a9626e02"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2322,
+      "y": 1698,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "6934aa28"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2346,
+      "y": 1698,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fa95fbba"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 3042,
+      "y": 1692,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "bcf1e106"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 3084,
+      "y": 1692,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5c328cc3"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 3042,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8a38d739"
+      }
+    },
+    {
+      "type": "fragbox",
+      "x": 3084,
+      "y": 1722,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3ef3c3e3"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3132,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "913ca9cd"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3138,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "67f73765"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3138,
+      "y": 996,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "84d4f329"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3132,
+      "y": 996,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "214e3866"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3132,
+      "y": 1020,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9261acd1"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 3138,
+      "y": 1020,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4ca3c951"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 2922,
+      "y": 384,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "330d2c33"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 2928,
+      "y": 384,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3225a3aa"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 2682,
+      "y": 414,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b1b44851"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 2688,
+      "y": 414,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3b09d824"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 2688,
+      "y": 420,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0263a3ed"
+      }
+    },
+    {
+      "type": "blueteamgate",
+      "x": 2682,
+      "y": 426,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ebcfc6ad"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 2832,
+      "y": 420,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "41356cbc"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 2802,
+      "y": 420,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ebad3c95"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 2802,
+      "y": 384,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "486ed7ef"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 2784,
+      "y": 390,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "32cec7f1"
+      }
+    },
+    {
+      "type": "medCabinet",
+      "x": 2784,
+      "y": 420,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "fd803cb8"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2640,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9536fa30"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2640,
+      "y": 906,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a89abdcd"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2682,
+      "y": 906,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "71f40fa8"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2682,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0e4e4027"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2721,
+      "y": 909,
+      "xScale": 1,
+      "yScale": 1.9285715,
+      "properties": {
+        "mapEntityId": "b9caec41"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 2685,
+      "y": 948,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8d6fe3f2"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2694,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "9b9d9070"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2736,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "530a43dc"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2784,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "71f9727d"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2826,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c40268b3"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2856,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "520a5731"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2880,
+      "y": 438,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "541e4d00"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2880,
+      "y": 396,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ab79ac4a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2874,
+      "y": 360,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "885cc4de"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2874,
+      "y": 330,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5a22154e"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2832,
+      "y": 330,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d6ff4794"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2832,
+      "y": 390,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2f83892a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2838,
+      "y": 396,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "42daaccc"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2832,
+      "y": 366,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4c9d72e1"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2790,
+      "y": 330,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1b808783"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2790,
+      "y": 372,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "42527dff"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2790,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0eef4838"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2748,
+      "y": 330,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "482a4be6"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2748,
+      "y": 372,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dc27dce1"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2748,
+      "y": 414,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "888e3b2f"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2706,
+      "y": 396,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c64e3edf"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2706,
+      "y": 360,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f44da58a"
+      }
+    },
+    {
+      "type": "spawnroom",
+      "x": 2706,
+      "y": 330,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d30c6578"
+      }
+    },
+    {
+      "type": "bluespawn",
+      "x": 2814,
+      "y": 366,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e3a9ac3a"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1218,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "88842640"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1176,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "edcea3c1"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1134,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c582d310"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1260,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "807b7123"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1302,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "160ed51b"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1344,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "81c998db"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1386,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8f833274"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1092,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0e0ef926"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1428,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "885ba866"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1470,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "a0b93947"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2388,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "99cfa027"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2430,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e9fdd1b6"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2472,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "04099fa3"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2514,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e9fdadac"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2556,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "96efd637"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2598,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "2bca4702"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2640,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4cd63b89"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2676,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "38bc16dc"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 1170,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1fd3ff0f"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 1128,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "20719de3"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 1086,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3a38c6cd"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 1044,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ac80538c"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 1002,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "95162951"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 960,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "292d8b16"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 918,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "1b4f5ee5"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 882,
+      "y": 1488,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "dec9a190"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 882,
+      "y": 1056,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8ae3f9c9"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1068,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "747b22c4"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1110,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c83311ba"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1152,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "66fc5211"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1194,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0d56f034"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1236,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b5a79e58"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1278,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "eb0dca2f"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1320,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "713acb4d"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1362,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f9bea92a"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1404,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d57ed12c"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 882,
+      "y": 1446,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "f710048e"
+      }
+    },
+    {
+      "type": "MoveBoxUp",
+      "x": 2676,
+      "y": 1062,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3063d5fb"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2676,
+      "y": 1056,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "b6fa8ac1"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 624,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ba13bb1b"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 582,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c3efa91c"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 540,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "05e50075"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 498,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "59544e49"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 456,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "d96a87c5"
+      }
+    },
+    {
+      "type": "MoveBoxLeft",
+      "x": 414,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "8f7d4a53"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2934,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5472d368"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 2976,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "783256ac"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 3018,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3109b827"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 3060,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "5ba3d7e2"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 3102,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "ac1e6eb5"
+      }
+    },
+    {
+      "type": "MoveBoxRight",
+      "x": 3144,
+      "y": 402,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "4dbdcc39"
+      }
+    },
+    {
+      "type": "controlPoint",
+      "x": 2700,
+      "y": 927,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "capTimeMultiplier": "1",
+        "index": "3",
+        "mapEntityId": "478911c1"
+      }
+    },
+    {
+      "type": "controlPoint",
+      "x": 903,
+      "y": 933,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "capTimeMultiplier": "1",
+        "index": "1",
+        "mapEntityId": "f4cb4af7"
+      }
+    },
+    {
+      "type": "CapturePoint",
+      "x": 1725,
+      "y": 1116,
+      "xScale": 3.4285715,
+      "yScale": 2,
+      "properties": {
+        "mapEntityId": "b734056e"
+      }
+    },
+    {
+      "type": "controlPoint",
+      "x": 1797,
+      "y": 1128,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "capTimeMultiplier": "2",
+        "index": "2",
+        "mapEntityId": "8ff59841"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1107,
+      "y": 345,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "ff2010",
+        "altColor2": "2080ff",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "ff40c0",
+        "colorAction": "holdAlt",
+        "colorInput": "node:11608555",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "269",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "140",
+        "kind": "lamp",
+        "mapEntityId": "002770db",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "600",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "90",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "tertiaryColorInput": "node:74564052",
+        "toggleInput": "",
+        "transition": "warmup",
+        "width": "2"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1011,
+      "y": 492,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "ff2010",
+        "altColor2": "2080ff",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "ff40c0",
+        "colorAction": "holdAlt",
+        "colorInput": "node:11608555",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "269",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "140",
+        "kind": "lamp",
+        "mapEntityId": "bdf2ce03",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "600",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "90",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "tertiaryColorInput": "node:74564052",
+        "toggleInput": "",
+        "transition": "warmup",
+        "width": "2"
+      }
+    },
+    {
+      "type": "light",
+      "x": 546,
+      "y": 642,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "ff2010",
+        "altColor2": "2080ff",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "ff40c0",
+        "colorAction": "holdAlt",
+        "colorInput": "node:11608555",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "269",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "140",
+        "kind": "lamp",
+        "mapEntityId": "556622bc",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "600",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "90",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "tertiaryColorInput": "node:74564052",
+        "toggleInput": "",
+        "transition": "warmup",
+        "width": "2"
+      }
+    },
+    {
+      "type": "light",
+      "x": 903,
+      "y": 789,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "ff2020",
+        "altColor2": "2080ff",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "ff40c0",
+        "colorAction": "holdAlt",
+        "colorInput": "node:11608555",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "colorTransition": "blink",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "269",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "140",
+        "kind": "lamp",
+        "mapEntityId": "b2d97fd5",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "600",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "90",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "tertiaryColorInput": "node:74564052",
+        "toggleInput": "",
+        "transition": "blink",
+        "width": "2"
+      }
+    },
+    {
+      "type": "logicCpTrigger",
+      "x": 900,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "detect": "redCapture",
+        "linkObjective": "controlPoint1",
+        "logicKey": "11608555",
+        "mapEntityId": "2cbf0097",
+        "nodePriority": "0",
+        "requiredOwner": "red",
+        "signal": "latch"
+      }
+    },
+    {
+      "type": "logicCpTrigger",
+      "x": 927,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "detect": "blueCapture",
+        "linkObjective": "controlPoint1",
+        "logicKey": "74564052",
+        "mapEntityId": "30d06790",
+        "nodePriority": "0",
+        "requiredOwner": "blue",
+        "signal": "latch"
+      }
+    },
+    {
+      "type": "logicCpTrigger",
+      "x": 927,
+      "y": 936,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "detect": "redCapture",
+        "linkObjective": "controlPoint1",
+        "logicKey": "829c4d30",
+        "mapEntityId": "a9435055",
+        "nodePriority": "0",
+        "requiredOwner": "red",
+        "signal": "impulse"
+      }
+    },
+    {
+      "type": "logicCpTrigger",
+      "x": 1737,
+      "y": 1179,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "detect": "blueCapture",
+        "linkObjective": "controlPoint2",
+        "logicKey": "5a4f6992",
+        "mapEntityId": "20d80817",
+        "nodePriority": "0",
+        "objectiveIndex": "2",
+        "requiredOwner": "blue",
+        "signal": "latch"
+      }
+    },
+    {
+      "type": "logicCpTrigger",
+      "x": 1737,
+      "y": 1161,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "detect": "redCapture",
+        "linkObjective": "controlPoint2",
+        "logicKey": "a353c1f2",
+        "mapEntityId": "4e1c11fb",
+        "nodePriority": "0",
+        "objectiveIndex": "2",
+        "requiredOwner": "red",
+        "signal": "latch"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1803,
+      "y": 705,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "ff2010",
+        "altColor2": "",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "9040ff",
+        "colorAction": "holdAlt",
+        "colorInput": "node:a353c1f2",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "269",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "300",
+        "kind": "lamp",
+        "mapEntityId": "dea03e3e",
+        "mask": "",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "900",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "70",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "toggleInput": "",
+        "transition": "warmup",
+        "triggerColor": "ff2020",
+        "width": "2"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1803,
+      "y": 708,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "2080ff",
+        "altColor2": "",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "9040ff",
+        "colorAction": "holdAlt",
+        "colorInput": "node:5a4f6992",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "270",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "node:5a4f6992",
+        "haze": "100",
+        "intensity": "300",
+        "kind": "lamp",
+        "mapEntityId": "eaf089a8",
+        "mask": "",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "node:5a4f6992",
+        "phase": "0",
+        "radius": "900",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "70",
+        "startOn": "false",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "toggleInput": "",
+        "transition": "blink",
+        "triggerColor": "2080ff",
+        "width": "2"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1983,
+      "y": 1086,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "ff2020",
+        "altColor2": "2040ff",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "9040ff",
+        "colorAction": "holdAlt",
+        "colorInput": "node:a353c1f2",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "blink",
+        "colorTransitionTime": "0.5",
+        "damage": "false",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "150",
+        "kind": "lamp",
+        "mapEntityId": "919dc6d6",
+        "mask": "painted_light_mask_4",
+        "maskGlowRadius": "2",
+        "maskPixelSize": "1",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "paintedMask": "painted_light_mask_4",
+        "paintedMaskPixelSize": "1",
+        "paintMaskBrushSize": "4",
+        "phase": "0",
+        "radius": "5000",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "node:5a4f6992",
+        "toggleInput": "",
+        "transition": "blink",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1803,
+      "y": 966,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "ff2010",
+        "altColor2": "2080ff",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "f4f0e0",
+        "colorAction": "holdAlt",
+        "colorInput": "node:5e5add32",
+        "colorMode": "gradient",
+        "colorRate": "0.1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "false",
+        "damageableEntity": "",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "2.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "pulse",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "100",
+        "kind": "lamp",
+        "mapEntityId": "9460ae41",
+        "mask": "painted_light_mask",
+        "maskGlowRadius": "2",
+        "maskPixelSize": "1",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "node:766a48fc",
+        "onInput": "node:3e4fe3ad",
+        "paintedMask": "painted_light_mask",
+        "paintedMaskPixelSize": "1",
+        "paintMaskBrushSize": "2",
+        "phase": "0",
+        "radius": "400",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "false",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "node:7cd4f698",
+        "toggleInput": "",
+        "transition": "blink",
+        "width": "4"
+      }
+    },
+    {
+      "type": "logicGate",
+      "x": 1803,
+      "y": 1164,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "gateType": "or",
+        "logicInput1": "node:a353c1f2",
+        "logicInput2": "node:5a4f6992",
+        "logicKey": "3e4fe3ad",
+        "mapEntityId": "f9ae6457",
+        "nodePriority": "0"
+      }
+    },
+    {
+      "type": "light",
+      "x": 939,
+      "y": 840,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "ff2020",
+        "altColor2": "2040ff",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "d66d92",
+        "colorAction": "holdAlt",
+        "colorInput": "node:11608555",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "blink",
+        "colorTransitionTime": "0.5",
+        "damage": "false",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "175",
+        "kind": "lamp",
+        "mapEntityId": "2f88856b",
+        "mask": "painted_light_mask_2",
+        "maskGlowRadius": "2",
+        "maskPixelSize": "1",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "paintedMask": "painted_light_mask_2",
+        "paintedMaskPixelSize": "1",
+        "paintMaskBrushSize": "4",
+        "phase": "0",
+        "radius": "2000",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "node:74564052",
+        "toggleInput": "",
+        "transition": "blink",
+        "width": "4"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 744,
+      "y": 807,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "align": "left",
+        "animation": "spin",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "3",
+        "end": "auto",
+        "font": "default",
+        "fontSize": "1",
+        "freeze": "false",
+        "image": "",
+        "imageAnimation": "none",
+        "imageH": "64",
+        "imageW": "64",
+        "imageX": "0",
+        "imageY": "0",
+        "input": "any",
+        "mapEntityId": "de367016",
+        "music": "",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "true",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "false",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "false",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "false",
+        "onEndSeconds": "1",
+        "onEndSound": "",
+        "onEndTeleportExit": "",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "placement": "screen",
+        "sound": "message_sound_4",
+        "soundScope": "local",
+        "style": "ltd",
+        "text": "Red has captured sector 1!",
+        "trigger": "node:11608555",
+        "typingDuration": "1.5"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 744,
+      "y": 807,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "align": "left",
+        "animation": "spin",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "3",
+        "end": "auto",
+        "font": "default",
+        "fontSize": "1",
+        "freeze": "false",
+        "image": "",
+        "imageAnimation": "none",
+        "imageH": "64",
+        "imageW": "64",
+        "imageX": "0",
+        "imageY": "0",
+        "input": "any",
+        "mapEntityId": "091ad012",
+        "music": "",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "true",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "false",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "false",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "false",
+        "onEndSeconds": "1",
+        "onEndSound": "",
+        "onEndTeleportExit": "",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "placement": "screen",
+        "sound": "message_sound_2_2",
+        "soundScope": "local",
+        "style": "ltd",
+        "text": "Blue has captured sector 1!",
+        "trigger": "node:74564052",
+        "typingDuration": "1.5"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 1644,
+      "y": 978,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "align": "left",
+        "animation": "spin",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "3",
+        "end": "auto",
+        "font": "default",
+        "fontSize": "1",
+        "freeze": "false",
+        "image": "",
+        "imageAnimation": "none",
+        "imageH": "64",
+        "imageW": "64",
+        "imageX": "0",
+        "imageY": "0",
+        "input": "any",
+        "mapEntityId": "6b4deb37",
+        "music": "",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "true",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "false",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "false",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "false",
+        "onEndSeconds": "1",
+        "onEndSound": "",
+        "onEndTeleportExit": "",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "placement": "screen",
+        "sound": "message_sound_5",
+        "soundScope": "local",
+        "style": "ltd",
+        "text": "Blue has captured sector 2!",
+        "trigger": "node:5a4f6992",
+        "typingDuration": "1.5"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 1653,
+      "y": 978,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "align": "left",
+        "animation": "spin",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "3",
+        "end": "auto",
+        "font": "default",
+        "fontSize": "1",
+        "freeze": "false",
+        "image": "",
+        "imageAnimation": "none",
+        "imageH": "64",
+        "imageW": "64",
+        "imageX": "0",
+        "imageY": "0",
+        "input": "any",
+        "mapEntityId": "98518611",
+        "music": "",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "true",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "false",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "false",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "false",
+        "onEndSeconds": "1",
+        "onEndSound": "",
+        "onEndTeleportExit": "",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "placement": "screen",
+        "sound": "message_sound_3",
+        "soundScope": "local",
+        "style": "ltd",
+        "text": "Red has captured sector 2!",
+        "trigger": "node:a353c1f2",
+        "typingDuration": "1.5"
+      }
+    },
+    {
+      "type": "light",
+      "x": 2853,
+      "y": 831,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "ff2020",
+        "altColor2": "2040ff",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "69e0e0",
+        "colorAction": "holdAlt",
+        "colorInput": "node:194a35f9",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "blink",
+        "colorTransitionTime": "0.5",
+        "damage": "false",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "600",
+        "kind": "lamp",
+        "mapEntityId": "5f98020c",
+        "mask": "painted_light_mask_3",
+        "maskGlowRadius": "2",
+        "maskPixelSize": "1",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "paintedMask": "painted_light_mask_3",
+        "paintedMaskPixelSize": "1",
+        "paintMaskBrushSize": "4",
+        "phase": "0",
+        "radius": "5000",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "node:5631899c",
+        "toggleInput": "",
+        "transition": "blink",
+        "width": "4"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 2289,
+      "y": 978,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "align": "left",
+        "animation": "spin",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "3",
+        "end": "auto",
+        "font": "default",
+        "fontSize": "1",
+        "freeze": "false",
+        "image": "",
+        "imageAnimation": "none",
+        "imageH": "64",
+        "imageW": "64",
+        "imageX": "0",
+        "imageY": "0",
+        "input": "any",
+        "mapEntityId": "7474bf28",
+        "music": "",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "true",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "false",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "false",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "false",
+        "onEndSeconds": "1",
+        "onEndSound": "",
+        "onEndTeleportExit": "",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "placement": "screen",
+        "sound": "message_sound_5_2_2",
+        "soundScope": "local",
+        "style": "ltd",
+        "text": "Blue has captured sector 3!",
+        "trigger": "node:5631899c",
+        "typingDuration": "1.5"
+      }
+    },
+    {
+      "type": "logicCpTrigger",
+      "x": 2763,
+      "y": 861,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "linkObjective": "controlPoint3",
+        "logicKey": "5631899c",
+        "mapEntityId": "3a9bf516",
+        "nodePriority": "0",
+        "objectiveIndex": "3",
+        "requiredOwner": "blue",
+        "signal": "latch"
+      }
+    },
+    {
+      "type": "logicCpTrigger",
+      "x": 2799,
+      "y": 861,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "linkObjective": "controlPoint3",
+        "logicKey": "194a35f9",
+        "mapEntityId": "cd8761a4",
+        "nodePriority": "0",
+        "objectiveIndex": "3",
+        "requiredOwner": "red",
+        "signal": "latch"
+      }
+    },
+    {
+      "type": "logicGate",
+      "x": 2781,
+      "y": 888,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "gateType": "or",
+        "logicInput1": "",
+        "logicInput2": "",
+        "logicKey": "fd3949f0",
+        "mapEntityId": "503a3074",
+        "nodePriority": "0"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 2517,
+      "y": 978,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "align": "left",
+        "animation": "spin",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "3",
+        "end": "auto",
+        "font": "default",
+        "fontSize": "1",
+        "freeze": "false",
+        "image": "",
+        "imageAnimation": "none",
+        "imageH": "64",
+        "imageW": "64",
+        "imageX": "0",
+        "imageY": "0",
+        "input": "any",
+        "mapEntityId": "505c0810",
+        "music": "",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "true",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "false",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "false",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "false",
+        "onEndSeconds": "1",
+        "onEndSound": "",
+        "onEndTeleportExit": "",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "placement": "screen",
+        "sound": "message_sound_5_2",
+        "soundScope": "local",
+        "style": "ltd",
+        "text": "Red has captured sector 3!",
+        "trigger": "node:194a35f9",
+        "typingDuration": "1.5"
+      }
+    },
+    {
+      "type": "logicGate",
+      "x": 1512,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "gateType": "and",
+        "logicInput1": "node:74564052",
+        "logicInput2": "node:5a4f6992",
+        "logicInput3": "node:5631899c",
+        "logicKey": "7cd4f698",
+        "mapEntityId": "040a868b",
+        "nodePriority": "0"
+      }
+    },
+    {
+      "type": "light",
+      "x": 2481,
+      "y": 330,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "2080ff",
+        "altColor2": "ff2010",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "40e0ff",
+        "colorAction": "holdAlt",
+        "colorInput": "node:5631899c",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "269",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "140",
+        "kind": "lamp",
+        "mapEntityId": "8ac8fd8f",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "600",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "90",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "tertiaryColorInput": "node:194a35f9",
+        "toggleInput": "",
+        "transition": "warmup",
+        "width": "2"
+      }
+    },
+    {
+      "type": "light",
+      "x": 2589,
+      "y": 492,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "2080ff",
+        "altColor2": "ff2010",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "40e0ff",
+        "colorAction": "holdAlt",
+        "colorInput": "node:5631899c",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "269",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "140",
+        "kind": "lamp",
+        "mapEntityId": "b0771e6a",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "600",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "90",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "tertiaryColorInput": "node:194a35f9",
+        "toggleInput": "",
+        "transition": "warmup",
+        "width": "2"
+      }
+    },
+    {
+      "type": "light",
+      "x": 3039,
+      "y": 648,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "2080ff",
+        "altColor2": "ff2010",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "40e0ff",
+        "colorAction": "holdAlt",
+        "colorInput": "node:5631899c",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "269",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "140",
+        "kind": "lamp",
+        "mapEntityId": "e1d61425",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "600",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "90",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "tertiaryColorInput": "node:194a35f9",
+        "toggleInput": "",
+        "transition": "warmup",
+        "width": "2"
+      }
+    },
+    {
+      "type": "light",
+      "x": 2700,
+      "y": 786,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "2080ff",
+        "altColor2": "ff2010",
+        "arc": "50",
+        "beams": "1",
+        "burn": "100",
+        "color": "40e0ff",
+        "colorAction": "holdAlt",
+        "colorInput": "node:5631899c",
+        "colorMode": "solid",
+        "colorRate": "2",
+        "colorTransition": "blink",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "269",
+        "downTime": "drift",
+        "fadeTime": "1.5",
+        "falloff": "map",
+        "fanSpread": "36",
+        "flicker": "steady",
+        "floor": "35",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "140",
+        "kind": "lamp",
+        "mapEntityId": "eebfd48a",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "true",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "600",
+        "react": "beat",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "120",
+        "spread": "90",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "true",
+        "tertiaryColorInput": "node:194a35f9",
+        "toggleInput": "",
+        "transition": "blink",
+        "width": "2"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 1493.1023,
+      "y": 696.2888,
+      "xScale": 2.3339067,
+      "yScale": 0.90650517,
+      "properties": {
+        "align": "left",
+        "animation": "fade",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "3",
+        "end": "auto",
+        "font": "default",
+        "fontSize": "1",
+        "freeze": "false",
+        "image": "",
+        "imageAnimation": "none",
+        "imageH": "64",
+        "imageW": "64",
+        "imageX": "0",
+        "imageY": "0",
+        "input": "any",
+        "mapEntityId": "de4aa473",
+        "music": "",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "true",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "false",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "false",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "false",
+        "onEndSeconds": "1",
+        "onEndSound": "",
+        "onEndTeleportExit": "",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "placement": "screen",
+        "sound": "message_sound_5_2_2_2",
+        "soundScope": "global",
+        "style": "ltd",
+        "text": "Blue OWNS the map!",
+        "trigger": "node:7cd4f698",
+        "typingDuration": "1.5"
+      }
+    },
+    {
+      "type": "logicGate",
+      "x": 1545,
+      "y": 930,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "gateType": "and",
+        "logicInput1": "node:11608555",
+        "logicInput2": "node:a353c1f2",
+        "logicInput3": "node:194a35f9",
+        "logicKey": "5e5add32",
+        "mapEntityId": "2eb41a2c",
+        "nodePriority": "0"
+      }
+    },
+    {
+      "type": "gameplayMessage",
+      "x": 1835.1023,
+      "y": 696.2888,
+      "xScale": 2.3339067,
+      "yScale": 0.90650517,
+      "properties": {
+        "align": "left",
+        "animation": "fade",
+        "chatTeam": "auto",
+        "dialogueBox": "default",
+        "duration": "3",
+        "end": "auto",
+        "font": "default",
+        "fontSize": "1",
+        "freeze": "false",
+        "image": "",
+        "imageAnimation": "none",
+        "imageH": "64",
+        "imageW": "64",
+        "imageX": "0",
+        "imageY": "0",
+        "input": "any",
+        "mapEntityId": "a67aab74",
+        "music": "",
+        "musicCrossfade": "true",
+        "musicCrossfadeSeconds": "1.5",
+        "musicFadeAfter": "0",
+        "musicLoop": "true",
+        "onEnd": "none",
+        "onEndFade": "false",
+        "onEndFlash": "false",
+        "onEndLogic": "false",
+        "onEndMap": "",
+        "onEndMapReset": "false",
+        "onEndMapTeleport": "false",
+        "onEndMapTransition": "false",
+        "onEndPlaySound": "false",
+        "onEndSeconds": "1",
+        "onEndSound": "",
+        "onEndTeleportExit": "",
+        "onEndTrigger": "",
+        "onEndX": "0",
+        "onEndY": "0",
+        "placement": "screen",
+        "sound": "message_sound_5_2_2_2_2",
+        "soundScope": "global",
+        "style": "ltd",
+        "text": "Red OWNS the map!",
+        "trigger": "node:5e5add32",
+        "typingDuration": "1.5"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1209,
+      "y": 1629,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "ff5010",
+        "colorAction": "holdAlt",
+        "colorInput": "",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "200",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "70",
+        "kind": "laser",
+        "mapEntityId": "31d62c1e",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "160",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "instant",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1380,
+      "y": 1629,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "ff5010",
+        "colorAction": "holdAlt",
+        "colorInput": "",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "200",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "70",
+        "kind": "laser",
+        "mapEntityId": "a4f1f70b",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "160",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "instant",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 477,
+      "y": 1626,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "ff5010",
+        "colorAction": "holdAlt",
+        "colorInput": "",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "200",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "70",
+        "kind": "laser",
+        "mapEntityId": "f9af141a",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "160",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "instant",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 2148,
+      "y": 1632,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "2040ff",
+        "colorAction": "holdAlt",
+        "colorInput": "",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "200",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "70",
+        "kind": "laser",
+        "mapEntityId": "23b02f91",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "160",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "instant",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 2319,
+      "y": 1632,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "2040ff",
+        "colorAction": "holdAlt",
+        "colorInput": "",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "200",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "70",
+        "kind": "laser",
+        "mapEntityId": "696e4e26",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "160",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "instant",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 3045,
+      "y": 1635,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "2040ff",
+        "colorAction": "holdAlt",
+        "colorInput": "",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "200",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "70",
+        "kind": "laser",
+        "mapEntityId": "0056035b",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "160",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "instant",
+        "width": "4"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 1411,
+      "y": 1234,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "3a8c3d20",
+        "respawnSeconds": "10",
+        "size": "medium"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 2188,
+      "y": 1237,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "c35d06c6",
+        "respawnSeconds": "10",
+        "size": "medium"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 2761,
+      "y": 1072,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "357777d4",
+        "respawnSeconds": "10",
+        "size": "medium"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 832,
+      "y": 1072,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "69c6f22d",
+        "respawnSeconds": "10",
+        "size": "medium"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 1981,
+      "y": 1162,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "e9ab168c",
+        "respawnSeconds": "10",
+        "size": "small"
+      }
+    },
+    {
+      "type": "healthPack",
+      "x": 1618,
+      "y": 1162,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "mapEntityId": "0f3146fe",
+        "respawnSeconds": "10",
+        "size": "small"
+      }
+    },
+    {
+      "type": "logicCustomSprite",
+      "x": 1800,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "damageableEntity": "entity:logicDamageable@id:7cbc4f41",
+        "image": "core",
+        "layer": "bg",
+        "mapEntityId": "548e46be",
+        "nodePriority": "0",
+        "scale": "0.043",
+        "tile": "false",
+        "tileAnchor": "topLeft",
+        "tileAreaHeight": "82.56",
+        "tileAreaWidth": "74.734",
+        "zOrder": "1"
+      }
+    },
+    {
+      "type": "logicDamageable",
+      "x": 1800,
+      "y": 579,
+      "xScale": 2,
+      "yScale": 1.9285715,
+      "properties": {
+        "blockPlayers": "true",
+        "disableWhenDestroyed": "false",
+        "health": "400",
+        "healWhen": "",
+        "logicKey": "34d91736",
+        "mapEntityId": "7cbc4f41",
+        "nodePriority": "0",
+        "onBlueDestroyed": "",
+        "onDestroyed": "",
+        "onRedDestroyed": "",
+        "respawnTime": "0",
+        "sentryTarget": "true",
+        "showHealthBar": "true",
+        "stabbable": "false"
+      }
+    },
+    {
+      "type": "logicDamageTrigger",
+      "x": 1797,
+      "y": 525,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "affectedByTeam": "any",
+        "anyDamageCooldown": "0.25",
+        "damageableEntity": "entity:logicDamageable@id:7cbc4f41",
+        "destroyedOpacity": "56",
+        "destructionSound": "",
+        "destructionTransitionTime": "1",
+        "logicKey": "766a48fc",
+        "mapEntityId": "bdd1f7e0",
+        "nodePriority": "0",
+        "onDestruction": "breakApart",
+        "onRespawn": "fadeIn",
+        "respawnSound": "",
+        "signal": "latch",
+        "triggerBelowPercent": "50%",
+        "triggerBelowThreshold": "false",
+        "triggerOnAnyDamage": "false",
+        "triggerOnHeal": "false",
+        "triggerWhenDestroyed": "true",
+        "trueTime": "0.25"
+      }
+    },
+    {
+      "type": "logicActivator",
+      "x": 1674,
+      "y": 1002,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "activateOnStart": "false",
+        "activatorBehavior": "disable",
+        "activatorEntity": "entity:controlPoint@id:8ff59841",
+        "logicInput": "node:766a48fc",
+        "logicKey": "234cd89e",
+        "mapEntityId": "ba6c3b94",
+        "nodePriority": "0"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1623,
+      "y": 696,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "a8c4ff",
+        "colorAction": "holdAlt",
+        "colorInput": "",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "200",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "30",
+        "kind": "laser",
+        "mapEntityId": "59c9d76f",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "node:766a48fc",
+        "onInput": "node:3e4fe3ad",
+        "phase": "0",
+        "radius": "160",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "40",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "instant",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1905,
+      "y": 696,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "a8c4ff",
+        "colorAction": "holdAlt",
+        "colorInput": "",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "true",
+        "damagePerSecond": "200",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "30",
+        "kind": "laser",
+        "mapEntityId": "2425504d",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "node:766a48fc",
+        "onInput": "node:3e4fe3ad",
+        "phase": "0",
+        "radius": "160",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "instant",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1539,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "f4f0e0",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "9040ff",
+        "colorAction": "holdAlt",
+        "colorInput": "node:766a48fc",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "blink",
+        "colorTransitionTime": "0.5",
+        "damage": "false",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "node:3e4fe3ad",
+        "haze": "100",
+        "intensity": "60",
+        "kind": "lamp",
+        "mapEntityId": "f056f3c8",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "300",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "80",
+        "startOn": "false",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "blink",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 2061,
+      "y": 588,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "f4f0e0",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "9040ff",
+        "colorAction": "holdAlt",
+        "colorInput": "node:766a48fc",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "blink",
+        "colorTransitionTime": "0.5",
+        "damage": "false",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "181",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "steady",
+        "floor": "20",
+        "followInput": "node:3e4fe3ad",
+        "haze": "100",
+        "intensity": "60",
+        "kind": "lamp",
+        "mapEntityId": "7a4e0ffa",
+        "mask": "",
+        "maskGlowRadius": "0",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "",
+        "onInput": "",
+        "phase": "0",
+        "radius": "300",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "80",
+        "startOn": "false",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "blink",
+        "width": "4"
+      }
+    },
+    {
+      "type": "light",
+      "x": 1800,
+      "y": 582,
+      "xScale": 1,
+      "yScale": 1,
+      "properties": {
+        "altColor": "",
+        "altColor2": "",
+        "arc": "90",
+        "beams": "1",
+        "burn": "100",
+        "color": "9040ff",
+        "colorAction": "holdAlt",
+        "colorInput": "",
+        "colorMode": "solid",
+        "colorRate": "1",
+        "colorTransition": "instant",
+        "colorTransitionTime": "0.5",
+        "damage": "false",
+        "damageableEntity": "",
+        "damagePerSecond": "60",
+        "damageTeam": "all",
+        "direction": "0",
+        "downTime": "stay",
+        "fadeTime": "0.5",
+        "falloff": "map",
+        "fanSpread": "30",
+        "flicker": "pulse",
+        "floor": "20",
+        "followInput": "",
+        "haze": "100",
+        "intensity": "40",
+        "kind": "lamp",
+        "mapEntityId": "2da5941b",
+        "mask": "core_2",
+        "maskGlowRadius": "2",
+        "mirror": "false",
+        "motion": "none",
+        "musicSweep": "false",
+        "offInput": "node:766a48fc",
+        "onInput": "",
+        "phase": "0",
+        "radius": "40",
+        "react": "level",
+        "reactTo": "brightness",
+        "sensitivity": "100",
+        "sirenStyle": "beacon",
+        "speed": "10",
+        "spread": "360",
+        "startOn": "true",
+        "steps": "4",
+        "stopsAtPlayers": "false",
+        "tertiaryColorInput": "",
+        "toggleInput": "",
+        "transition": "instant",
+        "width": "4"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "name": "core",
+      "kind": "customSprite",
+      "path": "core.png"
+    },
+    {
+      "name": "core_2",
+      "kind": "customSprite",
+      "path": "core_2.png"
+    },
+    {
+      "name": "message_sound_2_2",
+      "kind": "messageSound",
+      "path": "message_sound_2_2.ogg"
+    },
+    {
+      "name": "message_sound_3",
+      "kind": "messageSound",
+      "path": "message_sound_3.ogg"
+    },
+    {
+      "name": "message_sound_4",
+      "kind": "messageSound",
+      "path": "message_sound_4.ogg"
+    },
+    {
+      "name": "message_sound_5",
+      "kind": "messageSound",
+      "path": "message_sound_5.ogg"
+    },
+    {
+      "name": "message_sound_5_2",
+      "kind": "messageSound",
+      "path": "message_sound_5_2.ogg"
+    },
+    {
+      "name": "message_sound_5_2_2",
+      "kind": "messageSound",
+      "path": "message_sound_5_2_2.ogg"
+    },
+    {
+      "name": "message_sound_5_2_2_2",
+      "kind": "messageSound",
+      "path": "message_sound_5_2_2_2.ogg"
+    },
+    {
+      "name": "message_sound_5_2_2_2_2",
+      "kind": "messageSound",
+      "path": "message_sound_5_2_2_2_2.ogg"
+    },
+    {
+      "name": "painted_light_mask",
+      "kind": "genericImage",
+      "path": "painted_light_mask-f95b84e2c4d38252fc09a6dead37e99108b1a2f68a53d2a7a30b48219186162f.png"
+    },
+    {
+      "name": "painted_light_mask_2",
+      "kind": "genericImage",
+      "path": "painted_light_mask_2-5845fbb160397619348e7f86ff9d247cdbfc1c8fea2d14dd09b1f25f9e324b27.png"
+    },
+    {
+      "name": "painted_light_mask_3",
+      "kind": "genericImage",
+      "path": "painted_light_mask_3-6cb45ac3ff55aaf086775097fbb4adce653cc0e20c3b82216b8e6f113cd5dd66.png"
+    },
+    {
+      "name": "painted_light_mask_4",
+      "kind": "genericImage",
+      "path": "painted_light_mask_4-332ade68f950802ad059915890fd355319eda5c79f139a8cbaa57cb5a6d31e5b.png"
+    }
+  ],
+  "parallaxLayers": []
+}

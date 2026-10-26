@@ -15,7 +15,8 @@ internal static class PluginLoader
         IEnumerable<PluginSearchDirectory> searchDirectories,
         Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
         Action<string> log,
-        Action<string>? initializationFailed = null)
+        Action<string>? initializationFailed = null,
+        Func<string, IDisposable>? beginRegistrationScope = null)
     {
         var pluginCandidates = new List<PluginLoadCandidate>();
         var candidatePluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -34,7 +35,7 @@ internal static class PluginLoader
                 () => new LuaServerPlugin(luaCandidate.Manifest, luaCandidate.PluginDirectory)));
         }
 
-        return LoadPlannedCandidates(pluginCandidates, contextFactory, log, initializationFailed);
+        return LoadPlannedCandidates(pluginCandidates, contextFactory, log, initializationFailed, beginRegistrationScope);
     }
 
     /// <summary>
@@ -45,7 +46,8 @@ internal static class PluginLoader
         IEnumerable<Assembly> assemblies,
         Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
         Action<string> log,
-        Action<string>? initializationFailed = null)
+        Action<string>? initializationFailed = null,
+        Func<string, IDisposable>? beginRegistrationScope = null)
     {
         var loadedAssemblies = assemblies.Select(assembly =>
             new LoadedAssembly(
@@ -53,7 +55,7 @@ internal static class PluginLoader
                 Path.GetDirectoryName(assembly.Location) ?? string.Empty,
                 Manifest: null));
         var pluginCandidates = CreatePluginLoadCandidatesFromLoadedAssemblies(loadedAssemblies, log);
-        return LoadPlannedCandidates(pluginCandidates, contextFactory, log, initializationFailed);
+        return LoadPlannedCandidates(pluginCandidates, contextFactory, log, initializationFailed, beginRegistrationScope);
     }
 
     private static List<PluginLoadCandidate> CreatePluginLoadCandidatesFromLoadedAssemblies(
@@ -112,7 +114,8 @@ internal static class PluginLoader
         IEnumerable<PluginLoadCandidate> pluginCandidates,
         Func<IOpenGarrisonServerPlugin, OpenGarrisonPluginManifest, string, IOpenGarrisonServerPluginContext> contextFactory,
         Action<string> log,
-        Action<string>? initializationFailed)
+        Action<string>? initializationFailed,
+        Func<string, IDisposable>? beginRegistrationScope)
     {
         var plannedCandidates = OpenGarrisonPluginManifestPlanner.PlanLoadOrder(
             pluginCandidates,
@@ -127,6 +130,8 @@ internal static class PluginLoader
         {
             try
             {
+                // Gameplay content the plugin registers while loading belongs to it.
+                using var registrationScope = beginRegistrationScope?.Invoke(candidate.Manifest.Id);
                 var plugin = candidate.CreatePlugin();
                 var context = contextFactory(plugin, candidate.Manifest, candidate.PluginDirectory);
                 plugin.Initialize(context);

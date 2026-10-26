@@ -1,0 +1,20 @@
+{
+  "id": "KingpinBlueS",
+  "framePaths": [
+    "assets/characters/kingpin/BLU/Kingpin1.png",
+    "assets/characters/kingpin/BLU/Kingpin2.png",
+    "assets/characters/kingpin/BLU/Kingpin3.png",
+    "assets/characters/kingpin/BLU/Kingpin4.png",
+    "assets/characters/kingpin/BLU/Kingpin5.png",
+    "assets/characters/kingpin/BLU/Kingpin6.png",
+    "assets/characters/kingpin/BLU/Kingpin7.png",
+    "assets/characters/kingpin/BLU/Kingpin8.png",
+    "assets/characters/kingpin/BLU/Kingpin9.png",
+    "assets/characters/kingpin/BLU/Kingpin10.png",
+    "assets/characters/kingpin/BLU/Kingpin11.png",
+    "assets/characters/kingpin/BLU/Kingpin12.png",
+    "assets/characters/kingpin/BLU/Kingpin13.png"
+  ],
+  "originX": 16,
+  "originY": 20
+}

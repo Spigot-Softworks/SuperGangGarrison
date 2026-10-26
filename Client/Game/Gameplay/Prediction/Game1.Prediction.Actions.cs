@@ -85,6 +85,12 @@ public partial class Game1
 
     private void ApplyPredictedPrimaryFire(PlayerEntity player, PredictedLocalInput predictedInput)
     {
+        if (KingpinPrototype.IsKingpin(player))
+        {
+            if (predictedInput.Input.FirePrimary && player.TryFirePrimaryWeapon())
+                KingpinPrototype.Punch(_world, player, prediction: true);
+            return;
+        }
         if (player.IsTaunting || player.IsBuffBannerDeploying)
         {
             return;
@@ -250,6 +256,12 @@ public partial class Game1
 
     private void ApplyPredictedSecondaryFire(PlayerEntity player, PredictedLocalInput predictedInput)
     {
+        if (KingpinPrototype.IsKingpin(player))
+        {
+            if (predictedInput.SecondaryAbilityPressed)
+                KingpinPrototype.UseSpecial(_world, player, prediction: true);
+            return;
+        }
         if (ApplyPredictedSecondaryAbility(player, predictedInput))
         {
             return;
@@ -490,6 +502,7 @@ public partial class Game1
 
     private bool ApplyPredictedWeaponSwap(PlayerEntity player, PredictedLocalInput predictedInput)
     {
+        if (KingpinPrototype.IsKingpin(player)) return false;
         if (player.IsTaunting || !predictedInput.SwapWeaponPressed)
         {
             return false;

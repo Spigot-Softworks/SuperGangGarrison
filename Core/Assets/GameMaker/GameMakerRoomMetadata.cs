@@ -35,6 +35,8 @@ public sealed record GameMakerRoomMetadata(
     public CustomMapControlPointSettings ControlPointSettings { get; init; } = CustomMapControlPointSettings.Default;
 
     public MapLogicGraph LogicGraph { get; init; } = MapLogicGraph.Empty;
+    public string MapScriptSource { get; init; } = string.Empty;
+    public IReadOnlyDictionary<string, string> MapScriptNodeNames { get; init; } = new Dictionary<string, string>();
 
     public MapLogicActivatorSet LogicActivators { get; init; } = MapLogicActivatorSet.Empty;
 

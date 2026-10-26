@@ -1376,9 +1376,42 @@ public partial class Game1
         }
     }
 
+    // A class can replace the look of a projectile kind it fires (presentation ProjectileSprites).
+    private string? GetOwnerProjectileSpriteName(int ownerId, string projectileKind)
+    {
+        if (FindPlayerById(ownerId) is not { } owner
+            || !CharacterClassCatalog.RuntimeRegistry.TryGetClassBinding(owner.GameplayClassId, out _)
+            || CharacterClassCatalog.RuntimeRegistry.GetClassDefinition(owner.GameplayClassId).Presentation?.ProjectileSprites is not { } sprites
+            || !sprites.TryGetValue(projectileKind, out var spriteName)
+            || GetResolvedSprite(spriteName) is not { Frames.Count: > 0 })
+        {
+            return null;
+        }
+
+        return spriteName;
+    }
+
     private void DrawBladeProjectile(BladeProjectileEntity blade, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(blade.Id, blade.X, blade.Y);
+        if (GetOwnerProjectileSpriteName(blade.OwnerId, GameplayProjectileKinds.Blade) is { } customSpriteName)
+        {
+            // Custom blades animate through their own frames (a thrown knife spins), facing the
+            // way they fly and pitched to its angle (the mirrored art points left, so it turns
+            // from there).
+            var customFrameCount = GetResolvedSprite(customSpriteName)!.Frames.Count;
+            var customFrameIndex = Math.Max(0, blade.LifetimeSimulationTicks - blade.TicksRemaining) % customFrameCount;
+            var facing = blade.VelocityX < 0f ? -1f : 1f;
+            var pitch = MathF.Atan2(blade.VelocityY, blade.VelocityX);
+            if (facing < 0f)
+            {
+                pitch -= MathF.PI;
+            }
+
+            TryDrawSprite(customSpriteName, customFrameIndex, renderPosition.X, renderPosition.Y, cameraPosition, Color.White, pitch, new Vector2(facing, 1f));
+            return;
+        }
+
         var bladeColor = ResolveProjectileTint(
             blade.Team,
             new Color(180, 220, 255),
@@ -1941,12 +1974,24 @@ public partial class Game1
     }
 
     // -----------------------------------------------------------------------
-    // Legacy sprite-based flame draw (kept for reference, no longer called)
+    // Sprite-style flames use the authored team/critical strips. The legacy
+    // sprite remains a fallback for content packs that omit those assets.
     // -----------------------------------------------------------------------
 
     private void DrawFlameProjectile(FlameProjectileEntity flame, Vector2 cameraPosition)
     {
         var renderPosition = GetRenderPosition(flame.Id, flame.X, flame.Y);
+        var animated = GetResolvedSprite(AnimatedFlamePresentation.SpriteName(flame.Team, flame.IsCritical));
+        if (animated is { Frames.Count: > 0 })
+        {
+            var frame = AnimatedFlamePresentation.ProjectileFrame(flame, animated.Frames.Count,
+                _world.Projectiles.GetSimulationTicksFromSourceTicks(FlameProjectileEntity.AirLifetimeTicks),
+                _world.Frame / (double)_config.TicksPerSecond);
+            DrawLoadedSpriteFrame(animated.Frames[frame],
+                new Vector2(renderPosition.X - cameraPosition.X, renderPosition.Y - cameraPosition.Y),
+                null, Color.White, 0f, animated.Origin.ToVector2(), Vector2.One, SpriteEffects.None, 0f);
+            return;
+        }
         var flameColor = Color.White;
         var flameSprite = GetResolvedSprite("FlameS");
         var flameScale = GetFlameProjectileScale(flame);

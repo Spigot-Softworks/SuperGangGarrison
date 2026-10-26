@@ -514,6 +514,7 @@ public sealed class OnlineSessionController
             _context.ResetGameplayRuntimeState();
             _context.LocalPrediction.ServerLocalPredictionEnabled = welcome.LocalPredictionEnabled && !_context._networkClient.IsSpectator;
             _context.ShowJoiningServerLoadingOverlay();
+            _context._world.ClientPredictionMode = true;
             if (!_context._world.MapLifecycle.TryLoadLevel(welcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: welcome.MapScale))
             {
                 var loadError = $"Failed to load map: {welcome.LevelName}";

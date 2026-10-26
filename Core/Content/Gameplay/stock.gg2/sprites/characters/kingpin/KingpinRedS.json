@@ -1,0 +1,20 @@
+{
+  "id": "KingpinRedS",
+  "framePaths": [
+    "assets/characters/kingpin/RED/Kingpin1.png",
+    "assets/characters/kingpin/RED/Kingpin2.png",
+    "assets/characters/kingpin/RED/Kingpin3.png",
+    "assets/characters/kingpin/RED/Kingpin4.png",
+    "assets/characters/kingpin/RED/Kingpin5.png",
+    "assets/characters/kingpin/RED/Kingpin6.png",
+    "assets/characters/kingpin/RED/Kingpin7.png",
+    "assets/characters/kingpin/RED/Kingpin8.png",
+    "assets/characters/kingpin/RED/Kingpin9.png",
+    "assets/characters/kingpin/RED/Kingpin10.png",
+    "assets/characters/kingpin/RED/Kingpin11.png",
+    "assets/characters/kingpin/RED/Kingpin12.png",
+    "assets/characters/kingpin/RED/Kingpin13.png"
+  ],
+  "originX": 16,
+  "originY": 20
+}

@@ -1,0 +1,17 @@
+{
+  "id": "AnimatedFlameCriticalRedS",
+  "framePaths": [
+    "assets/projectiles/animated-flames/Kritz_red/0.png",
+    "assets/projectiles/animated-flames/Kritz_red/1.png",
+    "assets/projectiles/animated-flames/Kritz_red/2.png",
+    "assets/projectiles/animated-flames/Kritz_red/3.png",
+    "assets/projectiles/animated-flames/Kritz_red/4.png",
+    "assets/projectiles/animated-flames/Kritz_red/5.png",
+    "assets/projectiles/animated-flames/Kritz_red/6.png",
+    "assets/projectiles/animated-flames/Kritz_red/7.png",
+    "assets/projectiles/animated-flames/Kritz_red/8.png",
+    "assets/projectiles/animated-flames/Kritz_red/9.png"
+  ],
+  "originX": 12,
+  "originY": 12
+}

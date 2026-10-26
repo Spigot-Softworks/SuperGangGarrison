@@ -18,6 +18,7 @@ public sealed class HudLayoutProfile
     public Dictionary<string, HudElementLayoutOverride> UnknownOverrides { get; } = new(StringComparer.Ordinal);
 
     private readonly Dictionary<string, HudElementLayout> _runtimeDefaults = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _runtimeDefaultsOverrideGg2 = new(StringComparer.Ordinal);
 
     public bool GridVisible { get; set; } = true;
 
@@ -50,17 +51,20 @@ public sealed class HudLayoutProfile
     /// <summary>GG2 Modern's positions for the elements GG2 places differently.</summary>
     public IReadOnlyDictionary<string, HudElementLayout> Gg2Defaults { get; } = HudLayoutDefaults.CreateGg2();
 
-    /// <summary>While on, <see cref="Gg2Defaults"/> win over the SGG and runtime defaults.</summary>
+    /// <summary>While on, <see cref="Gg2Defaults"/> win unless a mode explicitly overrides them.</summary>
     public bool UseGg2Defaults { get; set; }
 
     public void ClearRuntimeDefaults()
     {
         _runtimeDefaults.Clear();
+        _runtimeDefaultsOverrideGg2.Clear();
     }
 
-    public void SetRuntimeDefault(HudElementLayout layout)
+    public void SetRuntimeDefault(HudElementLayout layout, bool overrideGg2Default = false)
     {
         _runtimeDefaults[layout.Id] = layout;
+        if (overrideGg2Default) _runtimeDefaultsOverrideGg2.Add(layout.Id);
+        else _runtimeDefaultsOverrideGg2.Remove(layout.Id);
 
         // Dynamic HUD widgets are not part of the startup defaults, so their
         // saved overrides initially load as unknown. Promote an override as
@@ -196,6 +200,8 @@ public sealed class HudLayoutProfile
 
     private bool TryGetDefaultLayout(string id, out HudElementLayout defaultLayout)
     {
+        if (_runtimeDefaultsOverrideGg2.Contains(id) && _runtimeDefaults.TryGetValue(id, out defaultLayout!))
+            return true;
         if (UseGg2Defaults && Gg2Defaults.TryGetValue(id, out defaultLayout!))
         {
             return true;

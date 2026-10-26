@@ -218,6 +218,7 @@ public interface IGameplayContext
     void DrawVoiceParticipants();
     void DrawVotePresentationOverlay();
     void EndGameplayWorldSpriteBatch();
+    void RestartGameplayWorldSpriteBatch(Microsoft.Xna.Framework.Graphics.BlendState blendState);
     void EndLogicalFrame();
     void EnsureAutomaticDemoRecordingForConnection(string serverLabel);
     void EnsureWindowInactiveInputReleased(bool windowActive, Microsoft.Xna.Framework.Input.MouseState releasedMouse);
@@ -355,6 +356,7 @@ public interface IGameplayContext
     void SetNetworkStatusAndConsole(string statusMessage, string consoleMessage);
     void SetPersistedMenuStatusMessage(string message);
     void SetScoreRouteRecorderCaptureInput(OpenGarrison.Core.PlayerInputSnapshot gameplayInput);
+    void RecordInputDisplay(OpenGarrison.Core.PlayerInputSnapshot input);
     void SetSocialPresenceNetworkEndpoint(OpenGarrison.Client.NetworkEndpoint endpoint);
     bool ShouldDrawSoftwareMenuCursor();
     bool ShouldPresentAuthoritativeExplosionVisual(OpenGarrison.Protocol.SnapshotVisualEvent visualEvent);
@@ -374,6 +376,9 @@ public interface IGameplayContext
     void StopEmbeddedSession();
     void StopFaucetMusic();
     void StopHostedServer();
+    void RestartPracticePluginRuntime();
+    void StopPracticePluginRuntime();
+    void UpdatePluginPackArt();
     void StopIngameMusic();
     void StopLastToDieGameOverSound();
     void StopLastToDieIngameMusic();

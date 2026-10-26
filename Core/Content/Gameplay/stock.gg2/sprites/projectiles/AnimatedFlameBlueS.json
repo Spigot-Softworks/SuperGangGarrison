@@ -1,0 +1,17 @@
+{
+  "id": "AnimatedFlameBlueS",
+  "framePaths": [
+    "assets/projectiles/animated-flames/Blu/0.png",
+    "assets/projectiles/animated-flames/Blu/1.png",
+    "assets/projectiles/animated-flames/Blu/2.png",
+    "assets/projectiles/animated-flames/Blu/3.png",
+    "assets/projectiles/animated-flames/Blu/4.png",
+    "assets/projectiles/animated-flames/Blu/5.png",
+    "assets/projectiles/animated-flames/Blu/6.png",
+    "assets/projectiles/animated-flames/Blu/7.png",
+    "assets/projectiles/animated-flames/Blu/8.png",
+    "assets/projectiles/animated-flames/Blu/9.png"
+  ],
+  "originX": 12,
+  "originY": 12
+}

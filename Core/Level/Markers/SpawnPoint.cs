@@ -10,6 +10,9 @@ public readonly record struct SpawnPoint(
     int LogicSignalNodeIndex = -1,
     int LegacySpawnSlot = 0)
 {
+    public string MapEntityId { get; init; } = string.Empty;
+    public string ObjectName { get; init; } = string.Empty;
+    public string ObjectGroups { get; init; } = string.Empty;
     public bool IsForwardSpawn => Role == SpawnPointRole.Forward;
 
     public bool IsStandardSpawn => Role == SpawnPointRole.Standard;

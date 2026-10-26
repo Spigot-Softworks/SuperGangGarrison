@@ -32,7 +32,7 @@ public partial class Game1
         }
 
         return IsLastToDieSessionActive
-            || GameplayLoadoutSelectionResolver.GetOrderedLoadouts(_world.LocalPlayer.ClassId).Count > 1;
+            || GameplayLoadoutSelectionResolver.GetOrderedLoadouts(_world.LocalPlayer.ClassDefinition).Count > 1;
     }
 
     public void LoadGameplayLoadoutMenuTextures()

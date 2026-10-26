@@ -45,6 +45,8 @@ sealed class ServerSettings
     public int TeamShuffleAfterWins { get; set; }
 
     public bool SecondaryAbilitiesEnabled { get; set; } = true;
+    public int ConquestScoreLimit { get; set; } = ConquestRules.ScoreLimit;
+    public bool HardcoreEnabled { get; set; }
 
     public bool RandomSpreadEnabled { get; set; } = true;
 
@@ -153,6 +155,8 @@ sealed class ServerSettings
             SwitchTeamsAfterRoundEnd = hostDefaults.SwitchTeamsAfterRoundEnd,
             TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(hostDefaults.TeamShuffleAfterWins),
             SecondaryAbilitiesEnabled = hostDefaults.SecondaryAbilitiesEnabled,
+            ConquestScoreLimit = hostDefaults.ConquestScoreLimit,
+            HardcoreEnabled = hostDefaults.HardcoreEnabled,
             RandomSpreadEnabled = hostDefaults.RandomSpreadEnabled,
             HlxEnabled = hostDefaults.HlxEnabled,
             CompetitiveReadyUpEnabled = hostDefaults.CompetitiveReadyUpEnabled,
@@ -190,6 +194,8 @@ sealed class ServerSettings
         hostDefaults.SwitchTeamsAfterRoundEnd = SwitchTeamsAfterRoundEnd;
         hostDefaults.TeamShuffleAfterWins = OpenGarrisonHostSettings.NormalizeTeamShuffleAfterWins(TeamShuffleAfterWins);
         hostDefaults.SecondaryAbilitiesEnabled = SecondaryAbilitiesEnabled;
+        hostDefaults.ConquestScoreLimit = Math.Clamp(ConquestScoreLimit, 1, ConquestRules.MaximumScoreLimit);
+        hostDefaults.HardcoreEnabled = HardcoreEnabled;
         hostDefaults.RandomSpreadEnabled = RandomSpreadEnabled;
         hostDefaults.HlxEnabled = HlxEnabled;
         hostDefaults.CompetitiveReadyUpEnabled = CompetitiveReadyUpEnabled;

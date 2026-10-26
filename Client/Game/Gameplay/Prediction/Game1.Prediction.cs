@@ -489,6 +489,16 @@ public partial class Game1
     private void ApplyPredictedInputStep(PlayerEntity player, PredictedLocalInput predictedInput)
     {
         var previousBottom = player.Bottom;
+        if (KingpinPrototype.IsKingpin(player))
+        {
+            player.SetAimWorldPosition(predictedInput.Input.AimWorldX, predictedInput.Input.AimWorldY);
+            var previousKingpinInput = predictedInput.Input with
+            {
+                UseAbility = predictedInput.Input.UseAbility && !predictedInput.AbilityPressed,
+                SwapWeapon = predictedInput.Input.SwapWeapon && !predictedInput.SwapWeaponPressed,
+            };
+            KingpinPrototype.Advance(_world, player, predictedInput.Input, previousKingpinInput, prediction: true);
+        }
         player.ObserveSpySuperjumpAbilityInput(predictedInput.Input.UseAbility);
         player.SyncCivvieUmbrellaSecondaryInput(predictedInput.Input.FireSecondary);
         player.SyncCivviePogoSuperJumpInput(predictedInput.Input.Up);

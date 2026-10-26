@@ -696,7 +696,7 @@ public sealed class StochasticLocalMotionPlanner
         {
             var input = BuildInput(probe, goal, LocalMacroPlan.From(candidate, startTick: 0), age);
             var jumpPressed = input.Up && !previousInput.Up;
-            probe.Advance(input, jumpPressed, world.Level, self.Team, 1d / SimulationConfig.DefaultTicksPerSecond);
+            BotNavigationEnvironment.AdvanceProbe(world.Level, probe, input, jumpPressed, self.Team);
             previousInput = input;
 
             if (!IsValidProbeState(world, probe, self.Team))
@@ -717,6 +717,9 @@ public sealed class StochasticLocalMotionPlanner
                 break;
             }
         }
+
+        if (!BotNavigationEnvironment.HasSafeLanding(world.Level, probe, self.Team, previousInput))
+            return StochasticProbeEvaluation.Rejected(candidate, startMetric, bestMetric);
 
         var finalMetric = MeasureMetric(probe.X, probe.Bottom, goal);
         var progress = startMetric - bestMetric;
@@ -1015,7 +1018,7 @@ public sealed class StochasticLocalMotionPlanner
         {
             var input = BuildInput(probe, goal, LocalMacroPlan.From(candidate, startTick: 0), age);
             var jumpPressed = input.Up && !previousInput.Up;
-            probe.Advance(input, jumpPressed, world.Level, self.Team, 1d / SimulationConfig.DefaultTicksPerSecond);
+            BotNavigationEnvironment.AdvanceProbe(world.Level, probe, input, jumpPressed, self.Team);
             previousInput = input;
 
             if (!IsValidProbeState(world, probe, self.Team))
@@ -1031,6 +1034,9 @@ public sealed class StochasticLocalMotionPlanner
                 break;
             }
         }
+
+        if (!BotNavigationEnvironment.HasSafeLanding(world.Level, probe, self.Team, previousInput))
+            return StochasticProbeEvaluation.Rejected(candidate, startMetric, bestMetric);
 
         var finalMetric = MeasureMetric(probe.X, probe.Bottom, goal);
         var progress = startMetric - bestMetric;
@@ -1241,7 +1247,7 @@ public sealed class StochasticLocalMotionPlanner
         {
             var input = BuildInput(probe, goal, LocalMacroPlan.From(candidate, startTick: 0), age);
             var jumpPressed = input.Up && !previousInput.Up;
-            probe.Advance(input, jumpPressed, world.Level, team, 1d / SimulationConfig.DefaultTicksPerSecond);
+            BotNavigationEnvironment.AdvanceProbe(world.Level, probe, input, jumpPressed, team);
             previousInput = input;
 
             if (!IsValidProbeState(world, probe, team))
@@ -1256,6 +1262,9 @@ public sealed class StochasticLocalMotionPlanner
                 break;
             }
         }
+
+        if (!BotNavigationEnvironment.HasSafeLanding(world.Level, probe, team, previousInput))
+            return ContinuationEvaluation.Empty;
 
         var finalMetric = MeasureMetric(probe.X, probe.Bottom, goal);
         var progress = startMetric - bestMetric;
@@ -1378,7 +1387,7 @@ public sealed class StochasticLocalMotionPlanner
 
     private static bool IsValidProbeState(SimulationWorld world, PlayerEntity probe, PlayerTeam team)
     {
-        return probe.IsAlive
+        return BotNavigationEnvironment.IsSafe(world.Level, probe)
             && probe.Bottom >= -FatalFallMargin
             && probe.Bottom <= world.Level.Bounds.Height + FatalFallMargin
             && probe.CanOccupy(world.Level, team, probe.X, probe.Y)

@@ -168,6 +168,12 @@ public sealed partial class ProjectileSystem
                 return;
             }
 
+            if (projectiles.IsProjectileFrozen(rocket.X, rocket.Y))
+            {
+                rocket.HoldStill();
+                return;
+            }
+
             if (projectiles.FindPlayerById(rocket.RangeAnchorOwnerId) is { } rangeAnchorPlayer)
             {
                 rocket.RefreshRangeOrigin(rangeAnchorPlayer.X, rangeAnchorPlayer.Y);

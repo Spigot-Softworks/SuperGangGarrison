@@ -53,8 +53,7 @@ public partial class Game1
         var cursorSizePercent = ClientSettings.NormalizeCursorSizePercent(_hudManager.RuntimeSettings.CursorSizePercent);
         if (_menuResources.CursorTexture is { } cursorTexture)
         {
-            var cursorScale = ClientSettings.GetCursorScale(cursorSizePercent)
-                / ClientSettings.GetCursorScale(ClientSettings.DefaultCursorSizePercent);
+            var cursorScale = GetMenuCursorTextureScale(cursorSizePercent);
             _spriteBatch.Draw(
                 cursorTexture.Texture,
                 new Vector2(mouse.X, mouse.Y),
@@ -117,4 +116,9 @@ public partial class Game1
         // 100% is the former 2x cursor, so 50% maps to the original 1x pixel grid.
         return (int)MathF.Round(pixels * ClientSettings.GetCursorScale(sizePercent));
     }
+
+    internal static float GetMenuCursorTextureScale(int sizePercent)
+        // The texture was authored for 100%. Its scale must not change its
+        // reference point when the user's default percentage changes.
+        => ClientSettings.GetCursorScale(sizePercent) / ClientSettings.GetCursorScale(100);
 }

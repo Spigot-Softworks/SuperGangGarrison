@@ -340,6 +340,9 @@ public sealed class NetworkGameClient : IDisposable
     public void Disconnect()
     {
         ConnectionGeneration++;
+        // Classes and items a server sent belong to that connection; every new connection
+        // starts by disconnecting, so this also covers switching servers.
+        CharacterClassCatalog.RuntimeRegistry.RemoveOwnedRegistrations(GameplayRuntimeRegistry.ReplicatedContentOwnerKey);
         FinalizeDemoRecording(saveRecording: true, completedByDisconnect: true);
         // A socket that has been invalidated by the OS must not throw again during cleanup.
         try { _transport?.Dispose(); }

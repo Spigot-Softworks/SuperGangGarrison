@@ -31,6 +31,30 @@ public sealed partial class GameplayRuntimeRegistry
 
     public IReadOnlyCollection<GameplayClassRuntimeBinding> RuntimeClassBindings => _classBindingsByClassId.Values;
 
+    private GameplayClassRuntimeBinding[] _customSlotClassBindings = [];
+    private int _customSlotClassBindingsRevision = -1;
+
+    /// <summary>
+    /// Custom-slot plugin classes ordered by display name, for menus that list them.
+    /// </summary>
+    public IReadOnlyList<GameplayClassRuntimeBinding> CustomSlotClassBindings
+    {
+        get
+        {
+            if (_customSlotClassBindingsRevision != ModPackRevision)
+            {
+                _customSlotClassBindings = _classBindingsByClassId.Values
+                    .Where(static binding => binding.PlayerClass == PlayerClass.Custom)
+                    .OrderBy(binding => GetRequiredClass(binding.ClassId).DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(static binding => binding.ClassId, StringComparer.Ordinal)
+                    .ToArray();
+                _customSlotClassBindingsRevision = ModPackRevision;
+            }
+
+            return _customSlotClassBindings;
+        }
+    }
+
     public void RegisterPrimaryWeaponBehavior(string behaviorId, PrimaryWeaponKind weaponKind)
     {
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(behaviorId, weaponKind));
@@ -61,7 +85,7 @@ public sealed partial class GameplayRuntimeRegistry
             return false;
         }
 
-        _primaryWeaponBindingsByBehaviorId[normalizedBehaviorId] = binding with { BehaviorId = normalizedBehaviorId };
+        SetPrimaryWeaponBehavior(binding with { BehaviorId = normalizedBehaviorId });
         return true;
     }
 
@@ -96,7 +120,7 @@ public sealed partial class GameplayRuntimeRegistry
             return false;
         }
 
-        _abilityExecutorsById[normalizedExecutorId] = executor;
+        SetAbilityExecutor(normalizedExecutorId, executor);
         return true;
     }
 
@@ -148,27 +172,26 @@ public sealed partial class GameplayRuntimeRegistry
             return false;
         }
 
-        _modPacks[modPack.Id] = modPack;
+        SetModPack(modPack);
 
         foreach (var item in modPack.Items)
         {
-            _items[item.Key] = item.Value;
-            _itemOwningModPackIds[item.Key] = modPack.Id;
+            SetItem(modPack.Id, item.Value, updateModPack: false);
         }
 
+        var bindingsByClassId = classBindings.ToDictionary(static binding => binding.ClassId, StringComparer.Ordinal);
         foreach (var gameplayClass in modPack.Classes)
         {
-            _classes[gameplayClass.Key] = gameplayClass.Value;
-            _classOwningModPackIds[gameplayClass.Key] = modPack.Id;
+            bindingsByClassId.TryGetValue(gameplayClass.Key, out var classBinding);
+            SetClass(modPack.Id, gameplayClass.Value, classBinding, updateModPack: false);
         }
 
         for (var index = 0; index < classBindings.Count; index += 1)
         {
             var classBinding = classBindings[index];
-            _classBindingsByClassId[classBinding.ClassId] = classBinding;
             if (classBinding.BindsLegacyPlayerClass)
             {
-                _classBindings[classBinding.PlayerClass] = classBinding;
+                SetLegacyClassBinding(classBinding);
             }
         }
 
@@ -336,6 +359,32 @@ public sealed partial class GameplayRuntimeRegistry
         return GetRequiredClass(binding.ClassId);
     }
 
+    // Class-handle lookups: Custom-slot classes have no legacy binding and resolve by
+    // gameplay class id; every other class keeps resolving through its legacy slot.
+    public GameplayClassDefinition GetClassDefinition(CharacterClassDefinition classDefinition)
+    {
+        ArgumentNullException.ThrowIfNull(classDefinition);
+        return classDefinition.IsCustomSlot
+            ? GetClassDefinition(classDefinition.GameplayClassId)
+            : GetClassDefinition(classDefinition.Id);
+    }
+
+    public GameplayItemDefinition GetPrimaryItem(CharacterClassDefinition classDefinition)
+    {
+        ArgumentNullException.ThrowIfNull(classDefinition);
+        return classDefinition.IsCustomSlot
+            ? GetPrimaryItem(classDefinition.GameplayClassId)
+            : GetPrimaryItem(classDefinition.Id);
+    }
+
+    // Acquired and dropped weapons are keyed by legacy slot, so Custom-slot classes never drop one.
+    public bool SupportsExperimentalAcquiredWeapon(CharacterClassDefinition classDefinition)
+    {
+        ArgumentNullException.ThrowIfNull(classDefinition);
+        return !classDefinition.IsCustomSlot
+            && SupportsExperimentalAcquiredWeapon(classDefinition.Id);
+    }
+
     public GameplayClassLoadoutDefinition GetDefaultLoadout(PlayerClass playerClass)
     {
         var gameplayClass = GetClassDefinition(playerClass);
@@ -436,7 +485,8 @@ public sealed partial class GameplayRuntimeRegistry
 
     public bool SupportsExperimentalAcquiredWeapon(PlayerClass playerClass)
     {
-        return GetRequiredClassBinding(playerClass).SupportsExperimentalAcquiredWeapon;
+        return TryGetClassBinding(playerClass, out var binding)
+            && binding.SupportsExperimentalAcquiredWeapon;
     }
 
     public bool SupportsExperimentalAcquiredWeapon(string gameplayClassId)
@@ -844,29 +894,7 @@ public sealed partial class GameplayRuntimeRegistry
 
     private void AddRuntimeItem(string modPackId, GameplayItemDefinition item)
     {
-        _characterClassDefinitionCache.Clear();
-        _items[item.Id] = item;
-        _itemOwningModPackIds[item.Id] = modPackId;
-        if (!_modPacks.TryGetValue(modPackId, out var modPack))
-        {
-            _modPacks[modPackId] = new GameplayModPackDefinition(
-                modPackId,
-                modPackId,
-                new Version(1, 0, 0),
-                new Dictionary<string, GameplayItemDefinition>(StringComparer.Ordinal)
-                {
-                    [item.Id] = item,
-                },
-                new Dictionary<string, GameplayClassDefinition>(StringComparer.Ordinal),
-                new GameplayModPackAssetCatalog(new Dictionary<string, GameplaySpriteAssetDefinition>(StringComparer.Ordinal)),
-                SchemaVersion: 2);
-        }
-        else
-        {
-            var items = modPack.Items.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal);
-            items[item.Id] = item;
-            _modPacks[modPackId] = modPack with { Items = items };
-        }
+        SetItem(modPackId, item);
     }
 
     public bool TryRegisterGameplayLoadout(GameplayLoadoutRegistration registration, out string errorMessage)
@@ -902,12 +930,122 @@ public sealed partial class GameplayRuntimeRegistry
             return false;
         }
 
+        var loadout = CreateRuntimeLoadout(registration);
+        if (!ValidateRuntimeLoadoutItems(loadout, out errorMessage))
+        {
+            return false;
+        }
+
+        AddLoadoutToClass(classId, loadout);
+        return true;
+    }
+
+    public bool TryRegisterGameplayClass(GameplayClassRegistration registration, out string errorMessage)
+    {
+        ArgumentNullException.ThrowIfNull(registration);
+        errorMessage = string.Empty;
+        if (_abilityDefinitionsSealed)
+        {
+            errorMessage = "Gameplay class registry is sealed.";
+            return false;
+        }
+
+        var defaultLoadout = registration.DefaultLoadout;
+        if (string.IsNullOrWhiteSpace(registration.ClassId)
+            || string.IsNullOrWhiteSpace(registration.DisplayName)
+            || string.IsNullOrWhiteSpace(registration.ModPackId)
+            || registration.Movement is null
+            || defaultLoadout is null
+            || string.IsNullOrWhiteSpace(defaultLoadout.LoadoutId)
+            || string.IsNullOrWhiteSpace(defaultLoadout.DisplayName)
+            || string.IsNullOrWhiteSpace(defaultLoadout.PrimaryItemId))
+        {
+            errorMessage = "Gameplay class registration requires class id, display name, mod pack id, movement, and a default loadout with loadout id, display name, and primary item id.";
+            return false;
+        }
+
+        var classId = registration.ClassId.Trim();
+        if (_classOwningModPackIds.TryGetValue(classId, out var owningModPackId))
+        {
+            errorMessage = $"Gameplay class id \"{classId}\" is already registered by mod pack \"{owningModPackId}\".";
+            return false;
+        }
+
+        if (!ValidateRuntimeClassMovement(registration.Movement, out errorMessage))
+        {
+            return false;
+        }
+
+        var botGraphPlayerClassName = registration.BotGraphPlayerClass?.Trim() ?? string.Empty;
+        var botGraphPlayerClass = PlayerClass.Scout;
+        if (botGraphPlayerClassName.Length > 0
+            && (!Enum.TryParse(botGraphPlayerClassName, ignoreCase: true, out botGraphPlayerClass)
+                || !PlayerClassSlots.IsStock(botGraphPlayerClass)))
+        {
+            errorMessage = $"Gameplay class \"{classId}\" declares unsupported bot graph player class \"{botGraphPlayerClassName}\".";
+            return false;
+        }
+
+        var loadout = CreateRuntimeLoadout(defaultLoadout);
+        if (!ValidateRuntimeLoadoutItems(loadout, out errorMessage))
+        {
+            return false;
+        }
+
+        var modPackId = registration.ModPackId.Trim();
+        var killFeedSprite = registration.PrimaryWeaponKillFeedSprite?.Trim() ?? string.Empty;
+        var gameplayClass = new GameplayClassDefinition(
+            classId,
+            registration.DisplayName.Trim(),
+            registration.Movement,
+            new Dictionary<string, GameplayClassLoadoutDefinition>(StringComparer.Ordinal)
+            {
+                [loadout.Id] = loadout,
+            },
+            loadout.Id,
+            registration.Presentation,
+            new GameplayClassRuntimeDefinition(
+                BasePlayerClass: nameof(PlayerClass.Custom),
+                BotGraphPlayerClass: botGraphPlayerClass.ToString(),
+                SupportsExperimentalAcquiredWeapon: false,
+                PrimaryWeaponKillFeedSprite: killFeedSprite));
+        AddRuntimeClass(modPackId, gameplayClass, new GameplayClassRuntimeBinding(
+            PlayerClass.Custom,
+            modPackId,
+            classId,
+            SupportsExperimentalAcquiredWeapon: false,
+            killFeedSprite,
+            PlayerClass.Custom,
+            botGraphPlayerClass,
+            BindsLegacyPlayerClass: false));
+        return true;
+    }
+
+    private static bool ValidateRuntimeClassMovement(GameplayClassMovementDefinition movement, out string errorMessage)
+    {
+        if (movement.MaxHealth <= 0
+            || movement.CollisionRight <= movement.CollisionLeft
+            || movement.CollisionBottom <= movement.CollisionTop
+            || movement.RunPower <= 0f
+            || movement.MaxAirJumps < 0
+            || movement.TauntLengthFrames < 0)
+        {
+            errorMessage = "Gameplay class movement requires positive max health and run power, a non-empty collision box, and non-negative air jumps and taunt length.";
+            return false;
+        }
+
+        errorMessage = string.Empty;
+        return true;
+    }
+
+    private GameplayClassLoadoutDefinition CreateRuntimeLoadout(GameplayLoadoutRegistration registration)
+    {
         var primaryItemId = registration.PrimaryItemId.Trim();
         var secondaryItemId = NormalizeOptionalItemId(registration.SecondaryItemId);
         var utilityItemId = NormalizeOptionalItemId(registration.UtilityItemId);
         var abilityItemIds = NormalizeAbilityItemIds(registration.AbilityItemIds);
-        var loadout = new GameplayClassLoadoutDefinition(
-            loadoutId,
+        return new GameplayClassLoadoutDefinition(
+            registration.LoadoutId.Trim(),
             registration.DisplayName.Trim(),
             primaryItemId,
             secondaryItemId,
@@ -922,13 +1060,6 @@ public sealed partial class GameplayRuntimeRegistry
                     : null,
             Abilities = ResolveRegisteredAbilityItemIds(secondaryItemId, utilityItemId, abilityItemIds),
         };
-        if (!ValidateRuntimeLoadoutItems(loadout, out errorMessage))
-        {
-            return false;
-        }
-
-        AddLoadoutToClass(classId, gameplayClass, loadout);
-        return true;
     }
 
     public bool TryRegisterGameplaySlotItem(GameplaySlotItemRegistration registration, out string errorMessage)
@@ -1001,7 +1132,7 @@ public sealed partial class GameplayRuntimeRegistry
             return false;
         }
 
-        AddLoadoutToClass(classId, gameplayClass, loadout);
+        AddLoadoutToClass(classId, loadout);
         return true;
     }
 
@@ -1044,15 +1175,9 @@ public sealed partial class GameplayRuntimeRegistry
         {
             Ability = normalizedPatchedAbility,
         };
-        _items[updatedItem.Id] = updatedItem;
-
-        if (_itemOwningModPackIds.TryGetValue(updatedItem.Id, out var modPackId)
-            && _modPacks.TryGetValue(modPackId, out var modPack))
-        {
-            var items = modPack.Items.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal);
-            items[updatedItem.Id] = updatedItem;
-            _modPacks[modPackId] = modPack with { Items = items };
-        }
+        SetItem(
+            _itemOwningModPackIds.TryGetValue(updatedItem.Id, out var modPackId) ? modPackId : "plugin.ability",
+            updatedItem);
 
         return true;
     }
@@ -1361,12 +1486,15 @@ public sealed partial class GameplayRuntimeRegistry
         return true;
     }
 
-    private void AddLoadoutToClass(string classId, GameplayClassDefinition gameplayClass, GameplayClassLoadoutDefinition loadout)
+    private void AddRuntimeClass(string modPackId, GameplayClassDefinition gameplayClass, GameplayClassRuntimeBinding binding)
     {
-        _characterClassDefinitionCache.Clear();
-        var loadouts = gameplayClass.Loadouts.ToDictionary(static pair => pair.Key, static pair => pair.Value, StringComparer.Ordinal);
-        loadouts[loadout.Id] = loadout;
-        _classes[classId] = gameplayClass with { Loadouts = loadouts };
+        SetClass(modPackId, gameplayClass, binding);
+        ModPackRevision += 1;
+    }
+
+    private void AddLoadoutToClass(string classId, GameplayClassLoadoutDefinition loadout)
+    {
+        SetLoadout(classId, loadout);
     }
 
     public bool OwnsItemByDefault(string? itemId)

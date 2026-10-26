@@ -27,6 +27,11 @@ internal sealed class LuaServerPlugin(
     IOpenGarrisonServerSemanticGameplayHooks
 {
     private static readonly BindingFlags PublicInstanceProperties = BindingFlags.Instance | BindingFlags.Public;
+    // The readable properties of each type handed to Lua, with their names as Lua sees them, found
+    // once per type: events are converted every tick, and reflecting over them each time allocates.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, LuaTableProperty[]> LuaTableProperties = new();
+
+    private readonly record struct LuaTableProperty(PropertyInfo Property, string Name, string? CamelCaseName);
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -45,9 +50,48 @@ internal sealed class LuaServerPlugin(
     private readonly Dictionary<Guid, DynValue> _scheduledCallbacks = [];
     private readonly Queue<LuaDeferredServerAction> _deferredServerActions = [];
     private const long CallbackAutoYieldCounter = 1000;
+    private const int WarmUpCallbackCount = 60;
+    private static readonly TimeSpan WarmUpCallbackDuration = TimeSpan.FromMilliseconds(50);
+    private int _warmUpCallbacksRemaining = WarmUpCallbackCount;
+    // A callback over its time budget is skipped; only this many in a row disable the plugin.
+    private const int MaxConsecutiveCallbackTimeouts = 30;
+    private int _consecutiveCallbackTimeouts;
+    // A callback is stopped on the clock only this many times past its phase's budget. The clock
+    // also counts collection pauses and the thread being descheduled, which the plugin doesn't
+    // control, and stopping a callback partway leaves its state half updated (a button press read
+    // but never acted on); the instruction slices below bound the plugin's own work exactly.
+    private const int WallClockBudgetFactor = 8;
     private const int MaxCallbackResumeCount = 4096;
     private const int MaxInitializeResumeCount = 65536;
     private const int MaxDeferredServerActions = 256;
+    // Each MoonSharp coroutine preallocates its stacks (about 2 MB), so callbacks don't each get a
+    // new one: they run on pooled coroutines that loop over this trampoline, calling the function
+    // they are resumed with (and its first count arguments: MoonSharp's table.pack and {...} put
+    // varargs off by one, so they are passed by name) and yielding its results. A callback run
+    // from inside another (a host call that raises a hook) takes another from the pool; one that
+    // fails or times out is dropped.
+    private const string CallbackTrampolineSource = """
+        local yield = coroutine.yield
+        return function(fn, count, a, b, c, d)
+            while true do
+                if count == 0 then
+                    fn, count, a, b, c, d = yield(fn())
+                elseif count == 1 then
+                    fn, count, a, b, c, d = yield(fn(a))
+                elseif count == 2 then
+                    fn, count, a, b, c, d = yield(fn(a, b))
+                elseif count == 3 then
+                    fn, count, a, b, c, d = yield(fn(a, b, c))
+                else
+                    fn, count, a, b, c, d = yield(fn(a, b, c, d))
+                end
+            end
+        end
+        """;
+    private const int MaxTrampolineArguments = 4;
+    private const int MaxIdleCallbackCoroutines = 4;
+    private readonly Stack<Coroutine> _idleCallbackCoroutines = new();
+    private DynValue _callbackTrampoline = DynValue.Nil;
 
     public string Id => manifest.Id;
 
@@ -73,6 +117,9 @@ internal sealed class LuaServerPlugin(
 
             _script = new Script(CoreModules.Preset_SoftSandbox);
             _script.Options.DebugPrint = message => context.Log($"[lua] {message}");
+            // Compiled before the plugin's own code, so it can't change what the trampoline uses.
+            _callbackTrampoline = _script.DoString(CallbackTrampolineSource);
+            _idleCallbackCoroutines.Clear();
 
             var hostTable = CreateHostTable(_script, context);
             var result = _script.DoFile(entryPointPath);
@@ -94,6 +141,8 @@ internal sealed class LuaServerPlugin(
         _deferredServerActions.Clear();
         ExecuteInPhase(ServerLuaCallbackPhase.Shutdown, () => CallIfPresent("shutdown"));
         _callbackCache.Clear();
+        _idleCallbackCoroutines.Clear();
+        _callbackTrampoline = DynValue.Nil;
         _pluginTable = null;
         _script = null;
         _context = null;
@@ -403,7 +452,15 @@ internal sealed class LuaServerPlugin(
             Frame = context.World.Frame,
             PlayerId = context.Player.Id,
             context.Player.ClassId,
+            context.Player.GameplayClassId,
             context.Player.Team,
+            context.Player.IsAlive,
+            PlayerX = context.Player.X,
+            PlayerY = context.Player.Y,
+            VelocityX = context.Player.HorizontalSpeed,
+            VelocityY = context.Player.VerticalSpeed,
+            context.Player.IsGrounded,
+            IsFacingLeft = context.Player.IsSourceFacingLeft,
             ItemId = context.Item.Id,
             context.Item.BehaviorId,
             AbilityCategory = context.Ability.Category,
@@ -419,6 +476,24 @@ internal sealed class LuaServerPlugin(
             context.SourceY,
             context.Input.AimWorldX,
             context.Input.AimWorldY,
+            Input = CreateLuaInputButtons(context.Input),
+            PreviousInput = CreateLuaInputButtons(context.PreviousInput),
+        };
+    }
+
+    // Button state for scripted move inputs (combos); comparing with PreviousInput gives press edges.
+    private static object CreateLuaInputButtons(PlayerInputSnapshot input)
+    {
+        return new
+        {
+            input.Left,
+            input.Right,
+            input.Up,
+            input.Down,
+            input.FirePrimary,
+            input.FireSecondary,
+            input.UseAbility,
+            input.Taunt,
         };
     }
 
@@ -429,7 +504,15 @@ internal sealed class LuaServerPlugin(
             Frame = context.World.Frame,
             PlayerId = context.Player.Id,
             context.Player.ClassId,
+            context.Player.GameplayClassId,
             context.Player.Team,
+            context.Player.IsAlive,
+            PlayerX = context.Player.X,
+            PlayerY = context.Player.Y,
+            VelocityX = context.Player.HorizontalSpeed,
+            VelocityY = context.Player.VerticalSpeed,
+            context.Player.IsGrounded,
+            IsFacingLeft = context.Player.IsSourceFacingLeft,
             context.ItemId,
             context.BehaviorId,
             WeaponClassId = context.WeaponClassId,
@@ -562,7 +645,16 @@ internal sealed class LuaServerPlugin(
         try
         {
             result = InvokeCallbackWithLimits(function, args);
+            _consecutiveCallbackTimeouts = 0;
             return true;
+        }
+        catch (TimeoutException ex) when (!rethrowOnFailure && ++_consecutiveCallbackTimeouts < MaxConsecutiveCallbackTimeouts)
+        {
+            // One slow call (often the runtime compiling a host operation on first use, or a
+            // collection pause, neither of which the plugin controls) only skips that call;
+            // a plugin that keeps running over is disabled below.
+            _context?.Log($"[lua-plugin] {manifest.Id} callback \"{callbackName}\" skipped: {ex.Message}");
+            return false;
         }
         catch (Exception ex)
         {
@@ -584,19 +676,60 @@ internal sealed class LuaServerPlugin(
             return DynValue.Nil;
         }
 
-        var coroutine = _script.CreateCoroutine(function).Coroutine;
+        var pooled = args.Length <= MaxTrampolineArguments;
+        Coroutine coroutine;
+        DynValue[] callArgs;
+        if (pooled)
+        {
+            coroutine = _idleCallbackCoroutines.Count > 0
+                ? _idleCallbackCoroutines.Pop()
+                : _script.CreateCoroutine(_callbackTrampoline).Coroutine;
+            callArgs = new DynValue[args.Length + 2];
+            callArgs[0] = function;
+            callArgs[1] = DynValue.NewNumber(args.Length);
+            Array.Copy(args, 0, callArgs, 2, args.Length);
+        }
+        else
+        {
+            coroutine = _script.CreateCoroutine(function).Coroutine;
+            callArgs = args;
+        }
+
         coroutine.AutoYieldCounter = CallbackAutoYieldCounter;
 
         var stopwatch = Stopwatch.StartNew();
-        var maxDuration = GetMaxCallbackDuration(_currentCallbackPhase);
+        var maxDuration = GetMaxCallbackDuration(_currentCallbackPhase) * WallClockBudgetFactor;
+        // A plugin's first callbacks also pay .NET's first-call compilation of the host
+        // operations they reach, which a heavier plugin can't keep under a 5 ms ability budget
+        // and isn't its own cost; they get a wider window. The instruction slices still apply.
+        if (_warmUpCallbacksRemaining > 0)
+        {
+            _warmUpCallbacksRemaining -= 1;
+            if (maxDuration < WarmUpCallbackDuration)
+            {
+                maxDuration = WarmUpCallbackDuration;
+            }
+        }
         var maxResumeCount = GetMaxCallbackResumeCount(_currentCallbackPhase);
         var resumeCount = 0;
         var firstResume = true;
         while (true)
         {
-            var result = firstResume ? coroutine.Resume(args) : coroutine.Resume();
+            var result = firstResume ? coroutine.Resume(callArgs) : coroutine.Resume();
             firstResume = false;
             resumeCount += 1;
+
+            // The trampoline yields (Suspended) when the call returns; ForceSuspended is an
+            // instruction slice running out partway.
+            if (pooled && coroutine.State == CoroutineState.Suspended)
+            {
+                if (_idleCallbackCoroutines.Count < MaxIdleCallbackCoroutines)
+                {
+                    _idleCallbackCoroutines.Push(coroutine);
+                }
+
+                return result;
+            }
 
             if (coroutine.State == CoroutineState.Dead)
             {
@@ -788,6 +921,21 @@ internal sealed class LuaServerPlugin(
                 : DynValue.Nil);
         host["get_admin_summary"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreateAdminSummaryTable(script, context)));
         host["get_players"] = DynValue.NewCallback((_, _) => DynValue.NewTable(CreatePlayerListTable(script, context.ServerState.GetPlayers())));
+        // Unlike get_players (connected clients), this covers every simulated player, bots included.
+        host["find_players"] = DynValue.NewCallback((_, args) =>
+        {
+            var query = ReadOptionalTableArgument(args, 0);
+            return ToDynValue(context.ServerState.FindWorldPlayers(query is null
+                ? new OpenGarrisonServerWorldPlayerQuery()
+                : new OpenGarrisonServerWorldPlayerQuery(
+                    ReadOptionalFloatField(query, (float?)null, "x", "X", "centerX", "CenterX", "center_x"),
+                    ReadOptionalFloatField(query, (float?)null, "y", "Y", "centerY", "CenterY", "center_y"),
+                    ReadOptionalFloatField(query, (float?)null, "radius", "Radius"),
+                    ReadOptionalTeamField(query, "team", "Team"),
+                    ReadOptionalIntField(query, (int?)null, "excludePlayerId", "ExcludePlayerId", "exclude_player_id"),
+                    ReadOptionalBoolField(query, true, "aliveOnly", "AliveOnly", "alive_only"),
+                    ReadOptionalIntField(query, 64, "limit", "Limit"))));
+        });
         host["resolve_targets"] = DynValue.NewCallback((_, args) =>
         {
             var options = ReadOptionalTableArgument(args, 1);
@@ -1515,6 +1663,123 @@ internal sealed class LuaServerPlugin(
                     (float)ReadDoubleArgument(args, 1),
                     (float)ReadDoubleArgument(args, 2)));
         });
+        host["try_set_player_velocity"] = DynValue.NewCallback((_, args) =>
+        {
+            var playerId = ReadIntArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_velocity", $"player {playerId}")
+                && context.TrySetGameplayVelocity(
+                    playerId,
+                    ReadNullableFloatArgument(args, 1),
+                    ReadNullableFloatArgument(args, 2)));
+        });
+        // try_play_sound(playerId, soundName): a stock or pack sound at the player's position.
+        host["try_play_sound"] = DynValue.NewCallback((_, args) =>
+        {
+            var playerId = ReadIntArgument(args, 0);
+            var soundName = ReadOptionalStringArgument(args, 1);
+            return DynValue.NewBoolean(
+                soundName is not null
+                && CanIssueServerMutation("try_play_sound", $"player {playerId}")
+                && context.TryPlayGameplaySound(playerId, soundName));
+        });
+        // try_spawn_blood(playerId, directionDegrees, count = 3): a blood spray like weapon hits make.
+        host["try_spawn_blood"] = DynValue.NewCallback((_, args) =>
+        {
+            var playerId = ReadIntArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_spawn_blood", $"player {playerId}")
+                && context.TrySpawnGameplayBlood(
+                    playerId,
+                    (float)ReadDoubleArgument(args, 1),
+                    ReadOptionalIntArgument(args, 2, 3)));
+        });
+        // try_spawn_effect({ sprite, x, y, rotation = 0, flipX = false, ticksPerFrame = 2 }): plays a
+        // gameplay pack sprite once at a world position on every client.
+        host["try_spawn_effect"] = DynValue.NewCallback((_, args) =>
+        {
+            var request = ReadOptionalTableArgument(args, 0);
+            if (request is null)
+            {
+                return DynValue.False;
+            }
+
+            var spriteName = ReadRequiredStringField(request, "sprite", "Sprite");
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_spawn_effect", $"sprite {spriteName}")
+                && context.TrySpawnGameplaySpriteEffect(
+                    spriteName,
+                    ReadOptionalFloatField(request, float.NaN, "x", "X"),
+                    ReadOptionalFloatField(request, float.NaN, "y", "Y"),
+                    ReadOptionalFloatField(request, 0f, "rotation", "Rotation"),
+                    ReadOptionalBoolField(request, false, "flipX", "FlipX", "flip_x"),
+                    ReadOptionalIntField(request, 2, "ticksPerFrame", "TicksPerFrame", "ticks_per_frame")));
+        });
+        // try_play_screen_effect({ effect = "time_stop", x, y, durationTicks }): covers every client's
+        // view with a screen effect centred on a world position.
+        host["try_play_screen_effect"] = DynValue.NewCallback((_, args) =>
+        {
+            var request = ReadOptionalTableArgument(args, 0);
+            if (request is null)
+            {
+                return DynValue.False;
+            }
+
+            var effect = ReadRequiredStringField(request, "effect", "Effect");
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_play_screen_effect", $"effect {effect}")
+                && context.TryPlayGameplayScreenEffect(
+                    effect,
+                    ReadOptionalFloatField(request, float.NaN, "x", "X"),
+                    ReadOptionalFloatField(request, float.NaN, "y", "Y"),
+                    ReadOptionalIntField(request, 0, "durationTicks", "DurationTicks", "duration_ticks")));
+        });
+        // try_freeze_projectiles({ x, y, radius, ticks, travelPixels }): every projectile inside the
+        // circle holds still for ticks, then carries on as it was; blades thrown inside it fly
+        // travelPixels first.
+        host["try_freeze_projectiles"] = DynValue.NewCallback((_, args) =>
+        {
+            var request = ReadOptionalTableArgument(args, 0);
+            if (request is null)
+            {
+                return DynValue.False;
+            }
+
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_freeze_projectiles", "projectiles")
+                && context.TryFreezeGameplayProjectiles(
+                    ReadOptionalFloatField(request, float.NaN, "x", "X"),
+                    ReadOptionalFloatField(request, float.NaN, "y", "Y"),
+                    ReadOptionalFloatField(request, 0f, "radius", "Radius"),
+                    ReadOptionalIntField(request, 0, "ticks", "Ticks"),
+                    ReadOptionalFloatField(request, 0f, "travelPixels", "TravelPixels", "travel_pixels")));
+        });
+        // try_teleport_player(playerId, x, y): moves them straight toward x, y at once, stopping
+        // short of walls.
+        host["try_teleport_player"] = DynValue.NewCallback((_, args) =>
+        {
+            var playerId = ReadIntArgument(args, 0);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_teleport_player", $"player {playerId}")
+                && context.TryTeleportGameplayPlayer(
+                    playerId,
+                    (float)ReadDoubleArgument(args, 1),
+                    (float)ReadDoubleArgument(args, 2)));
+        });
+        // try_set_player_pose(playerId, suffix | nil, { ticksPerFrame, loop, durationTicks })
+        host["try_set_player_pose"] = DynValue.NewCallback((_, args) =>
+        {
+            var playerId = ReadIntArgument(args, 0);
+            var options = ReadOptionalTableArgument(args, 2);
+            return DynValue.NewBoolean(
+                CanIssueServerMutation("try_set_player_pose", $"player {playerId}")
+                && context.TrySetGameplayPose(
+                    playerId,
+                    ReadOptionalStringArgument(args, 1),
+                    options is null ? 2 : ReadOptionalIntField(options, 2, "ticksPerFrame", "TicksPerFrame", "ticks_per_frame"),
+                    ReadOptionalBoolField(options, false, "loop", "Loop"),
+                    options is null ? 0 : ReadOptionalIntField(options, 0, "durationTicks", "DurationTicks", "duration_ticks")));
+        });
         host["try_set_gameplay_ability_cooldown"] = DynValue.NewCallback((_, args) =>
         {
             var playerId = ReadIntArgument(args, 0);
@@ -1539,14 +1804,15 @@ internal sealed class LuaServerPlugin(
                     targetPlayerId,
                     (float)ReadDoubleArgument(args, 1),
                     ReadOptionalNullableIntArgument(args, 2),
-                    ReadOptionalStringArgument(args, 3)));
+                    ReadOptionalStringArgument(args, 3),
+                    ReadOptionalStringArgument(args, 4)));
         });
         host["try_apply_gameplay_healing"] = DynValue.NewCallback((_, args) =>
         {
             var playerId = ReadIntArgument(args, 0);
             return DynValue.NewBoolean(
                 CanIssueServerMutation("try_apply_gameplay_healing", $"player {playerId}")
-                && context.TryApplyGameplayHealing(playerId, (float)ReadDoubleArgument(args, 1)));
+                && context.TryApplyGameplayHealing(playerId, (float)ReadDoubleArgument(args, 1), ReadOptionalBoolArgument(args, 2, false)));
         });
         host["try_apply_gameplay_status_effect"] = DynValue.NewCallback((_, args) =>
         {
@@ -1666,6 +1932,22 @@ internal sealed class LuaServerPlugin(
             }
 
             context.Log($"[lua-plugin] register_gameplay_loadout rejected for {manifest.Id}: {errorMessage}");
+            return DynValue.False;
+        });
+        host["register_gameplay_class"] = DynValue.NewCallback((_, args) =>
+        {
+            if (!CanRegisterGameplayAbility("register_gameplay_class", "gameplay class registration"))
+            {
+                return DynValue.False;
+            }
+
+            var registration = ReadGameplayClassRegistration(ReadArgument(args, 0));
+            if (context.TryRegisterGameplayClass(registration, out var errorMessage))
+            {
+                return DynValue.True;
+            }
+
+            context.Log($"[lua-plugin] register_gameplay_class rejected for {manifest.Id}: {errorMessage}");
             return DynValue.False;
         });
         host["register_gameplay_slot_item"] = DynValue.NewCallback((_, args) =>
@@ -2284,6 +2566,70 @@ internal sealed class LuaServerPlugin(
             ReadOptionalStringField(table, "modPackId", "ModPackId", "mod_pack_id"));
     }
 
+    private static GameplayClassRegistration ReadGameplayClassRegistration(DynValue value)
+    {
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException("Gameplay class registration must be a Lua table.");
+        }
+
+        var table = value.Table;
+        var classId = ReadRequiredStringField(table, "classId", "ClassId", "class_id");
+        var movementTable = ReadOptionalTableField(table, "movement", "Movement")
+            ?? throw new InvalidOperationException("Gameplay class registration requires a movement table.");
+        var loadoutTable = ReadOptionalTableField(table, "loadout", "Loadout", "defaultLoadout", "DefaultLoadout", "default_loadout")
+            ?? throw new InvalidOperationException("Gameplay class registration requires a loadout table.");
+        var presentationTable = ReadOptionalTableField(table, "presentation", "Presentation");
+
+        // Unspecified movement values match the stock Civilian class.
+        var movement = new GameplayClassMovementDefinition(
+            ReadRequiredIntField(movementTable, "maxHealth", "MaxHealth", "max_health"),
+            ReadOptionalFloatField(movementTable, -7f, "collisionLeft", "CollisionLeft", "collision_left"),
+            ReadOptionalFloatField(movementTable, -12f, "collisionTop", "CollisionTop", "collision_top"),
+            ReadOptionalFloatField(movementTable, 8f, "collisionRight", "CollisionRight", "collision_right"),
+            ReadOptionalFloatField(movementTable, 12f, "collisionBottom", "CollisionBottom", "collision_bottom"),
+            ReadOptionalFloatField(movementTable, 1.07f, "runPower", "RunPower", "run_power"),
+            ReadOptionalFloatField(movementTable, 8.3f, "jumpStrength", "JumpStrength", "jump_strength"),
+            ReadOptionalIntField(movementTable, 0, "maxAirJumps", "MaxAirJumps", "max_air_jumps"),
+            ReadOptionalIntField(movementTable, 16, "tauntLengthFrames", "TauntLengthFrames", "taunt_length_frames"));
+        var loadout = new GameplayLoadoutRegistration(
+            classId,
+            ReadRequiredStringField(loadoutTable, "loadoutId", "LoadoutId", "loadout_id"),
+            ReadRequiredStringField(loadoutTable, "displayName", "DisplayName", "display_name"),
+            ReadRequiredStringField(loadoutTable, "primaryItemId", "PrimaryItemId", "primary_item_id"),
+            ReadOptionalStringField(loadoutTable, "secondaryItemId", "SecondaryItemId", "secondary_item_id"),
+            ReadOptionalStringField(loadoutTable, "utilityItemId", "UtilityItemId", "utility_item_id"),
+            ReadStringListField(loadoutTable, "abilityItemIds", "AbilityItemIds", "ability_item_ids"));
+        var presentation = presentationTable is null
+            ? null
+            : new GameplayClassPresentationDefinition(
+                ReadRequiredStringField(presentationTable, "spritePrefix", "SpritePrefix", "sprite_prefix"),
+                ReadOptionalStringField(presentationTable, "baseSuffix", "BaseSuffix", "base_suffix") ?? "S",
+                ReadOptionalStringField(presentationTable, "standSuffix", "StandSuffix", "stand_suffix"),
+                ReadOptionalStringField(presentationTable, "walkSuffix", "WalkSuffix", "walk_suffix"),
+                ReadOptionalStringField(presentationTable, "runSuffix", "RunSuffix", "run_suffix"),
+                ReadOptionalStringField(presentationTable, "jumpSuffix", "JumpSuffix", "jump_suffix"),
+                ReadOptionalStringField(presentationTable, "leanLeftSuffix", "LeanLeftSuffix", "lean_left_suffix"),
+                ReadOptionalStringField(presentationTable, "leanRightSuffix", "LeanRightSuffix", "lean_right_suffix"),
+                ReadOptionalStringField(presentationTable, "tauntSuffix", "TauntSuffix", "taunt_suffix"),
+                HumiliationSuffix: ReadOptionalStringField(presentationTable, "humiliationSuffix", "HumiliationSuffix", "humiliation_suffix"),
+                DeadSuffix: ReadOptionalStringField(presentationTable, "deadSuffix", "DeadSuffix", "dead_suffix"),
+                IntelSuffix: ReadOptionalStringField(presentationTable, "intelSuffix", "IntelSuffix", "intel_suffix"),
+                PoseSuffixes: ReadStringListField(presentationTable, "poses", "Poses", "poseSuffixes", "PoseSuffixes", "pose_suffixes"),
+                StandFramesPerSecond: ReadOptionalFloatField(presentationTable, 0f, "standFramesPerSecond", "StandFramesPerSecond", "stand_frames_per_second"),
+                ProjectileSprites: ReadStringMapField(presentationTable, "projectileSprites", "ProjectileSprites", "projectile_sprites"),
+                SpawnSound: ReadOptionalStringField(presentationTable, "spawnSound", "SpawnSound", "spawn_sound"));
+        return new GameplayClassRegistration(
+            classId,
+            ReadRequiredStringField(table, "displayName", "DisplayName", "display_name"),
+            movement,
+            loadout,
+            presentation,
+            ReadOptionalStringField(table, "botGraphPlayerClass", "BotGraphPlayerClass", "bot_graph_player_class") ?? string.Empty,
+            ReadOptionalStringField(table, "primaryWeaponKillFeedSprite", "PrimaryWeaponKillFeedSprite", "primary_weapon_kill_feed_sprite", "killFeedSprite") ?? string.Empty,
+            ReadOptionalStringField(table, "modPackId", "ModPackId", "mod_pack_id"));
+    }
+
     private static GameplaySlotItemRegistration ReadGameplaySlotItemRegistration(DynValue value)
     {
         if (value.Type != DataType.Table)
@@ -2320,7 +2666,10 @@ internal sealed class LuaServerPlugin(
             ReadOptionalFloatField(table, 0f, "speed", "Speed"),
             ReadOptionalFloatField(table, 0f, "directionRadians", "DirectionRadians", "direction_radians"),
             ReadOptionalFloatField(table, 0f, "damage", "Damage"),
-            ReadOptionalStringField(table, "killFeedWeaponSpriteName", "KillFeedWeaponSpriteName", "kill_feed_weapon_sprite_name"));
+            ReadOptionalStringField(table, "killFeedWeaponSpriteName", "KillFeedWeaponSpriteName", "kill_feed_weapon_sprite_name"),
+            ReadOptionalIntField(table, 0, "lifetimeTicks", "LifetimeTicks", "lifetime_ticks"),
+            ReadOptionalFloatField(table, 1f, "knockbackScale", "KnockbackScale", "knockback_scale"),
+            ReadOptionalStringField(table, "deathType", "DeathType", "death_type"));
     }
 
     private static GameplayItemPresentationDefinition? ReadOptionalGameplayItemPresentationDefinition(Table table)
@@ -2595,6 +2944,19 @@ internal sealed class LuaServerPlugin(
         return value.IsNil() ? defaultValue : (int)value.Number;
     }
 
+    private static PlayerTeam? ReadOptionalTeamField(Table table, params string[] names)
+    {
+        var value = ReadOptionalStringField(table, names);
+        if (value is null)
+        {
+            return null;
+        }
+
+        return Enum.TryParse<PlayerTeam>(value, ignoreCase: true, out var team) && Enum.IsDefined(team)
+            ? team
+            : throw new InvalidOperationException($"Unknown team \"{value}\".");
+    }
+
     private static int? ReadOptionalIntField(Table table, int? defaultValue, params string[] names)
     {
         var value = ReadField(table, names);
@@ -2649,6 +3011,35 @@ internal sealed class LuaServerPlugin(
         }
 
         return DynValue.Nil;
+    }
+
+    // A table of string keys to string values ({ blade = "KanoKnifeS" }), or null.
+    private static IReadOnlyDictionary<string, string>? ReadStringMapField(Table table, params string[] names)
+    {
+        var value = ReadField(table, names);
+        if (value.IsNil())
+        {
+            return null;
+        }
+
+        if (value.Type != DataType.Table)
+        {
+            throw new InvalidOperationException($"Field \"{names[0]}\" must be a table of names.");
+        }
+
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var pair in value.Table.Pairs)
+        {
+            if (pair.Key.Type == DataType.String
+                && pair.Value.Type == DataType.String
+                && !string.IsNullOrWhiteSpace(pair.Key.String)
+                && !string.IsNullOrWhiteSpace(pair.Value.String))
+            {
+                map[pair.Key.String.Trim()] = pair.Value.String.Trim();
+            }
+        }
+
+        return map.Count == 0 ? null : map;
     }
 
     private static IReadOnlyList<string>? ReadStringListField(Table table, params string[] names)
@@ -2869,25 +3260,37 @@ internal sealed class LuaServerPlugin(
         }
 
         var table = new Table(script);
-        foreach (var property in value.GetType().GetProperties(PublicInstanceProperties))
+        foreach (var entry in LuaTableProperties.GetOrAdd(value.GetType(), FindLuaTableProperties))
+        {
+            var dynValue = ToDynValue(script, entry.Property.GetValue(value), depth + 1);
+            table[entry.Name] = dynValue;
+            if (entry.CamelCaseName is not null)
+            {
+                table[entry.CamelCaseName] = dynValue;
+            }
+        }
+
+        return DynValue.NewTable(table);
+    }
+
+    private static LuaTableProperty[] FindLuaTableProperties(Type type)
+    {
+        var found = new List<LuaTableProperty>();
+        foreach (var property in type.GetProperties(PublicInstanceProperties))
         {
             if (!property.CanRead || property.GetIndexParameters().Length != 0)
             {
                 continue;
             }
 
-            var propertyValue = property.GetValue(value);
-            var dynValue = ToDynValue(script, propertyValue, depth + 1);
-            table[property.Name] = dynValue;
-
             var camelCaseName = ToCamelCase(property.Name);
-            if (!string.Equals(camelCaseName, property.Name, StringComparison.Ordinal))
-            {
-                table[camelCaseName] = dynValue;
-            }
+            found.Add(new LuaTableProperty(
+                property,
+                property.Name,
+                string.Equals(camelCaseName, property.Name, StringComparison.Ordinal) ? null : camelCaseName));
         }
 
-        return DynValue.NewTable(table);
+        return [.. found];
     }
 
     private static object? JsonElementToObject(JsonElement element)
@@ -3699,6 +4102,12 @@ internal sealed class LuaServerPlugin(
         return dynValue.Type == DataType.Number
             ? dynValue.Number
             : double.Parse(dynValue.CastToString(), CultureInfo.InvariantCulture);
+    }
+
+    private static float? ReadNullableFloatArgument(CallbackArguments args, int index)
+    {
+        var dynValue = ReadArgument(args, index);
+        return dynValue.IsNil() ? null : (float)ReadDoubleArgument(args, index);
     }
 
     private static double ReadOptionalDoubleArgument(CallbackArguments args, int index, double defaultValue)

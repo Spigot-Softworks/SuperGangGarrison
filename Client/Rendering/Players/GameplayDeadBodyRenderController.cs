@@ -729,10 +729,11 @@ public sealed class GameplayDeadBodyRenderController
                 {
                     var roundedOrigin = GetRoundedPlayerSpriteOrigin(renderPosition);
                     var frame = sprite.Frames[0];
-                    var corpseOrigin = new Vector2(frame.Width * 0.5f, frame.Height - (height * 0.5f));
+                    var artScale = GameplayPlayerSpriteRenderController.GetBodySpriteArtScale(spriteName);
+                    var corpseOrigin = new Vector2(frame.Width * 0.5f, frame.Height - (height * 0.5f / artScale));
                     var drawPosition = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y);
 
-                    _game.DrawSpriteFrameWithOptionalShadow(frame, drawPosition, tint, 0f, corpseOrigin, new Vector2(facingLeft ? -1f : 1f, 1f));
+                    _game.DrawSpriteFrameWithOptionalShadow(frame, drawPosition, tint, 0f, corpseOrigin, new Vector2(facingLeft ? -artScale : artScale, artScale));
                     return;
                 }
             }

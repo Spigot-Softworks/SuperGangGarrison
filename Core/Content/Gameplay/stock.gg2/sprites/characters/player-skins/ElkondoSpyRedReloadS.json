@@ -1,0 +1,18 @@
+{
+  "id": "ElkondoSpyRedReloadS",
+  "framePaths": [
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/0.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/1.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/2.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/3.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/4.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/5.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/6.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/7.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/8.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/9.png",
+    "assets/characters/player-skins/ElkondoSpyRedReloadS/10.png"
+  ],
+  "originX": 32,
+  "originY": 32
+}

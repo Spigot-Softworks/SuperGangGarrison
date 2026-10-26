@@ -36,7 +36,7 @@ public sealed partial class SimulationWorld
     }
 
     // Includes debug dummy players when enabled.
-    private IEnumerable<PlayerEntity> EnumerateSimulatedPlayers()
+    internal IEnumerable<PlayerEntity> EnumerateSimulatedPlayers()
     {
         foreach (var slot in NetworkPlayers.EnumerateEnabledNetworkPlayerSlots())
         {

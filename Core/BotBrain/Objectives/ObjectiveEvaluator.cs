@@ -25,7 +25,7 @@ public static class ObjectiveEvaluator
             GameModeKind.Arena => EvaluateArenaGoal(self, world),
             GameModeKind.ControlPoint => EvaluateControlPointGoal(self, world, ownTeam),
             GameModeKind.Vip => EvaluateControlPointGoal(self, world, ownTeam),
-            GameModeKind.Conquest => EvaluateControlPointGoal(self, world, ownTeam),
+            GameModeKind.Conquest => EvaluateConquestGoal(self, world, ownTeam),
             GameModeKind.KingOfTheHill => EvaluateControlPointGoal(self, world, ownTeam),
             GameModeKind.DoubleKingOfTheHill => EvaluateDoubleKingOfTheHillGoal(self, world, ownTeam),
             GameModeKind.Generator => EvaluateGeneratorGoal(self, world, ownTeam),
@@ -229,6 +229,26 @@ public static class ObjectiveEvaluator
         }
 
         return (world.Level.Bounds.Width * 0.5f, world.Level.Bounds.Height * 0.5f);
+    }
+
+    private static (float X, float Y) EvaluateConquestGoal(PlayerEntity self, SimulationWorld world, PlayerTeam ownTeam)
+    {
+        ControlPointState? nearest = null;
+        var nearestDistance = float.PositiveInfinity;
+        foreach (var point in world.ControlPoints)
+        {
+            if (point.IsLocked || (point.Team == ownTeam && !point.CappingTeam.HasValue))
+                continue;
+            var distance = Distance(self.X, self.Y, point.HealingAuraCenterX, point.HealingAuraCenterY);
+            if (distance < nearestDistance)
+            {
+                nearest = point;
+                nearestDistance = distance;
+            }
+        }
+        return nearest is null
+            ? EvaluateControlPointGoal(self, world, ownTeam)
+            : GetControlPointGoal(nearest);
     }
 
     private static (float X, float Y) EvaluateControlPointGoal(

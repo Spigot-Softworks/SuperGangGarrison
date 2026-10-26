@@ -37,6 +37,7 @@ public sealed partial class PlayerEntity
         float ExperimentalDemoknightPostRageRegenPerTickValue,
         int Health,
         int? NetworkMaxHealthOverrideValue,
+        int? ExperimentalMaxHealthOverrideValue,
         float Metal,
         bool IsCarryingIntel,
         int IntelPickupCooldownTicks,
@@ -266,6 +267,7 @@ public sealed partial class PlayerEntity
             ExperimentalDemoknightPostRageRegenPerTickValue,
             Health,
             NetworkMaxHealthOverrideValue,
+            ExperimentalMaxHealthOverrideValue,
             Metal,
             IsCarryingIntel,
             IntelPickupCooldownTicks,
@@ -527,6 +529,7 @@ public sealed partial class PlayerEntity
             ? MathF.Max(0f, state.ExperimentalDemoknightPostRageRegenPerTickValue)
             : 0f;
         NetworkMaxHealthOverrideValue = state.NetworkMaxHealthOverrideValue;
+        ExperimentalMaxHealthOverrideValue = state.ExperimentalMaxHealthOverrideValue;
         Health = int.Clamp(state.Health, 0, MaxHealth);
         Metal = state.Metal;
         IsCarryingIntel = state.IsCarryingIntel;

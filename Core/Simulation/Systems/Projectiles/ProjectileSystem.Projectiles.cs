@@ -88,7 +88,7 @@ public sealed partial class ProjectileSystem
         EntityStore.Add(bubble);
     }
 
-    public void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks)
+    public void SpawnBlade(PlayerEntity owner, float x, float y, float velocityX, float velocityY, int hitDamage, int lifetimeTicks = PlayerEntity.QuoteBladeLifetimeTicks, float knockbackScale = 1f, string? deathType = null)
     {
         var lifetimeSimulationTicks = GetSimulationTicksFromSourceTicks(lifetimeTicks);
         var blade = new BladeProjectileEntity(
@@ -102,7 +102,11 @@ public sealed partial class ProjectileSystem
             hitDamage,
             ticksRemaining: lifetimeSimulationTicks,
             lifetimeSimulationTicks: lifetimeSimulationTicks,
-            ownerAmmoGeneration: owner.QuoteBladeAmmoGeneration);
+            ownerAmmoGeneration: owner.QuoteBladeAmmoGeneration)
+        {
+            KnockbackScale = knockbackScale,
+            DeathType = deathType,
+        };
         if (owner.IsKritzCritBoosted)
         {
             blade.SetCritical(owner.ActiveKritzCritDamageMultiplier);

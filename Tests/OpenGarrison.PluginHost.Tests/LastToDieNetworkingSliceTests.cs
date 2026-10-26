@@ -78,7 +78,7 @@ public sealed class LastToDieNetworkingSliceTests
     [Fact]
     public void SemanticMessagesRoundTripThroughLegacyAndProtocol64Codecs()
     {
-        Assert.Equal(112, ProtocolVersion.Current);
+        Assert.Equal(116, ProtocolVersion.Current);
         var hello = new HelloMessage(
             "Host",
             ProtocolVersion.Current,

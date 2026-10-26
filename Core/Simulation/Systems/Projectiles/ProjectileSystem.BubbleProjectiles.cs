@@ -38,6 +38,12 @@ public sealed partial class ProjectileSystem
                     continue;
                 }
 
+                if (world.IsProjectileFrozen(bubble.X, bubble.Y))
+                {
+                    bubble.HoldStill();
+                    continue;
+                }
+
                 var owner = world.FindPlayerById(bubble.OwnerId);
                 if (owner is null || !owner.IsAlive)
                 {

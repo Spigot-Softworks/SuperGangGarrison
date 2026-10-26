@@ -21,7 +21,8 @@ internal sealed partial class SnapshotApplySystem
                 ? Math.Max(snapshot.TimeRemainingTicks, snapshot.TimeLimitTicks)
                 : Math.Max(snapshot.TimeRemainingTicks, _host.MatchRules.TimeLimitTicks),
             CapLimit = snapshot.CapLimit > 0
-                ? Math.Clamp(snapshot.CapLimit, 1, 255)
+                ? Math.Clamp(snapshot.CapLimit, 1,
+                    (GameModeKind)snapshot.GameMode == GameModeKind.Conquest ? ConquestRules.MaximumScoreLimit : 255)
                 : _host.MatchRules.CapLimit,
         };
         _host.MatchState = new MatchState(
@@ -78,6 +79,9 @@ internal sealed partial class SnapshotApplySystem
         // authoritative light state afterwards so that reset cannot erase its colours.
         ApplySnapshotMapLights(snapshot);
         _host.MapLogic.ApplyAuthoritativeDamageableZones(snapshot.DamageableZoneStates);
+        _host.MapLogic.ApplyAuthoritativeRoundEndCountdowns(snapshot.MapRoundEndStates);
+        _host.MapLogic.ApplyAuthoritativeMapScriptObjects(snapshot.MapScriptObjectStates);
+        _host.MapLogic.ApplyAuthoritativeMapScriptError(snapshot.MapScriptError);
         _host.RedIntel.ApplyNetworkState(
             snapshot.RedIntel.X,
             snapshot.RedIntel.Y,

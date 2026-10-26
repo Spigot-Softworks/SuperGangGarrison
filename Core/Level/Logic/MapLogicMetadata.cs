@@ -92,6 +92,7 @@ public static class MapLogicMetadata
             || type.Equals(PlayerTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(IntelTriggerEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(ScoreTriggerEntityType, StringComparison.OrdinalIgnoreCase)
+            || MapRoundEndMetadata.IsEntityType(type)
             || type.Equals(ActivatorEntityType, StringComparison.OrdinalIgnoreCase)
             || type.Equals(AreaEntityType, StringComparison.OrdinalIgnoreCase)
             || DamageableMetadata.IsDamageableEntityType(type)
@@ -100,6 +101,7 @@ public static class MapLogicMetadata
 
     public static bool IsLogicOutputEntityType(string? type)
     {
+        if (MapRoundEndMetadata.IsEntityType(type)) return true;
         if (string.IsNullOrWhiteSpace(type))
         {
             return false;

@@ -17,16 +17,14 @@ public partial class Game1
         var isConquest = _world.MatchRules.Mode == GameModeKind.Conquest;
         if (isConquest)
         {
-            // Make room for the third point while preserving the player's HUD overrides.
-            SetHudElementRuntimeDefault(_hudLayoutProfile.Defaults[HudElementId.MatchKothRedTimer] with { Offset = new Vector2(-162f, -28f) });
-            SetHudElementRuntimeDefault(_hudLayoutProfile.Defaults[HudElementId.MatchKothBlueTimer] with { Offset = new Vector2(162f, -28f) });
+            SetConquestScoreHudDefaults();
         }
 
         DrawKothPointStatus();
         DrawKothTeamTimer(
             HudElementId.MatchKothRedTimer,
             centerX - (isConquest ? 162f : 132f),
-            viewportHeight - 28f,
+            isConquest ? 30f : viewportHeight - 28f,
             PlayerTeam.Red,
             isConquest ? _world.RedCaps : _world.ObjectiveRules.KothRedTimerTicksRemaining,
             IsKothTimerActive(PlayerTeam.Red),
@@ -35,7 +33,7 @@ public partial class Game1
         DrawKothTeamTimer(
             HudElementId.MatchKothBlueTimer,
             centerX + (isConquest ? 162f : 132f),
-            viewportHeight - 28f,
+            isConquest ? 30f : viewportHeight - 28f,
             PlayerTeam.Blue,
             isConquest ? _world.BlueCaps : _world.ObjectiveRules.KothBlueTimerTicksRemaining,
             IsKothTimerActive(PlayerTeam.Blue),
@@ -45,7 +43,7 @@ public partial class Game1
         if (isConquest)
         {
             DrawMatchTimerHud(centerX);
-            DrawHudTextCentered($"First to {ConquestRules.ScoreLimit}", new Vector2(centerX, 64f), Color.White, 1f);
+            DrawHudTextCentered($"First to {_world.MatchRules.CapLimit}", new Vector2(centerX, 64f), Color.White, 1f);
         }
         else if (_world.ObjectiveRules.KothUnlockTicksRemaining > 0)
         {
@@ -55,6 +53,14 @@ public partial class Game1
         {
             DrawMatchTimerHud(centerX);
         }
+    }
+
+    private void SetConquestScoreHudDefaults()
+    {
+        _hudLayoutProfile.SetRuntimeDefault(HudLayoutDefaults.CreateConquestScoreCounter(
+            _hudLayoutProfile.Defaults[HudElementId.MatchKothRedTimer], blueTeam: false), overrideGg2Default: true);
+        _hudLayoutProfile.SetRuntimeDefault(HudLayoutDefaults.CreateConquestScoreCounter(
+            _hudLayoutProfile.Defaults[HudElementId.MatchKothBlueTimer], blueTeam: true), overrideGg2Default: true);
     }
 
     private void DrawKothPointStatus()
@@ -71,8 +77,10 @@ public partial class Game1
 
         var origin = resolved.Origin;
         var scale = resolved.Layout.Scale;
+        ConquestPointHudLayout? conquestLayout = _world.MatchRules.Mode == GameModeKind.Conquest
+            ? ConquestPointHudLayout.Create(_world.ControlPoints.Count, origin, ViewportWidth, ViewportHeight, scale) : null;
+        if (conquestLayout.HasValue) scale = conquestLayout.Value.Scale;
         var objectiveHudY = origin.Y;
-        var objectiveHudCounterY = origin.Y + (3f * scale);
         var drawX = origin.X - MathF.Floor(_world.ControlPoints.Count / 2f) * 48f * scale;
         if (_world.MatchRules.Mode == GameModeKind.Conquest)
         {
@@ -82,6 +90,7 @@ public partial class Game1
         for (var index = 0; index < _world.ControlPoints.Count; index += 1)
         {
             var point = _world.ControlPoints[index];
+            var position = conquestLayout?.GetPosition(index) ?? new Vector2(drawX, objectiveHudY);
             var teamOffset = point.Team switch
             {
                 PlayerTeam.Red => 60,
@@ -96,23 +105,28 @@ public partial class Game1
                 progressFrame = teamOffset + Math.Clamp((int)MathF.Floor(progress * 30f), 0, 30);
             }
 
-            TryDrawScreenSprite("ControlPointStatusS", progressFrame, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f * scale, 3f * scale));
+            TryDrawScreenSprite("ControlPointStatusS", progressFrame, position, Color.White, new Vector2(3f * scale, 3f * scale));
 
             if (point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointLockS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f * scale, 3f * scale));
+                TryDrawScreenSprite("ControlPointLockS", 0, position, Color.White, new Vector2(3f * scale, 3f * scale));
             }
 
             if (point.Cappers > 0 && !point.IsLocked)
             {
-                TryDrawScreenSprite("ControlPointCappersS", 0, new Vector2(drawX, objectiveHudY), Color.White, new Vector2(3f * scale, 3f * scale));
-                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), new Vector2(drawX + (13f * scale), objectiveHudCounterY), Color.Black, 1.5f * scale);
+                TryDrawScreenSprite("ControlPointCappersS", 0, position, Color.White, new Vector2(3f * scale, 3f * scale));
+                DrawHudTextCentered(point.Cappers.ToString(CultureInfo.InvariantCulture), position + new Vector2(13f * scale, 3f * scale), Color.Black, 1.5f * scale);
             }
 
             drawX += 60f * scale;
         }
 
         var lastX = drawX - (60f * scale);
+        if (conquestLayout.HasValue)
+        {
+            UpdateHudElementBounds(HudElementId.MatchObjectiveStatus, conquestLayout.Value.Bounds);
+            return;
+        }
         UpdateHudElementBounds(
             HudElementId.MatchObjectiveStatus,
             new Rectangle(
@@ -168,7 +182,7 @@ public partial class Game1
         }
         else
         {
-            var timerLimitTicks = isScore ? ConquestRules.ScoreLimit : Math.Max(1, _config.TicksPerSecond * 180);
+            var timerLimitTicks = isScore ? Math.Max(1, _world.MatchRules.CapLimit) : Math.Max(1, _config.TicksPerSecond * 180);
             var timerFrame = Math.Clamp((int)MathF.Floor((ticksRemaining / (float)timerLimitTicks) * 12f), 0, 12);
             TryDrawScreenSprite(
                 "TimerS",

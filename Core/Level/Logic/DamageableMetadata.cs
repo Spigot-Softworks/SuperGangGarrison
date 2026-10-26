@@ -15,7 +15,8 @@ public readonly record struct DamageableZoneConfiguration(
     float RespawnSeconds = 0f,
     int OnRedDestroyedNodeIndex = -1,
     int OnBlueDestroyedNodeIndex = -1,
-    int OnDestroyedNodeIndex = -1)
+    int OnDestroyedNodeIndex = -1,
+    int DestroyWhenNodeIndex = -1)
 {
     public bool IsConfigured => MaxHealth > 0f;
 }
@@ -26,6 +27,7 @@ public static class DamageableMetadata
 
     public const string HealthPropertyKey = "health";
     public const string HealWhenPropertyKey = "healWhen";
+    public const string DestroyWhenPropertyKey = "destroyWhen";
     public const string ShowHealthBarPropertyKey = "showHealthBar";
     public const string BlockPlayersPropertyKey = "blockPlayers";
     public const string DisableWhenDestroyedPropertyKey = "disableWhenDestroyed";

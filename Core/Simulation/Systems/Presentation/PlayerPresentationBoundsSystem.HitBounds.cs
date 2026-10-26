@@ -47,7 +47,8 @@ internal sealed partial class PlayerPresentationBoundsSystem
             player.IsSniperScoped,
             player.IsSourceFacingLeft,
             player.IsCarryingIntel,
-            _host.IsPlayerHumiliated(player));
+            _host.IsPlayerHumiliated(player),
+            GameplayPlayerPoses.GetPackedState(player));
         if (_host.CombatRuntime.PresentationHitBoundsCache.TryGetValue(player.Id, out var cached)
             && cached.Key.Equals(key))
         {
@@ -102,11 +103,18 @@ internal sealed partial class PlayerPresentationBoundsSystem
         return true;
     }
 
+    // Quote/Curly and Custom-slot classes have no usable legacy slot presentation,
+    // so their hit-mask sprites come from their own gameplay class.
+    private static bool UsesGameplayClassPresentation(PlayerEntity player)
+    {
+        return player.IsQuoteCurly || player.ClassDefinition.IsCustomSlot;
+    }
+
     internal string? GetPlayerPresentationBodySpriteName(PlayerEntity player)
     {
         if (_host.IsPlayerHumiliated(player))
         {
-            if (player.IsQuoteCurly)
+            if (UsesGameplayClassPresentation(player))
             {
                 return GetGameplayPresentationSpriteName(
                     player.GameplayClassId,
@@ -122,8 +130,14 @@ internal sealed partial class PlayerPresentationBoundsSystem
                 "HS");
         }
 
-        if (player.IsQuoteCurly)
+        if (UsesGameplayClassPresentation(player))
         {
+            // A plugin pose (a crouch, say) sets the hit mask until it is replaced or cleared.
+            if (GameplayPlayerPoses.TryGet(player, out var pose))
+            {
+                return GetGameplayTeamSpriteName(player.GameplayClassId, player.Team, pose.Suffix);
+            }
+
             if (player.IsTaunting)
             {
                 return GetGameplayPresentationSpriteName(

@@ -4,6 +4,8 @@
 
 - [Codebase orientation](CODEBASE_ORIENTATION.md): projects, runtime flow, and configuration.
 - [Server management](SERVER_MANAGEMENT.md): verified administrators, permissions, and player titles.
+- [Conquest](Conquest.md): mode rules, scoring, and map authoring.
+- [Builder lights](BuilderLighting.md): presets, third-colour logic, and mask painting.
 - [Manual client performance capture](manual-performance-capture.md): launch a normal desktop client capture and inspect frame drops.
 - [Voice chat and Jukebox](design/VOICE_CHAT_JUKEBOX.md): controls, playlists, and audio configuration.
 - [CRT filter implementation and research](design/CRT_FILTER.md): desktop controls, rendering integration, researched display models, and calibration limits.

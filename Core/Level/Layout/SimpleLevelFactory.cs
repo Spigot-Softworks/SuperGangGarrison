@@ -198,7 +198,9 @@ public static class SimpleLevelFactory
             weather: importedRoom.Weather,
             indoorRegions: importedRoom.IndoorRegions,
             mapLights: importedRoom.MapLights,
-            lighting: importedRoom.Lighting);
+            lighting: importedRoom.Lighting,
+            mapScriptSource: importedRoom.MapScriptSource,
+            mapScriptNodeNames: importedRoom.MapScriptNodeNames);
         return SimpleLevelScaling.ApplyUniformScale(level, mapScale);
     }
 
@@ -718,6 +720,7 @@ public static class SimpleLevelFactory
 
     private static IEnumerable<string> EnumerateStockMapPackageManifestRelativePaths(OpenGarrisonStockMapDefinition definition)
     {
+        yield return Path.Combine("StockMaps", "Classic", definition.LevelName, $"{definition.LevelName}.json");
         yield return Path.Combine("StockMaps", definition.LevelName, $"{definition.LevelName}.json");
         yield return Path.Combine("StockMaps", definition.IniKey, $"{definition.IniKey}.json");
     }

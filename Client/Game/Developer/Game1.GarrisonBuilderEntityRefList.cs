@@ -24,7 +24,7 @@ public partial class Game1
         new GarrisonBuilderMultiEntityRefPropertyDescriptor
         {
             PropertyKey = MapLogicMetadata.ActivatorEntityPropertyKey,
-            RowLabelPrefix = "Entity",
+            RowLabelPrefix = "Targets",
             PickPromptLabel = "Pick entities on the map",
         },
     ];

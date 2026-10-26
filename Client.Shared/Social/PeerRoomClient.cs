@@ -9,7 +9,7 @@ namespace OpenGarrison.ClientShared;
 
 public sealed record PeerPracticeSettings(string Map = "cp_powerstrip", int MapArea = 1, int TickRate = 30,
     int TimeLimitMinutes = 15, int CaptureLimit = 5, int RespawnSeconds = 5, int RedBots = 0, int BlueBots = 1,
-    bool SpecialAbilities = true, string Difficulty = "standard");
+    bool SpecialAbilities = true, string Difficulty = "standard", int ConquestScoreLimit = 200, bool Hardcore = false);
 public sealed record PeerRoomRequest(string ClientId, string ClientSecret, string FriendCode, string DisplayName,
     string RequestId, int ProtocolVersion, string ContentId, string Kind = "LastToDie", string Code = "",
     PeerPracticeSettings? Settings = null);

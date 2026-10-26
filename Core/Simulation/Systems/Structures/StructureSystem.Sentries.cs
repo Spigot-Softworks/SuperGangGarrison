@@ -138,6 +138,12 @@ internal sealed partial class StructureSystem
                 continue;
             }
 
+            // Inside a time stop (a freeze zone) a sentry or dispenser does nothing until it ends.
+            if (_host.IsInFreezeZone(sentry.X, sentry.Y))
+            {
+                continue;
+            }
+
             var wasLanded = sentry.HasLanded;
             sentry.Advance(_host.Level, _host.Bounds);
             if (!wasLanded && sentry.HasLanded)

@@ -56,7 +56,8 @@ public sealed class GameplayPlayerSpriteRenderController
 
             var facingScale = GetRenderFacingScale(player);
             var playerScale = player.PlayerScale;
-            var scale = new Vector2(facingScale * playerScale, playerScale);
+            var bodyScale = playerScale * GetBodySpriteArtScale(spriteName);
+            var scale = new Vector2(facingScale * bodyScale, bodyScale);
             var frameIndex = isHeavyEating
                 ? GetHeavyEatSpriteFrameIndex(
                     _game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team,
@@ -227,7 +228,8 @@ public sealed class GameplayPlayerSpriteRenderController
 
             var facingScale = GetRenderFacingScale(player);
             var playerScale = player.PlayerScale;
-            var scale = new Vector2(facingScale * playerScale, playerScale);
+            var bodyScale = playerScale * GetBodySpriteArtScale(spriteName);
+            var scale = new Vector2(facingScale * bodyScale, bodyScale);
             var frameIndex = isHeavyEating
                 ? GetHeavyEatSpriteFrameIndex(
                     _game.GetPlayerHeavyEatTicksRemaining(player), sprite.Frames.Count, player.Team,
@@ -252,6 +254,9 @@ public sealed class GameplayPlayerSpriteRenderController
 
         public PlayerBodySpriteSelection GetPlayerBodySpriteSelection(PlayerEntity player)
         {
+            if (KingpinPrototype.IsKingpin(player) && !player.IsTaunting && !_game._world.IsPlayerHumiliated(player))
+                return new PlayerBodySpriteSelection(player.Team == PlayerTeam.Blue ? "KingpinBlueS" : "KingpinRedS",
+                    KingpinPrototype.GetSpriteFrame(_game.GetPlayerPredictedPresentationState(player)), 0f, 0f, false, false);
             if (_game._networkClient.Profile.QuoteAppearsAsImpostor && player.ClassId == PlayerClass.Quote)
             {
                 var teamName = player.Team == PlayerTeam.Blue ? "Blue" : "Red";
@@ -294,6 +299,11 @@ public sealed class GameplayPlayerSpriteRenderController
             if (_game._world.IsPlayerHumiliated(player))
             {
                 return new PlayerBodySpriteSelection(GetPresentationSpriteName(player, static presentation => presentation.HumiliationSuffix ?? presentation.BaseSuffix, "HS"), animationImage, 0f, 0f, false, true);
+            }
+
+            if (TryGetPluginPoseSelection(player, renderState, out var poseSelection))
+            {
+                return poseSelection;
             }
 
             if (player.ClassId == PlayerClass.Soldier && _game.GetPlayerIsBuffBannerDeploying(player))
@@ -340,6 +350,10 @@ public sealed class GameplayPlayerSpriteRenderController
                 {
                     bodyYOffset = 6f;
                 }
+                else if (GetClassPresentation(player.GameplayClassId) is { StandFramesPerSecond: > 0f } standPresentation)
+                {
+                    animationImage = (renderState?.StandElapsedSeconds ?? 0f) * standPresentation.StandFramesPerSecond;
+                }
             }
             else if (player.ClassId == PlayerClass.Heavy && horizontalSourceStepSpeed < 3f)
             {
@@ -372,6 +386,43 @@ public sealed class GameplayPlayerSpriteRenderController
 
             return new PlayerBodySpriteSelection(spriteName, animationImage, bodyYOffset, equipmentOffset, player.IsCarryingIntel, false);
         }
+
+        // A move pose set by a plugin (GameplayPlayerPoses) replaces the body sprite while it plays.
+        private bool TryGetPluginPoseSelection(PlayerEntity player, PlayerRenderState? renderState, out PlayerBodySpriteSelection selection)
+        {
+            selection = default;
+            if (renderState is null || !GameplayPlayerPoses.TryGet(player, out var pose))
+            {
+                return false;
+            }
+
+            // A pose the render state hasn't seen yet (set after this frame's update) just started.
+            var elapsedSeconds = pose.Sequence == renderState.PoseSequence ? renderState.PoseElapsedSeconds : 0f;
+            var elapsedTicks = elapsedSeconds * LegacyMovementModel.SourceTicksPerSecond;
+            if (pose.DurationTicks > 0 && elapsedTicks >= pose.DurationTicks)
+            {
+                return false;
+            }
+
+            var spriteName = GetTeamSpriteName(player, pose.Suffix);
+            var sprite = spriteName is null ? null : _game.GetResolvedSprite(spriteName);
+            if (spriteName is null || sprite is null || sprite.Frames.Count == 0)
+            {
+                return false;
+            }
+
+            var image = elapsedTicks / System.Math.Max(1, pose.TicksPerFrame);
+            if (!pose.Loop)
+            {
+                image = System.MathF.Min(image, sprite.Frames.Count - 1);
+            }
+
+            selection = new PlayerBodySpriteSelection(spriteName, image, 0f, 0f, player.IsCarryingIntel, false);
+            return true;
+        }
+
+        public static float GetBodySpriteArtScale(string spriteName)
+            => spriteName.StartsWith("Kingpin", System.StringComparison.Ordinal) ? KingpinPrototype.BodySpriteScale : 1f;
 
         public static float GetPlayerFacingScale(PlayerEntity player)
         {
@@ -500,6 +551,12 @@ public sealed class GameplayPlayerSpriteRenderController
                 var radians = System.MathF.PI * _game.GetBackstabReplacementDirectionDegrees(player) / 180f;
                 return System.MathF.Cos(radians) < 0f ? -1f : 1f;
             }
+            // A facing lock (a plugin move) holds the sprite, whatever the local mouse says.
+            if (player.FacingLockDirection != 0)
+            {
+                return player.FacingLockDirection;
+            }
+
             if (ReferenceEquals(player, _game._world.LocalPlayer)
                 && _game.GameplayRuntimeSettings.UseLocalWeaponRotation
                 && _game.TryGetLocalPlayerAimDirection(player, out var aimDirectionDegrees))

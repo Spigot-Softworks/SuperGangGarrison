@@ -456,8 +456,10 @@ internal static class BotBrainMovementProbe
                     LaunchSpeedPadding);
             }
 
-            player.Advance(input, jumpPressed, level, team, 1d / SimulationConfig.DefaultTicksPerSecond);
+            BotNavigationEnvironment.AdvanceProbe(level, player, input, jumpPressed, team);
             previousInput = input;
+            if (!BotNavigationEnvironment.IsSafe(level, player))
+                break;
             if (!player.IsGrounded)
             {
                 hasBeenAirborne = true;
@@ -620,9 +622,9 @@ internal static class BotBrainMovementProbe
         {
             var input = action.GetInput(tick, player, to);
             var jumpPressed = input.Up && !previousInput.Up;
-            player.Advance(input, jumpPressed, level, team, 1d / SimulationConfig.DefaultTicksPerSecond);
+            BotNavigationEnvironment.AdvanceProbe(level, player, input, jumpPressed, team);
             previousInput = input;
-            if (!player.IsAlive)
+            if (!BotNavigationEnvironment.IsSafe(level, player))
             {
                 next = default;
                 return false;
@@ -905,8 +907,10 @@ internal static class BotBrainMovementProbe
                     LaunchSpeedPadding);
             }
 
-            player.Advance(input, jumpPressed, level, team, 1d / SimulationConfig.DefaultTicksPerSecond);
+            BotNavigationEnvironment.AdvanceProbe(level, player, input, jumpPressed, team);
             previousInput = input;
+            if (!BotNavigationEnvironment.IsSafe(level, player))
+                break;
             if (!player.IsGrounded)
             {
                 hasBeenAirborne = true;
@@ -1424,7 +1428,7 @@ internal static class BotBrainClassMask
     private static readonly CachedCertifiedProfileMask?[] CertifiedProfileMasksByClass = new CachedCertifiedProfileMask?[11];
 
     public static bool CoversAll(int mask) =>
-        Enum.GetValues<PlayerClass>().All(playerClass => Contains(mask, playerClass));
+        PlayerClassSlots.Stock.All(playerClass => Contains(mask, playerClass));
 
     public static int For(PlayerClass playerClass) => 1 << (int)playerClass;
 
@@ -1448,7 +1452,7 @@ internal static class BotBrainClassMask
 
         // CharacterClassCatalog.GetDefinition historically falls back to Scout
         // for undefined enum values; preserve that behavior for this lookup.
-        var candidateClass = Enum.IsDefined(playerClass) ? playerClass : PlayerClass.Scout;
+        var candidateClass = PlayerClassSlots.IsStock(playerClass) ? playerClass : PlayerClass.Scout;
         var candidate = runtimeRegistry.CreateCharacterClassDefinition(candidateClass);
         var candidateClassIndex = (int)candidate.Id;
         if (candidateClassIndex <= 0 || candidateClassIndex >= CertifiedProfileMasksByClass.Length)

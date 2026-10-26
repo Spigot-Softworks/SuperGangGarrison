@@ -53,7 +53,9 @@ public static class CustomMapRoomObjectFactory
             "moveboxdown" => CreateMarker(RoomObjectType.MoveBoxDown, x, y, 42f, 42f, "sprite64", normalizedXScale, normalizedYScale, sourceName: entityType, value: moveBoxImpulse),
             "moveboxleft" => CreateMarker(RoomObjectType.MoveBoxLeft, x, y, 42f, 42f, "sprite64", normalizedXScale, normalizedYScale, sourceName: entityType, value: moveBoxImpulse),
             "moveboxright" => CreateMarker(RoomObjectType.MoveBoxRight, x, y, 42f, 42f, "sprite64", normalizedXScale, normalizedYScale, sourceName: entityType, value: moveBoxImpulse),
-            "controlpoint" or "controlpoint1" or "controlpoint2" or "controlpoint3" or "controlpoint4" or "controlpoint5"
+            "controlpoint"
+                => CreateControlPointMarker(RoomObjectType.ControlPoint, x, y, entityType, normalizedXScale, normalizedYScale, properties),
+            _ when ControlPointMarkerIndex.TryParseSourceName(entityType, out _)
                 => CreateControlPointMarker(RoomObjectType.ControlPoint, x, y, entityType, normalizedXScale, normalizedYScale, properties),
             "kothcontrolpoint" => CreateControlPointMarker(RoomObjectType.ControlPoint, x, y, entityType, normalizedXScale, normalizedYScale, properties),
             "kothredcontrolpoint" => CreateControlPointMarker(
@@ -93,7 +95,12 @@ public static class CustomMapRoomObjectFactory
             marker = marker with { X = topLeftX, Y = topLeftY };
         }
 
-        return marker.Type != default || entityType.Equals("spawnroom", StringComparison.OrdinalIgnoreCase);
+        var created = marker.Type != default || entityType.Equals("spawnroom", StringComparison.OrdinalIgnoreCase);
+        if (created && properties.TryGetValue(MapLogicMetadata.MapEntityIdPropertyKey, out var mapEntityId))
+            marker = marker with { MapEntityId = mapEntityId.Trim() };
+        if (created) marker = marker with
+            { ObjectName = MapObjectMetadata.Name(properties), ObjectGroups = MapObjectMetadata.Groups(properties) };
+        return created;
     }
 
     public static bool TryCreateFromBuilderEntity(CustomMapBuilderEntity entity, out RoomObjectMarker marker)

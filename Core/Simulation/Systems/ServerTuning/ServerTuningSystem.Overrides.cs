@@ -233,10 +233,12 @@ internal sealed partial class ServerTuningSystem
 
     internal void ApplyNetworkPlayerMaxHealthOverride(byte slot, PlayerEntity player, bool refillHealth)
     {
+        int? healthOverride = slot != 0 && _host.PlayerRegistry.MaxHealthOverrides.TryGetValue(slot, out var maxHealth)
+            ? maxHealth : null;
+        if (_host.ExperimentalGameplaySettings.EnableHardcore)
+            healthOverride = Math.Min(healthOverride ?? player.ClassDefinition.MaxHealth, ExperimentalGameplaySettings.HardcoreMaxHealth);
         player.SetExperimentalMaxHealthOverride(
-            slot != 0 && _host.PlayerRegistry.MaxHealthOverrides.TryGetValue(slot, out var maxHealth)
-                ? maxHealth
-                : null,
+            healthOverride,
             refillHealth);
     }
 

@@ -68,6 +68,7 @@ public enum Protocol64EventId : ushort
     AudioRelay = 55,
     ServerAudioState = 56,
     VoiceChannelMembership = 57,
+    GameplayContentSync = 58,
     LastToDieCommand = LastToDieProtocolSchemaIds.Command,
     LastToDieCommandResult = LastToDieProtocolSchemaIds.CommandResult,
     LastToDieRunSnapshot = LastToDieProtocolSchemaIds.RunSnapshot,

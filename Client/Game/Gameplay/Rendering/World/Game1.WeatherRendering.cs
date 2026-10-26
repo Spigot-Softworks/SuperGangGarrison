@@ -15,6 +15,19 @@ public partial class Game1
 
     private readonly RetroWeatherField _weatherField = new();
     private readonly Stopwatch _weatherClock = Stopwatch.StartNew();
+
+    // A time stop pauses this clock, so the weather and everything else it times hold still.
+    private void SyncTimeStopPresentationClock(bool timeStopped)
+    {
+        if (timeStopped && _weatherClock.IsRunning)
+        {
+            _weatherClock.Stop();
+        }
+        else if (!timeStopped && !_weatherClock.IsRunning)
+        {
+            _weatherClock.Start();
+        }
+    }
     private SimpleLevel? _weatherSkyMaskLevel;
     private WeatherSkyMask? _weatherSkyMask;
     private readonly System.Collections.Generic.List<FireflyInstance> _fireflies = new();

@@ -97,11 +97,14 @@ public static partial class ProtocolCodec
 
     private static void WriteControlPointStates(BinaryWriter writer, IReadOnlyList<SnapshotControlPointState> controlPoints)
     {
-        writer.Write((byte)controlPoints.Count);
+        var extended = controlPoints.Count >= byte.MaxValue || controlPoints.Any(point => point.Index > byte.MaxValue);
+        writer.Write(extended ? byte.MaxValue : (byte)controlPoints.Count);
+        if (extended) WriteVariableInt32(writer, controlPoints.Count);
         for (var index = 0; index < controlPoints.Count; index += 1)
         {
             var point = controlPoints[index];
-            writer.Write(point.Index);
+            if (extended) WriteVariableInt32(writer, point.Index);
+            else writer.Write((byte)point.Index);
             writer.Write(point.Team);
             writer.Write(point.CappingTeam);
             writer.Write(point.CappingTicks);
@@ -114,12 +117,16 @@ public static partial class ProtocolCodec
 
     private static List<SnapshotControlPointState> ReadControlPointStates(BinaryReader reader)
     {
-        var count = reader.ReadByte();
+        var count = (int)reader.ReadByte();
+        var extended = count == byte.MaxValue;
+        if (extended) count = ReadVariableInt32(reader);
+        if (count < 0 || count > (reader.BaseStream.Length - reader.BaseStream.Position) / 10)
+            throw new InvalidDataException("Invalid control-point snapshot count.");
         var points = new List<SnapshotControlPointState>(count);
         for (var index = 0; index < count; index += 1)
         {
             points.Add(new SnapshotControlPointState(
-                reader.ReadByte(),
+                extended ? ReadVariableInt32(reader) : reader.ReadByte(),
                 reader.ReadByte(),
                 reader.ReadByte(),
                 reader.ReadUInt16(),

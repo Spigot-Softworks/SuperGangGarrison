@@ -110,6 +110,9 @@ public static partial class ProtocolCodec
         writer.Write(snapshot.CapLimit);
         WriteMapLightStates(writer, snapshot.MapLightStates);
         WriteDamageableZoneStates(writer, snapshot.DamageableZoneStates);
+        WriteMapRoundEndStates(writer, snapshot.MapRoundEndStates);
+        WriteMapScriptObjectStates(writer, snapshot.MapScriptObjectStates);
+        WriteString(writer, snapshot.MapScriptError, 4096, nameof(snapshot.MapScriptError));
         WriteControlPointStates(writer, snapshot.ControlPoints);
         WriteGeneratorStates(writer, snapshot.Generators);
         WriteDeathCamState(writer, snapshot.LocalDeathCam);
@@ -252,6 +255,9 @@ public static partial class ProtocolCodec
         var capLimit = reader.ReadInt32();
         var mapLightStates = ReadMapLightStates(reader);
         var damageableZoneStates = ReadDamageableZoneStates(reader);
+        var mapRoundEndStates = ReadMapRoundEndStates(reader);
+        var mapScriptObjectStates = ReadMapScriptObjectStates(reader);
+        var mapScriptError = ReadString(reader, 4096);
         var controlPoints = ReadControlPointStates(reader);
         var generators = ReadGeneratorStates(reader);
         var deathCam = ReadDeathCamState(reader);
@@ -332,6 +338,9 @@ public static partial class ProtocolCodec
             CapLimit = capLimit,
             MapLightStates = mapLightStates,
             DamageableZoneStates = damageableZoneStates,
+            MapRoundEndStates = mapRoundEndStates,
+            MapScriptObjectStates = mapScriptObjectStates,
+            MapScriptError = mapScriptError,
             BaselineFrame = baselineFrame,
             IsDelta = isDelta,
             EntityCollectionCompletenessFlags = entityCollectionCompletenessFlags,

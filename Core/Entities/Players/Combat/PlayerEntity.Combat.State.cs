@@ -283,6 +283,12 @@ public sealed partial class PlayerEntity
 
     public void HealAndResupply()
     {
+        // Frozen in a time stop: a cabinet does nothing until time moves again.
+        if (IsTimeStopped)
+        {
+            return;
+        }
+
         Health = MaxHealth;
         Metal = MaxMetal;
         CurrentShells = MaxShells;

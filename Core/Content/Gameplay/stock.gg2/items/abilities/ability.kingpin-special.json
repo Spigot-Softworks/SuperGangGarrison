@@ -1,0 +1,14 @@
+{
+  "id": "ability.kingpin-special",
+  "kind": "Ability",
+  "displayName": "Kingpin Special",
+  "behaviorId": "builtin.ability.kingpin",
+  "ability": {
+    "category": "secondary",
+    "channel": "special",
+    "activation": "pressed",
+    "executorId": "builtin.ability.kingpin"
+  },
+  "ammo": {},
+  "presentation": {}
+}

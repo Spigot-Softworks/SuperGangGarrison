@@ -593,7 +593,8 @@ public sealed class GameplaySmokeEffectsController
                 return;
             }
 
-            var sprite = _context.GetResolvedSprite("FlameS");
+            var animated = _context.GetResolvedSprite(AnimatedFlamePresentation.SpriteName(PlayerTeam.Red));
+            var sprite = animated ?? _context.GetResolvedSprite("FlameS");
             for (var index = 0; index < _blastJumpFlameVisuals.Count; index += 1)
             {
                 var flame = _blastJumpFlameVisuals[index];
@@ -602,7 +603,9 @@ public sealed class GameplaySmokeEffectsController
                 var scale = MathF.Max(0.25f, 0.7f - (progress * 0.35f));
                 if (sprite is not null && sprite.Frames.Count > 0)
                 {
-                    var frameIndex = Math.Abs(flame.FrameSeed + ((int)(_context._world.Frame + index))) % sprite.Frames.Count;
+                    var frameIndex = animated is null
+                        ? AnimatedFlamePresentation.LoopFrame(_context._world.Frame / (double)_context._config.TicksPerSecond, sprite.Frames.Count, flame.FrameSeed)
+                        : AnimatedFlamePresentation.LifetimeFrame(progress, sprite.Frames.Count);
                     _context.DrawLoadedSpriteFrame(
                         sprite.Frames[frameIndex],
                         new Vector2(flame.X - cameraPosition.X, flame.Y - cameraPosition.Y),

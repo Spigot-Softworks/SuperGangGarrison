@@ -88,6 +88,7 @@ public sealed class GameplaySessionStateController
             Game1.ResetPracticeNavigationState();
             _context._networkClient.SendLastToDieLeave();
             _context._networkClient.Disconnect();
+            _context.StopPracticePluginRuntime();
             _context.StopEmbeddedSession();
             // Returning to the menu also covers hosted Last to Die network
             // errors and the generic in-context Disconnect action. If this client

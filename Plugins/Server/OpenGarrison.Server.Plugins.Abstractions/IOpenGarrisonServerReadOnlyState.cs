@@ -42,6 +42,15 @@ public interface IOpenGarrisonServerReadOnlyState
     IReadOnlyList<OpenGarrisonServerPlayerInfo> GetPlayers();
 
     /// <summary>
+    /// Finds simulated players, including bots, matching a query. Results with a query
+    /// center are ordered by distance.
+    /// </summary>
+    /// <param name="query">The query filters.</param>
+    /// <returns>The matching players.</returns>
+    IReadOnlyList<OpenGarrisonServerWorldPlayerInfo> FindWorldPlayers(OpenGarrisonServerWorldPlayerQuery query)
+        => Array.Empty<OpenGarrisonServerWorldPlayerInfo>();
+
+    /// <summary>
     /// Gets the current objective state (control points, generators, intelligence).
     /// </summary>
     /// <returns>The objective state.</returns>

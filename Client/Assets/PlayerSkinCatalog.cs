@@ -75,7 +75,7 @@ public sealed class PlayerSkinCatalog
             Require(skin.PixelScale is >= 1 and <= 8, "pixelScale must be an integer from 1 to 8.");
             Require(float.IsFinite(skin.PixelsPerRunFrame) && skin.PixelsPerRunFrame > 0, "pixelsPerRunFrame must be positive.");
             Require(float.IsFinite(skin.EquipmentOffset), "equipmentOffset must be finite.");
-            if (skin.Weapon is { } weapon)
+            foreach (var weapon in skin.Weapons.Concat(skin.Weapon is { } primary ? [primary] : Array.Empty<PlayerSkinWeapon>()))
             {
                 Require(weapon.Pivot.Length == 2 && !string.IsNullOrWhiteSpace(weapon.Sprite)
                     && !string.IsNullOrWhiteSpace(weapon.ItemId), "weapon sprite, itemId and pivot are required.");
@@ -83,6 +83,13 @@ public sealed class PlayerSkinCatalog
                 Require(weapon.AttachmentOffset.Length == 2, "weapon attachmentOffset must have two coordinates.");
                 Require(float.IsFinite(weapon.FirePlaybackRate) && weapon.FirePlaybackRate > 0,
                     "weapon firePlaybackRate must be positive.");
+                Require(float.IsFinite(weapon.FireDurationSeconds) && weapon.FireDurationSeconds >= 0
+                    && float.IsFinite(weapon.ReloadDurationSeconds) && weapon.ReloadDurationSeconds >= 0,
+                    "weapon action durations must be finite and non-negative.");
+                Require(weapon.FireFrameMilliseconds >= 0 && weapon.ReloadFrameMilliseconds >= 0,
+                    "weapon frame durations must be non-negative.");
+                Require(weapon.TorsoSprite is null || (!string.IsNullOrWhiteSpace(weapon.TorsoSprite)
+                    && skin.LegsBodySprite is not null), "weapon torsoSprite requires legsBodySprite.");
                 foreach (var itemAlias in weapon.ItemAliases)
                     Require(!string.IsNullOrWhiteSpace(itemAlias), "weapon itemAliases must not contain blank IDs.");
             }
@@ -134,6 +141,8 @@ public sealed class PlayerSkinDefinition
     public Dictionary<string, PlayerSkinClip> Clips { get; set; } = new();
     public PlayerSkinPose[] Poses { get; set; } = [];
     public PlayerSkinWeapon? Weapon { get; set; }
+    /// <summary>Item-specific alternatives; the default weapon keeps its original presentation.</summary>
+    public List<PlayerSkinWeapon> Weapons { get; set; } = new();
     public string SpriteForTeam(string sprite, PlayerTeam team)
     {
         var name = team.ToString();
@@ -173,6 +182,11 @@ public sealed class PlayerSkinWeapon
     public float FirePlaybackRate { get; set; } = 1;
     public int[] AttachmentOffset { get; set; } = [0, 0];
     public string? ReloadSprite { get; set; }
+    public string? TorsoSprite { get; set; }
+    public float FireDurationSeconds { get; set; }
+    public float ReloadDurationSeconds { get; set; }
+    public int FireFrameMilliseconds { get; set; }
+    public int ReloadFrameMilliseconds { get; set; }
     public int[] Pivot { get; set; } = [];
     public int[] Muzzle { get; set; } = [];
     public bool DrawBehindBody { get; set; }

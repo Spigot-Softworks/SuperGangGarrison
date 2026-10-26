@@ -94,6 +94,7 @@ public sealed class PlayerHostedRoomSession : IDisposable
                     PreferClassicMaps = ClientDistribution.IsRestricted,
                     Map = s.Map, MapArea = s.MapArea, TickRate = s.TickRate, TimeLimitMinutes = s.TimeLimitMinutes,
                     CaptureLimit = s.CaptureLimit, RespawnSeconds = s.RespawnSeconds, RedBots = s.RedBots, BlueBots = s.BlueBots,
+                    ConquestScoreLimit = s.ConquestScoreLimit, Hardcore = s.Hardcore,
                     SpecialAbilities = s.SpecialAbilities, Difficulty = s.Difficulty == "hardcore" ? LastToDieDifficulty.Hardcore : LastToDieDifficulty.Standard
                 }, requireRoomAdmission: true);
                 var owner = state.Players.Single(player => player.Slot == 1);

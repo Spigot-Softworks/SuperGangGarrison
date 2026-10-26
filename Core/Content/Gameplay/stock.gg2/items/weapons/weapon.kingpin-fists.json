@@ -1,0 +1,27 @@
+{
+  "id": "weapon.kingpin-fists",
+  "kind": "Weapon",
+  "weaponSlot": "Primary",
+  "displayName": "Fists",
+  "behaviorId": "builtin.weapon.kingpin",
+  "ammo": {
+    "maxAmmo": 1,
+    "ammoPerUse": 0,
+    "projectilesPerUse": 1,
+    "useDelaySourceTicks": 10,
+    "reloadSourceTicks": 0,
+    "spreadDegrees": 0,
+    "minProjectileSpeed": 0,
+    "additionalProjectileSpeed": 0,
+    "autoReloads": false
+  },
+  "combat": {
+    "killFeedSpriteName": "WhipKL",
+    "directHitDamage": 30
+  },
+  "presentation": {
+    "hud": {
+      "displayKind": "none"
+    }
+  }
+}

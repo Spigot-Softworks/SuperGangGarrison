@@ -559,7 +559,7 @@ public static class CustomMapBuilderEntityNormalization
 
     private static CustomMapBuilderEntity ResolveControlPointForExport(CustomMapBuilderEntity entity)
     {
-        var index = Math.Clamp(GetIntProperty(entity, "index", 1), 1, 5);
+        var index = ControlPointIndexMetadata.ClampIndex(GetIntProperty(entity, "index", 1));
         var properties = CopyEditableProperties(entity);
         properties.Remove("index");
         return CustomMapBuilderEntity.Create($"controlPoint{index}", entity.X, entity.Y, properties, entity.XScale, entity.YScale).NormalizeForEditing();

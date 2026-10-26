@@ -13,6 +13,67 @@ public sealed class FirePredictionRegressionTests
     [Theory]
     [InlineData(30)]
     [InlineData(120)]
+    public void PredictedKingpinPunchAndGuardMatchAuthorityEachTick(int rate)
+    {
+        var authority = new SimulationWorld(new() { TicksPerSecond = rate, EnableLocalDummies = false });
+        var predicted = new SimulationWorld(new() { TicksPerSecond = rate, EnableLocalDummies = false });
+        authority.LocalPlayer.SetClassDefinition(CharacterClassCatalog.GetDefinition("kingpin"));
+        predicted.LocalPlayer.SetClassDefinition(CharacterClassCatalog.GetDefinition("kingpin"));
+        var game = CreatePredictionHarness(predicted);
+        for (var tick = 0; tick < rate; tick++)
+        {
+            var input = default(PlayerInputSnapshot) with
+            {
+                FirePrimary = tick < rate / 2,
+                Left = tick >= rate / 2,
+                AimWorldX = 10000,
+                AimWorldY = 500,
+            };
+            authority.NetworkPlayers.SetLocalInput(input);
+            authority.AdvanceOneTick();
+            InvokePrivate(typeof(Game1), game, "ApplyPredictedInputStep", predicted.LocalPlayer,
+                CreatePredictedLocalInput(input, primaryPressed: tick == 0));
+            Assert.Equal(KingpinPrototype.GetSpriteFrame(authority.LocalPlayer), KingpinPrototype.GetSpriteFrame(predicted.LocalPlayer));
+            Assert.Equal(KingpinPrototype.Read(authority.LocalPlayer, "ticks"), KingpinPrototype.Read(predicted.LocalPlayer, "ticks"));
+            Assert.Equal(KingpinPrototype.Read(authority.LocalPlayer, "guard"), KingpinPrototype.Read(predicted.LocalPlayer, "guard"));
+        }
+        Assert.Equal(1, KingpinPrototype.Read(predicted.LocalPlayer, "guard"));
+        Assert.Empty(predicted.Combat.PendingDamageEvents);
+    }
+
+    [Theory]
+    [InlineData(KingpinSpecial.ShoulderBash)]
+    [InlineData(KingpinSpecial.Uppercut)]
+    [InlineData(KingpinSpecial.DiveBodyslam)]
+    [InlineData(KingpinSpecial.Beatdown)]
+    public void PredictedKingpinSpecialMatchesAuthorityWithoutBecomingHeavySelfHeal(KingpinSpecial special)
+    {
+        var authority = new SimulationWorld(new() { EnableLocalDummies = false });
+        var predicted = new SimulationWorld(new() { EnableLocalDummies = false });
+        foreach (var world in new[] { authority, predicted })
+        {
+            world.LocalPlayer.SetClassDefinition(CharacterClassCatalog.GetDefinition("kingpin"));
+            world.LocalPlayer.SetReplicatedStateInt(KingpinPrototype.StateOwner, "special", (int)special);
+            KingpinPrototype.SetMeter(world.LocalPlayer, 100);
+        }
+        var game = CreatePredictionHarness(predicted);
+        for (var tick = 0; tick < 65; tick++)
+        {
+            var input = default(PlayerInputSnapshot) with { FireSecondary = tick == 0, AimWorldX = 10000, AimWorldY = 500 };
+            authority.NetworkPlayers.SetLocalInput(input);
+            authority.AdvanceOneTick();
+            InvokePrivate(typeof(Game1), game, "ApplyPredictedInputStep", predicted.LocalPlayer,
+                CreatePredictedLocalInput(input, primaryPressed: false, secondaryAbilityPressed: tick == 0));
+            Assert.Equal(KingpinPrototype.GetSpriteFrame(authority.LocalPlayer), KingpinPrototype.GetSpriteFrame(predicted.LocalPlayer));
+            Assert.Equal(KingpinPrototype.Meter(authority.LocalPlayer), KingpinPrototype.Meter(predicted.LocalPlayer));
+            Assert.False(predicted.LocalPlayer.IsHeavyEating);
+        }
+        Assert.Empty(predicted.Combat.PendingDamageEvents);
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(120)]
     public void PredictedUmbrellaOpeningMatchesAuthorityAnimationAndCharge(int rate)
     {
         var authority = new SimulationWorld(new() { TicksPerSecond = rate, EnableLocalDummies = false });

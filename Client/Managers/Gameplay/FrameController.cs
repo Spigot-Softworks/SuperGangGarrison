@@ -171,6 +171,7 @@ public sealed class FrameController
             _context.UpdateMenuStatusMessageExpiry();
             _context.UpdateAccountOperation();
             _context.UpdateCrtUnlockSequence(keyboard, gameTime.TotalGameTime);
+            _context.UpdatePluginPackArt();
 
             if (TryUpdateNonGameplayFrame(gameTime, keyboard, mouse, clientTicks))
             {

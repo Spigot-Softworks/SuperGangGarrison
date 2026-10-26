@@ -22,4 +22,7 @@ public sealed record CharacterClassDefinition(
     int TauntLengthFrames,
     string GameplayClassId = "",
     string GameplayModPackId = "",
-    PlayerClass BotGraphClassId = PlayerClass.Scout);
+    PlayerClass BotGraphClassId = PlayerClass.Scout)
+{
+    public bool IsCustomSlot => Id == PlayerClass.Custom;
+}

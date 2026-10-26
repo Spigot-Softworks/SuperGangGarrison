@@ -53,6 +53,14 @@ public partial class Game1
 
         public float AirborneDelaySeconds { get; set; }
 
+        // Plugin move pose: the sequence last seen and how long it has played.
+        public int PoseSequence { get; set; } = -1;
+
+        public float PoseElapsedSeconds { get; set; }
+
+        // How long the player has been standing still, for animated standing sprites.
+        public float StandElapsedSeconds { get; set; }
+
         public WeaponAnimationMode WeaponAnimationMode { get; set; }
 
         public float WeaponAnimationDurationSeconds { get; set; }
@@ -231,6 +239,27 @@ public partial class Game1
         }
 
         renderState.BodyAnimationImage = animationImage;
+        renderState.StandElapsedSeconds = !appearsAirborne && horizontalSourceStepSpeed < 0.2f
+            ? renderState.StandElapsedSeconds + animationElapsedSeconds
+            : 0f;
+        if (GameplayPlayerPoses.TryGet(player, out var pose))
+        {
+            if (pose.Sequence != renderState.PoseSequence)
+            {
+                renderState.PoseSequence = pose.Sequence;
+                renderState.PoseElapsedSeconds = 0f;
+            }
+            else
+            {
+                renderState.PoseElapsedSeconds += animationElapsedSeconds;
+            }
+        }
+        else
+        {
+            renderState.PoseSequence = -1;
+            renderState.PoseElapsedSeconds = 0f;
+        }
+
         renderState.RenderHorizontalSpeed = renderHorizontalSpeed;
         renderState.AnimationHorizontalSpeed = animationHorizontalSpeed;
         renderState.AppearsAirborne = appearsAirborne;

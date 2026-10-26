@@ -368,6 +368,12 @@ public static class CustomMapPngImporter
             ScrSettings = ScrMapSettingsMetadata.ParseScrSettings(metadata),
             ShowControlPoints = ScrMapSettingsMetadata.ParseShowControlPoints(metadata),
             LogicGraph = logicGraph,
+            MapScriptSource = MapScriptMetadata.Read(metadata),
+            MapScriptNodeNames = mapEntities.Where(entity => MapLogicMetadata.IsLogicOutputEntityType(entity.Type))
+                .Where(entity => MapObjectMetadata.Name(entity.Properties).Length > 0)
+                .GroupBy(entity => MapObjectMetadata.Name(entity.Properties), StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() == 1)
+                .ToDictionary(group => group.Key, group => group.First().Properties.GetValueOrDefault(MapLogicMetadata.LogicKeyPropertyKey, ""), StringComparer.OrdinalIgnoreCase),
             LogicActivators = logicActivators,
             LogicScoreTriggers = logicScoreTriggers,
             SpritesheetPlaybackSet = spritesheetPlaybackSet,

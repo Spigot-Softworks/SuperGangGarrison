@@ -1,17 +1,17 @@
 {
   "schemaVersion": 2,
-  "version": "0.8.8.7",
-  "packageVersion": "0.8.8.7",
+  "version": "0.8.9.4",
+  "packageVersion": "0.8.9.4",
   "channel": "stable",
-  "url": "OpenGarrison-Linux-x64.tar.gz",
-  "sha256": "f1ef376bc0850a73fbd61e9ff22c26015921edd5f701c25b1e095dc63f8fe742",
-  "size": 147661945,
+  "url": "https://api.superganggarrison.com/updates/linux-x64/stable/OpenGarrison-Linux-x64-0.8.9.4.tar.gz",
+  "sha256": "20521061a85c929f76c6e8da414b2472ed539e41f244217a1e2c5cc186a95b9a",
+  "size": 154725810,
   "minLauncherVersion": "0.1.0",
   "notesUrl": "",
   "fullPackage": {
-    "url": "OpenGarrison-Linux-x64.tar.gz",
-    "sha256": "f1ef376bc0850a73fbd61e9ff22c26015921edd5f701c25b1e095dc63f8fe742",
-    "size": 147661945
+    "url": "https://api.superganggarrison.com/updates/linux-x64/stable/OpenGarrison-Linux-x64-0.8.9.4.tar.gz",
+    "sha256": "20521061a85c929f76c6e8da414b2472ed539e41f244217a1e2c5cc186a95b9a",
+    "size": 154725810
   },
   "deltas": []
 }

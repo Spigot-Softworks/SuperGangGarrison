@@ -39,6 +39,10 @@ public sealed partial class GameplayRuntimeRegistry
 
     private void RegisterBuiltInBehaviorBindings()
     {
+        RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(
+            KingpinPrototype.PrimaryBehaviorId, PrimaryWeaponKind.Custom,
+            Executor: new DelegateGameplayPrimaryWeaponExecutor(static context => KingpinPrototype.Punch(context))));
+        RegisterGameplayAbilityExecutor(KingpinPrototype.SpecialBehaviorId, static context => KingpinPrototype.UseSpecial(context));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.PelletGun, PrimaryWeaponKind.PelletGun));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.Flamethrower, PrimaryWeaponKind.FlameThrower));
         RegisterPrimaryWeaponBehavior(new GameplayPrimaryWeaponRuntimeBinding(BuiltInGameplayBehaviorIds.RocketLauncher, PrimaryWeaponKind.RocketLauncher));
@@ -132,21 +136,26 @@ public sealed partial class GameplayRuntimeRegistry
             var basePlayerClassName = string.IsNullOrWhiteSpace(runtime.BasePlayerClass)
                 ? (bindsLegacyPlayerClass ? runtime.PlayerClass : nameof(PlayerClass.Scout))
                 : runtime.BasePlayerClass;
-            var botGraphPlayerClassName = string.IsNullOrWhiteSpace(runtime.BotGraphPlayerClass)
-                ? basePlayerClassName
-                : runtime.BotGraphPlayerClass;
-            if (!Enum.TryParse<PlayerClass>(basePlayerClassName, ignoreCase: true, out var basePlayerClass))
+            if (!Enum.TryParse<PlayerClass>(basePlayerClassName, ignoreCase: true, out var basePlayerClass)
+                || !Enum.IsDefined(basePlayerClass))
             {
                 throw new InvalidOperationException($"Gameplay class \"{gameplayClass.Id}\" in mod pack \"{modPack.Id}\" declares unsupported base player class \"{basePlayerClassName}\".");
             }
 
-            if (!Enum.TryParse<PlayerClass>(botGraphPlayerClassName, ignoreCase: true, out var botGraphPlayerClass))
+            // Bots need a stock movement profile, so Custom-slot classes default to Scout's graph.
+            var botGraphPlayerClassName = string.IsNullOrWhiteSpace(runtime.BotGraphPlayerClass)
+                ? (basePlayerClass == PlayerClass.Custom ? nameof(PlayerClass.Scout) : basePlayerClassName)
+                : runtime.BotGraphPlayerClass;
+            if (!Enum.TryParse<PlayerClass>(botGraphPlayerClassName, ignoreCase: true, out var botGraphPlayerClass)
+                || !PlayerClassSlots.IsStock(botGraphPlayerClass))
             {
                 throw new InvalidOperationException($"Gameplay class \"{gameplayClass.Id}\" in mod pack \"{modPack.Id}\" declares unsupported bot graph player class \"{botGraphPlayerClassName}\".");
             }
 
             var playerClass = basePlayerClass;
-            if (bindsLegacyPlayerClass && !Enum.TryParse<PlayerClass>(runtime.PlayerClass, ignoreCase: true, out playerClass))
+            if (bindsLegacyPlayerClass
+                && (!Enum.TryParse<PlayerClass>(runtime.PlayerClass, ignoreCase: true, out playerClass)
+                    || !PlayerClassSlots.IsStock(playerClass)))
             {
                 throw new InvalidOperationException($"Gameplay class \"{gameplayClass.Id}\" in mod pack \"{modPack.Id}\" declares unsupported player class slot \"{runtime.PlayerClass}\".");
             }

@@ -14,6 +14,14 @@ import app as api
 
 
 class PeerRoomTests(unittest.TestCase):
+    def test_practice_preserves_conquest_limit_and_hardcore(self):
+        from peer_rooms import PracticeSettings
+        settings = PracticeSettings(conquestScoreLimit=1000, hardcore=True).checked()
+        self.assertEqual(1000, settings["conquestScoreLimit"])
+        self.assertTrue(settings["hardcore"])
+        self.assertEqual(200, PracticeSettings().conquestScoreLimit)
+        self.assertFalse(PracticeSettings().hardcore)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.environment = patch.dict(os.environ, {

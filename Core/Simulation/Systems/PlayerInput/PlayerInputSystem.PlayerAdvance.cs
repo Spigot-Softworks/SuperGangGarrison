@@ -103,6 +103,8 @@ internal sealed partial class PlayerInputSystem
         }
 
         player.SetAimWorldPosition(input.AimWorldX, input.AimWorldY);
+        if (KingpinPrototype.IsKingpin(player))
+            _host.AdvanceKingpinPlayer(player, input, previousInput);
         
         // Update binoculars focus position if active
         if (input.IsUsingBinoculars)
@@ -123,9 +125,9 @@ internal sealed partial class PlayerInputSystem
         var primaryPressed = input.FirePrimary && !previousInput.FirePrimary;
         var secondaryAbilityPressed = input.FireSecondary && !previousInput.FireSecondary;
         var secondaryAbilityReleased = !input.FireSecondary && previousInput.FireSecondary;
-        var abilityPressed = input.UseAbility && !previousInput.UseAbility;
+        var abilityPressed = input.UseAbility && !previousInput.UseAbility && !KingpinPrototype.IsKingpin(player);
         var abilityReleased = !input.UseAbility && previousInput.UseAbility;
-        var swapWeaponPressed = input.SwapWeapon && !previousInput.SwapWeapon;
+        var swapWeaponPressed = input.SwapWeapon && !previousInput.SwapWeapon && !KingpinPrototype.IsKingpin(player);
         var toggleSecondaryWeaponPressed = input.ToggleSecondaryWeapon && !previousInput.ToggleSecondaryWeapon;
         var interactWeaponPressed = input.InteractWeapon && !previousInput.InteractWeapon;
         if (jumpPressed)

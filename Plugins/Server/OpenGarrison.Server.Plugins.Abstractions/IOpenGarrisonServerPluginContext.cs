@@ -138,6 +138,126 @@ public interface IOpenGarrisonServerPluginContext : IOpenGarrisonPluginHostConte
     }
 
     /// <summary>
+    /// Tries to set a player's velocity, keeping the current speed on any axis passed as null.
+    /// </summary>
+    /// <param name="playerId">The player id.</param>
+    /// <param name="velocityX">The horizontal velocity, or null to keep it.</param>
+    /// <param name="velocityY">The vertical velocity, or null to keep it.</param>
+    /// <returns>True when the velocity was set.</returns>
+    bool TrySetGameplayVelocity(int playerId, float? velocityX, float? velocityY)
+    {
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to play a move pose on a player, one of its class presentation's pose suffixes.
+    /// </summary>
+    /// <param name="playerId">The player id.</param>
+    /// <param name="suffix">The pose suffix, or null to clear the pose.</param>
+    /// <param name="ticksPerFrame">Source ticks each frame is shown.</param>
+    /// <param name="loop">Whether the frames loop; otherwise the last frame holds.</param>
+    /// <param name="durationTicks">How long the pose shows, in source ticks; 0 shows it until cleared.</param>
+    /// <returns>True when the pose was set or cleared.</returns>
+    bool TrySetGameplayPose(int playerId, string? suffix, int ticksPerFrame, bool loop, int durationTicks)
+    {
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to play a sound at a player's position for everyone nearby: a stock sound name, or
+    /// one from a gameplay pack's sounds (clients without the plugin download it).
+    /// </summary>
+    /// <param name="playerId">The player id.</param>
+    /// <param name="soundName">The sound name (at most 64 UTF-8 bytes).</param>
+    /// <returns>True when the sound event was recorded.</returns>
+    bool TryPlayGameplaySound(int playerId, string soundName)
+    {
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to spray blood from a player, the effect weapon hits make.
+    /// </summary>
+    /// <param name="playerId">The player id.</param>
+    /// <param name="directionDegrees">The direction the blood flies, in degrees (0 is right, 90 is up).</param>
+    /// <param name="count">How much blood, 1 to 8.</param>
+    /// <returns>True when the effect was recorded.</returns>
+    bool TrySpawnGameplayBlood(int playerId, float directionDegrees, int count)
+    {
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to play a gameplay pack sprite once at a world position on every client, like a hit spark.
+    /// </summary>
+    /// <param name="spriteName">The sprite, from a loaded gameplay pack.</param>
+    /// <param name="x">The world X coordinate of the sprite's origin.</param>
+    /// <param name="y">The world Y coordinate of the sprite's origin.</param>
+    /// <param name="rotationDegrees">The rotation in degrees.</param>
+    /// <param name="flipX">True to mirror the sprite horizontally.</param>
+    /// <param name="ticksPerFrame">Source ticks each frame shows, 1 to 30.</param>
+    /// <returns>True when the effect was recorded.</returns>
+    bool TrySpawnGameplaySpriteEffect(string spriteName, float x, float y, float rotationDegrees, bool flipX, int ticksPerFrame)
+    {
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to play a screen effect over every client's view, centred on a world position.
+    /// </summary>
+    /// <param name="effect">The screen effect id; currently <c>time_stop</c>.</param>
+    /// <param name="x">The world X coordinate the effect starts from.</param>
+    /// <param name="y">The world Y coordinate the effect starts from.</param>
+    /// <param name="durationTicks">How long the effect lasts, in source ticks.</param>
+    /// <returns>True when the effect was recorded.</returns>
+    bool TryPlayGameplayScreenEffect(string effect, float x, float y, int durationTicks)
+    {
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to hold every projectile inside a circle still (no movement, lifetime or fuse) for a
+    /// while, as a time stop does; they carry on as they were afterwards.
+    /// </summary>
+    /// <param name="x">The world X coordinate of the circle's centre.</param>
+    /// <param name="y">The world Y coordinate of the circle's centre.</param>
+    /// <param name="radius">The circle's radius in world units.</param>
+    /// <param name="ticks">How long projectiles are held, in ticks.</param>
+    /// <returns>True when the freeze was applied.</returns>
+    bool TryFreezeGameplayProjectiles(float x, float y, float radius, int ticks)
+    {
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to hold every projectile inside a circle still, as above, letting blades thrown inside
+    /// it fly travelPixels first (so knives leave the hand before they stop).
+    /// </summary>
+    /// <param name="x">The world X coordinate of the circle's centre.</param>
+    /// <param name="y">The world Y coordinate of the circle's centre.</param>
+    /// <param name="radius">The circle's radius in world units.</param>
+    /// <param name="ticks">How long projectiles are held, in ticks.</param>
+    /// <param name="travelPixels">How far a blade thrown inside it flies before it is held.</param>
+    /// <returns>True when the freeze was applied.</returns>
+    bool TryFreezeGameplayProjectiles(float x, float y, float radius, int ticks, float travelPixels)
+    {
+        return TryFreezeGameplayProjectiles(x, y, radius, ticks);
+    }
+
+    /// <summary>
+    /// Tries to move a player straight toward a world position at once, stopping short where
+    /// walls, gates or player walls would block them.
+    /// </summary>
+    /// <param name="playerId">The player id.</param>
+    /// <param name="x">The world X coordinate to move them toward.</param>
+    /// <param name="y">The world Y coordinate to move them toward.</param>
+    /// <returns>True when the player moved.</returns>
+    bool TryTeleportGameplayPlayer(int playerId, float x, float y)
+    {
+        return false;
+    }
+
+    /// <summary>
     /// Tries to set a gameplay ability cooldown for a player.
     /// </summary>
     /// <param name="playerId">The player id.</param>
@@ -163,6 +283,20 @@ public interface IOpenGarrisonServerPluginContext : IOpenGarrisonPluginHostConte
     }
 
     /// <summary>
+    /// Tries to apply gameplay damage to a player, choosing how a kill leaves the body.
+    /// </summary>
+    /// <param name="targetPlayerId">The target player id.</param>
+    /// <param name="amount">The damage amount.</param>
+    /// <param name="attackerPlayerId">The attacking player id, if any.</param>
+    /// <param name="weaponSpriteName">The weapon sprite name, if any.</param>
+    /// <param name="deathType">"gib", "decapitated", "bisected", "severe", "rifle", or null for the usual corpse.</param>
+    /// <returns>True when the damage was applied.</returns>
+    bool TryApplyGameplayDamage(int targetPlayerId, float amount, int? attackerPlayerId, string? weaponSpriteName, string? deathType)
+    {
+        return TryApplyGameplayDamage(targetPlayerId, amount, attackerPlayerId, weaponSpriteName);
+    }
+
+    /// <summary>
     /// Tries to apply gameplay healing to a player.
     /// </summary>
     /// <param name="playerId">The player id.</param>
@@ -171,6 +305,19 @@ public interface IOpenGarrisonServerPluginContext : IOpenGarrisonPluginHostConte
     bool TryApplyGameplayHealing(int playerId, float amount)
     {
         return false;
+    }
+
+    /// <summary>
+    /// Tries to apply gameplay healing to a player, optionally silently: no healing particles or
+    /// numbers (a passive regen).
+    /// </summary>
+    /// <param name="playerId">The player id.</param>
+    /// <param name="amount">The heal amount.</param>
+    /// <param name="silent">True to heal without the healing feedback.</param>
+    /// <returns>True when the healing was applied.</returns>
+    bool TryApplyGameplayHealing(int playerId, float amount, bool silent)
+    {
+        return TryApplyGameplayHealing(playerId, amount);
     }
 
     /// <summary>
@@ -263,6 +410,18 @@ public interface IOpenGarrisonServerPluginContext : IOpenGarrisonPluginHostConte
     bool TryRegisterGameplayLoadout(GameplayLoadoutRegistration registration, out string errorMessage)
     {
         errorMessage = "Gameplay loadout registration is not supported by this host.";
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to register a plugin class on the neutral Custom player class slot.
+    /// </summary>
+    /// <param name="registration">The class registration, including its default loadout.</param>
+    /// <param name="errorMessage">The error message when registration fails.</param>
+    /// <returns>True when the class was registered.</returns>
+    bool TryRegisterGameplayClass(GameplayClassRegistration registration, out string errorMessage)
+    {
+        errorMessage = "Gameplay class registration is not supported by this host.";
         return false;
     }
 

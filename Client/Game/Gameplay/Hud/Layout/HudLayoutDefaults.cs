@@ -8,6 +8,9 @@ namespace OpenGarrison.Client;
 
 internal static class HudLayoutDefaults
 {
+    internal static HudElementLayout CreateConquestScoreCounter(HudElementLayout template, bool blueTeam) =>
+        template with { Anchor = HudAnchor.TopCenter, Offset = new Vector2(blueTeam ? 162f : -162f, 30f) };
+
     private const float SourceHudWidth = 800f;
     private const float SourceHudHeight = 600f;
     private const float AbilitySourceX = 730f;

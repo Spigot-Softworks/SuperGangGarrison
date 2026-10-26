@@ -25,6 +25,20 @@ public sealed class BladeProjectileEntity : SimulationEntity
         LifetimeSimulationTicks = Math.Max(1, lifetimeSimulationTicks);
         TicksRemaining = Math.Max(1, ticksRemaining);
         OwnerAmmoGeneration = ownerAmmoGeneration;
+        SpawnX = x;
+        SpawnY = y;
+    }
+
+    // Where it was thrown from (a freeze zone lets a blade thrown into it fly a little first).
+    public float SpawnX { get; }
+
+    public float SpawnY { get; }
+
+    public float DistanceFromSpawn(float x, float y)
+    {
+        var deltaX = x - SpawnX;
+        var deltaY = y - SpawnY;
+        return MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
     }
 
     public PlayerTeam Team { get; }
@@ -44,6 +58,12 @@ public sealed class BladeProjectileEntity : SimulationEntity
     public float VelocityY { get; private set; }
 
     public int HitDamage { get; private set; }
+
+    // Scales the push the blade gives a player it hits (plugin knives set their own).
+    public float KnockbackScale { get; init; } = 1f;
+
+    // How a kill by this blade leaves the body (GameplayDeathTypes; plugin knives set it).
+    public string? DeathType { get; init; }
 
     public bool IsCritical { get; private set; }
 
@@ -130,6 +150,14 @@ public sealed class BladeProjectileEntity : SimulationEntity
 
         AmmoDrainedSourceTicks = (int)MathF.Floor(elapsedSourceTicks);
         AmmoDrainSourceTickAccumulator = elapsedSourceTicks - AmmoDrainedSourceTicks;
+    }
+
+    // Held still this tick (a freeze zone): the previous position catches up, so drawing between
+    // the two doesn't jitter.
+    public void HoldStill()
+    {
+        PreviousX = X;
+        PreviousY = Y;
     }
 
     public void MoveTo(float x, float y)

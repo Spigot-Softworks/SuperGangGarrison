@@ -16,6 +16,7 @@ internal partial interface IGameplayAbilityHost
     ExplosionRulesSystem ExplosionRules { get; }
     long Frame { get; }
     LastToDieRulesSystem LastToDieRules { get; }
+    SimpleLevel Level { get; }
     MovementSystem Movement { get; }
     PlayerDeathSystem PlayerDeaths { get; }
     PlayerInputSystem PlayerInput { get; }

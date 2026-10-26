@@ -732,6 +732,11 @@ public partial class Game1
     {
         for (var tick = 0; tick < ticks; tick += 1)
         {
+            // A time stop holds the world's effects still: particles, smoke, shells, blood, and
+            // everything timed by the weather clock (weather, mine spin, map animations).
+            var timeStopped = _gameplayManager.PluginEffects.IsTimeStopped;
+            _world.PresentationTimeStopped = timeStopped;
+            SyncTimeStopPresentationClock(timeStopped);
             AdvancePredictedAfterburnVisuals();
             AdvanceSpySuperjumpTrajectoryAnimation();
             AdvanceSpySuperjumpCloakReveal();
@@ -739,19 +744,31 @@ public partial class Game1
             AdvanceChatHud();
             AdvanceWriteBubbleTick();
             UpdateNoticeState();
-            AdvanceExplosionVisuals();
-            AdvanceImpactVisuals();
-            AdvanceStuckArrowVisuals();
-            AdvanceGoreSourceTicks();
-            AdvanceExperimentalHealingHudIndicators();
-            AdvanceShellVisuals();
-            AdvanceRocketSmokeVisuals();
-            AdvanceMineTrailVisuals();
-            if (!_networkClient.IsConnected)
+            if (timeStopped)
             {
-                AdvanceFlameSmokeVisuals();
+                // The time stop's own effect keeps running.
+                _gameplayManager.PluginEffects.AdvanceEffects();
             }
-            AdvanceLooseSheetVisuals();
+            else
+            {
+                AdvanceExplosionVisuals();
+                AdvanceImpactVisuals();
+                AdvanceStuckArrowVisuals();
+                AdvanceGoreSourceTicks();
+            }
+
+            AdvanceExperimentalHealingHudIndicators();
+            if (!timeStopped)
+            {
+                AdvanceShellVisuals();
+                AdvanceRocketSmokeVisuals();
+                AdvanceMineTrailVisuals();
+                if (!_networkClient.IsConnected)
+                {
+                    AdvanceFlameSmokeVisuals();
+                }
+                AdvanceLooseSheetVisuals();
+            }
             AdvanceCivvieUmbrellaShieldBlockVisuals();
             AdvanceFrozenSpyVisuals();
             AdvanceHeavyDashTrailVisuals();

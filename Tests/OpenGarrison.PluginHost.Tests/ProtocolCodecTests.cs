@@ -518,6 +518,7 @@ public sealed class ProtocolCodecTests
             IsDelta = true,
             GibSpawnEvents = [new SnapshotGibSpawnEvent("GibS", 0, 10, 20, 1, 2, 3, 0.4f, 0.5f, 250, 1.8f, 78, Team: 2)],
             DamageableZoneStates = [new SnapshotDamageableZoneState(2, 0, 5, 40), new SnapshotDamageableZoneState(7, 100, 6, 8)],
+            MapRoundEndStates = [new SnapshotMapRoundEndState(1, 240), new SnapshotMapRoundEndState(3, 17)],
             EntityCollectionCompletenessFlags =
                 SnapshotEntityCollectionCompletenessFlags.AllProjectiles & ~SnapshotEntityCollectionCompletenessFlags.Rockets,
             CapLimit = 9,
@@ -680,6 +681,7 @@ public sealed class ProtocolCodecTests
         Assert.Equal(2, Assert.Single(roundTrippedSnapshot.VisualEvents).SourceTeam);
         Assert.Equal(2, Assert.Single(roundTrippedSnapshot.GibSpawnEvents).Team);
         Assert.Equal(snapshot.DamageableZoneStates, roundTrippedSnapshot.DamageableZoneStates);
+        Assert.Equal(snapshot.MapRoundEndStates, roundTrippedSnapshot.MapRoundEndStates);
         Assert.Equal(9, roundTrippedSnapshot.CapLimit);
         var scoreboardPlayer = Assert.Single(roundTrippedSnapshot.ScoreboardPlayers);
         Assert.Equal(6, scoreboardPlayer.PlayerId);

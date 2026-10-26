@@ -80,6 +80,7 @@ internal sealed class WebSocketServerHost : IDisposable
         if (_enableMapDownloads)
         {
             ServerMapDownloadEndpoint.Map(app);
+            ServerPluginPackDownloadEndpoint.Map(app);
         }
 
         app.MapGet("/", static context =>

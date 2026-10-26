@@ -107,6 +107,7 @@ public sealed class GameplayInputUpdateController
             // Use networkInput for local input state (needed for medic beam visuals, etc.)
             // even though gameplayInput is default in multiplayer (server authoritative)
             _context._world.NetworkPlayers.SetLocalInput(networkInput);
+            _context.RecordInputDisplay(networkInput);
             _context.UpdateBubbleMenuState(keyboard, mouse);
             _context.UpdateCustomBubbleHotkey(keyboard, mouse);
             return networkInput;

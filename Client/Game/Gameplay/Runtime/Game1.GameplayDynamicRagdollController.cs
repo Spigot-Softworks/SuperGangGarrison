@@ -2645,7 +2645,8 @@ public partial class Game1
             opaque = frame.OpaqueBounds ?? new Rectangle(0, 0, frame.Width, frame.Height);
         }
 
-        var scaleX = ragdoll.FacingLeft ? -1f : 1f;
+        var artScale = GameplayPlayerSpriteRenderController.GetBodySpriteArtScale(spriteName!);
+        var scaleX = (ragdoll.FacingLeft ? -1f : 1f) * artScale;
         var tint = (tintOverride ?? Color.White) * fadeAlpha;
         var roundedOrigin = GetRoundedPlayerSpriteOrigin(new Vector2(ragdoll.X, ragdoll.Y));
         var rootPosition = new Vector2(roundedOrigin.X - cameraPosition.X, roundedOrigin.Y - cameraPosition.Y);
@@ -2717,7 +2718,7 @@ public partial class Game1
                 tint,
                 segmentRotationRadians,
                 segmentOrigin,
-                new Vector2(scaleX, 1f));
+                new Vector2(scaleX, artScale));
 
             var nextCursor = cursor + TransformRagdollLocal(
                 new Vector2(segmentWidth, 0f),
@@ -2797,7 +2798,7 @@ public partial class Game1
             tint,
             bisectorRadians,
             seamOrigin,
-            new Vector2(scaleX * stretchAcross, 1f));
+            new Vector2(scaleX * stretchAcross, MathF.Abs(scaleX)));
     }
 
     private static Vector2 TransformRagdollLocal(Vector2 local, float scaleX, float rotationRadians)

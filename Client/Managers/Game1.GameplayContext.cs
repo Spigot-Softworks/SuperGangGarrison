@@ -782,6 +782,7 @@ public partial class Game1 : IGameplayContext
     void IGameplayContext.SetPersistedMenuStatusMessage(string message) { SetPersistedMenuStatusMessage(message); }
 
     void IGameplayContext.SetScoreRouteRecorderCaptureInput(OpenGarrison.Core.PlayerInputSnapshot gameplayInput) { SetScoreRouteRecorderCaptureInput(gameplayInput); }
+    void IGameplayContext.RecordInputDisplay(OpenGarrison.Core.PlayerInputSnapshot input) { RecordInputDisplay(input); }
 
     void IGameplayContext.SetSocialPresenceNetworkEndpoint(OpenGarrison.Client.NetworkEndpoint endpoint) { SetSocialPresenceNetworkEndpoint(endpoint); }
 
@@ -820,6 +821,9 @@ public partial class Game1 : IGameplayContext
     void IGameplayContext.StopFaucetMusic() { StopFaucetMusic(); }
 
     void IGameplayContext.StopHostedServer() { StopHostedServer(); }
+    void IGameplayContext.RestartPracticePluginRuntime() { RestartPracticePluginRuntime(); }
+    void IGameplayContext.StopPracticePluginRuntime() { StopPracticePluginRuntime(); }
+    void IGameplayContext.UpdatePluginPackArt() { UpdatePluginPackArt(); }
 
     void IGameplayContext.StopIngameMusic() { StopIngameMusic(); }
 

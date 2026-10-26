@@ -11,11 +11,12 @@ public partial class Game1
     private IntPtr _cursorConfinedWindowHandle;
 
     /// <summary>
-    /// Keeps the cursor inside the game window while playing in a windowed display
-    /// mode, so a flick of the mouse cannot click another program mid-fight. The
-    /// cursor is released whenever a menu is open (pause/in-game menus, main menu,
-    /// options, console, builder) or the window loses focus. Screen-filling modes
-    /// already constrain the cursor and are left alone.
+    /// Keeps the cursor inside the game window while playing, in every display mode,
+    /// so a flick of the mouse cannot click another program (or another monitor)
+    /// mid-fight. Fullscreen/borderless do not constrain the cursor on multi-monitor
+    /// setups, so they are confined too. The cursor is released whenever a menu is
+    /// open (pause/in-game menus, main menu, options, console, builder) or the
+    /// window loses focus.
     /// </summary>
     private void UpdateGameplayCursorConfinement()
     {
@@ -30,7 +31,6 @@ public partial class Game1
     private bool ShouldConfineCursorToWindow()
     {
         return IsActive
-            && !IsScreenFillingDisplayMode(_menuManager.DisplaySettings.DisplayMode)
             && _gameplaySessionKind != GameplaySessionKind.None
             && !_mainMenuOpen
             && !HasOpenGameplayBlockingMenu()

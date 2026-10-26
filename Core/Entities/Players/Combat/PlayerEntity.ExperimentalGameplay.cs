@@ -12,6 +12,7 @@ public sealed partial class PlayerEntity
     public const string NoclipReplicatedStateKey = "noclip";
     public const string FrozenReplicatedStateKey = "frozen";
     public const string StunTicksReplicatedStateKey = "stunticks";
+    public const string FacingLockReplicatedStateKey = "facinglock";
 
     private int ExperimentalMovementBoostTicksRemaining { get; set; }
 
@@ -474,6 +475,74 @@ public sealed partial class PlayerEntity
         return SetServerStunTicks(Math.Max(ServerStunTicksRemainingValue, ticks));
     }
 
+    // Facing lock (a gameplay plugin's): for the ticks the player keeps facing the way they did
+    // when it began, wherever they aim (an aim the other way is mirrored). Replicated, so the
+    // owner's predicted aim keeps to it too; 0 ticks ends it.
+    private int FacingLockTicksRemainingValue { get; set; }
+
+    // -1 locked facing left, 1 locked facing right, 0 not locked.
+    public int FacingLockDirection
+        => TryGetReplicatedStateInt(ServerTuningReplicatedStateOwnerId, FacingLockReplicatedStateKey, out var direction)
+            ? Math.Sign(direction)
+            : 0;
+
+    public void SetFacingLockTicks(int ticks)
+    {
+        FacingLockTicksRemainingValue = Math.Max(0, ticks);
+        var direction = FacingLockTicksRemainingValue <= 0
+            ? 0
+            : FacingLockDirection != 0 ? FacingLockDirection : IsSourceFacingLeft ? -1 : 1;
+        SetReplicatedStateInt(ServerTuningReplicatedStateOwnerId, FacingLockReplicatedStateKey, direction);
+    }
+
+    private void AdvanceFacingLockState()
+    {
+        if (FacingLockTicksRemainingValue <= 0)
+        {
+            return;
+        }
+
+        SetFacingLockTicks(FacingLockTicksRemainingValue - 1);
+    }
+
+    // Time stop (a gameplay plugin's): for the ticks the player's health holds where it was when
+    // it began. Nothing heals them (medics, dispensers, cabinets, regeneration); 0 ends it.
+    private int TimeStopTicksRemainingValue { get; set; }
+
+    private int TimeStopHealthValue { get; set; }
+
+    public bool IsTimeStopped => TimeStopTicksRemainingValue > 0;
+
+    public void SetTimeStopTicks(int ticks)
+    {
+        if (!IsTimeStopped)
+        {
+            TimeStopHealthValue = Health;
+        }
+
+        TimeStopTicksRemainingValue = Math.Max(0, ticks);
+    }
+
+    // Takes back any healing a time-stopped player got this tick from a source that doesn't check.
+    private void AdvanceTimeStopState()
+    {
+        if (!IsTimeStopped)
+        {
+            return;
+        }
+
+        if (Health > TimeStopHealthValue)
+        {
+            Health = TimeStopHealthValue;
+        }
+        else
+        {
+            TimeStopHealthValue = Health;
+        }
+
+        TimeStopTicksRemainingValue -= 1;
+    }
+
     internal void HydrateProtocol64ServerStunTicks(int ticks)
     {
         ServerStunTicksRemainingValue = Math.Max(0, ticks);
@@ -481,6 +550,8 @@ public sealed partial class PlayerEntity
 
     private void AdvanceServerStunState()
     {
+        AdvanceTimeStopState();
+        AdvanceFacingLockState();
         if (ServerStunTicksRemainingValue <= 0)
         {
             return;

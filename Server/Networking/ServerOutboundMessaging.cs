@@ -353,6 +353,35 @@ internal sealed partial class ServerOutboundMessaging(
         recordBroadcastMessage?.Invoke(message);
     }
 
+    private GameplayContentSyncMessage? _gameplayContentSyncMessage;
+    private int _gameplayContentSyncRevision = -1;
+
+    // Plugin-registered classes and items only exist in this process, so connecting
+    // clients receive them right after the welcome.
+    public void SendGameplayContentSync(ServerTransportPeer remotePeer)
+    {
+        var registry = CharacterClassCatalog.RuntimeRegistry;
+        if (_gameplayContentSyncRevision != registry.ModPackRevision)
+        {
+            var content = registry.CreateReplicatedContent();
+            _gameplayContentSyncMessage = content.IsEmpty ? null : new GameplayContentSyncMessage(content.SerializeToUtf8Json());
+            _gameplayContentSyncRevision = registry.ModPackRevision;
+        }
+
+        if (_gameplayContentSyncMessage is null)
+        {
+            return;
+        }
+
+        if (_gameplayContentSyncMessage.ContentUtf8Json.Length > GameplayContentSyncMessage.MaxContentBytes)
+        {
+            log($"[server] gameplay content sync skipped: {_gameplayContentSyncMessage.ContentUtf8Json.Length} bytes exceeds the protocol limit.");
+            return;
+        }
+
+        TrySendMessage(remotePeer, _gameplayContentSyncMessage, "gameplay content sync");
+    }
+
     public void SendCustomBubbleStatesToClient(ServerTransportPeer remotePeer)
     {
         foreach (var (slot, state) in _customBubblesBySlot)

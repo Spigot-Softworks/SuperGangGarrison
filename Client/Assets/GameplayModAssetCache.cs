@@ -19,7 +19,11 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
     private readonly HashSet<string> _failedBrowserSprites = new(StringComparer.OrdinalIgnoreCase);
     private BrowserAtlasTextureCache? _browserAtlasTextureCache;
     private BrowserGameplayAtlasSpriteResolver? _browserStockAtlasResolver;
+    private readonly Dictionary<string, ExternalPack> _externalPacks = new(StringComparer.Ordinal);
     private bool _disposed;
+
+    /// <summary>Bumped when <see cref="LoadRegisteredPacks"/> drops every pack, external ones included.</summary>
+    public int PackLoadGeneration { get; private set; }
 
     public void LoadRegisteredPacks(ClientRuntimeComposition runtimeComposition)
     {
@@ -27,6 +31,8 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
         ArgumentNullException.ThrowIfNull(runtimeComposition);
 
         DisposeLoadedSprites();
+        PackLoadGeneration += 1;
+        _externalPacks.Clear();
         _registeredSprites.Clear();
         _browserFallbackServices.Clear();
         _pendingBrowserSprites.Clear();
@@ -54,6 +60,73 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
             foreach (var sprite in modPack.Assets.Sprites.Values)
             {
                 _registeredSprites[sprite.Id] = new RegisteredGameplaySprite(assetService, sprite);
+            }
+        }
+    }
+
+    // Packs added after startup from a folder outside the stock content roots: plugin packs
+    // loaded on this machine, or art downloaded from the server. New sprite ids only take
+    // effect when the stock atlas doesn't already have them.
+    public bool IsExternalPackRegistered(string packId, string directory)
+    {
+        return _externalPacks.TryGetValue(packId, out var pack)
+            && string.Equals(pack.Directory, directory, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public IReadOnlyCollection<string> ExternalPackIds => _externalPacks.Keys;
+
+    public bool RegisterExternalPack(GameplayModPackDefinition modPack, string directory)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(modPack);
+        UnregisterExternalPack(modPack.Id);
+        var service = ClientRuntimeBootstrap.CreateGameplayPackSpriteAssetService(modPack.Id, null, directory, modPack.Assets.Sprites);
+        if (service is null)
+        {
+            return false;
+        }
+
+        var replacedSprites = new Dictionary<string, RegisteredGameplaySprite?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var sprite in modPack.Assets.Sprites.Values)
+        {
+            replacedSprites[sprite.Id] = _registeredSprites.TryGetValue(sprite.Id, out var previous) ? previous : null;
+            _registeredSprites[sprite.Id] = new RegisteredGameplaySprite(service, sprite);
+            EvictLoadedSprite(sprite.Id);
+        }
+
+        _externalPacks[modPack.Id] = new ExternalPack(directory, replacedSprites);
+        return true;
+    }
+
+    public void UnregisterExternalPack(string packId)
+    {
+        if (!_externalPacks.Remove(packId, out var pack))
+        {
+            return;
+        }
+
+        foreach (var (spriteId, previous) in pack.ReplacedSprites)
+        {
+            if (previous is null)
+            {
+                _registeredSprites.Remove(spriteId);
+            }
+            else
+            {
+                _registeredSprites[spriteId] = previous;
+            }
+
+            EvictLoadedSprite(spriteId);
+        }
+    }
+
+    private void EvictLoadedSprite(string spriteId)
+    {
+        if (_sprites.Remove(spriteId, out var sprite))
+        {
+            foreach (var frame in sprite.Frames)
+            {
+                frame.Dispose();
             }
         }
     }
@@ -331,4 +404,6 @@ public sealed class GameplayModAssetCache(GraphicsDevice graphicsDevice) : IDisp
     }
 
     private sealed record RegisteredGameplaySprite(GameplayPackSpriteAssetService AssetService, GameplaySpriteAssetDefinition Definition);
+
+    private sealed record ExternalPack(string Directory, Dictionary<string, RegisteredGameplaySprite?> ReplacedSprites);
 }

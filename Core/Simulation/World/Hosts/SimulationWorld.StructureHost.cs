@@ -9,6 +9,7 @@ public sealed partial class SimulationWorld : IStructureHost
     void IStructureHost.ApplyExplosionImpulse(PlayerEntity player, float originX, float originY, float impulse) => ExplosionGeometry.ApplyExplosionImpulse(player, originX, originY, impulse);
     bool IStructureHost.ApplyPlayerDamage(PlayerEntity target, int damage, PlayerEntity? attacker, float spyRevealAlpha, DamageEventFlags damageFlags, bool allowOsmosisHealOwnedSentries, bool allowCivvieUmbrellaShield, float? civvieUmbrellaThreatSourceX, float? civvieUmbrellaThreatSourceY, int? civvieUmbrellaDrainTicks, bool civvieUmbrellaCriticalBoost) => Combat.ApplyPlayerDamage(target, damage, attacker, spyRevealAlpha, damageFlags, allowOsmosisHealOwnedSentries, allowCivvieUmbrellaShield, civvieUmbrellaThreatSourceX, civvieUmbrellaThreatSourceY, civvieUmbrellaDrainTicks, civvieUmbrellaCriticalBoost);
     WorldBounds IStructureHost.Bounds => Bounds;
+    bool IStructureHost.IsInFreezeZone(float x, float y) => Projectiles.IsInFreezeZone(x, y);
     bool IStructureHost.ClientPredictionMode => ClientPredictionMode;
     SimulationConfig IStructureHost.Config => Config;
     DamageRulesSystem IStructureHost.DamageRules => DamageRules;

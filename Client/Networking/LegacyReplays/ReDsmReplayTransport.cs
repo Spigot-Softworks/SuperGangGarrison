@@ -303,7 +303,7 @@ public sealed class ReDsmReplayTransport : IPlaybackMessageTransport
                             $"Translated welcome uses protocol {nextWelcome.Version}, expected {ProtocolVersion.Current}.");
                     }
 
-                    world = new SimulationWorld();
+                    world = new SimulationWorld { ClientPredictionMode = true };
                     if (!world.MapLifecycle.TryLoadLevel(nextWelcome.LevelName, mapAreaIndex: 1, preservePlayerStats: false, mapScale: nextWelcome.MapScale))
                     {
                         throw new InvalidDataException($"Translated welcome map '{nextWelcome.LevelName}' could not be loaded.");

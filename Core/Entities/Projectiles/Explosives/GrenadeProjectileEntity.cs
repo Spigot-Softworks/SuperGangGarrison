@@ -169,6 +169,14 @@ public sealed class GrenadeProjectileEntity : SimulationEntity
         FuseTicksLeft -= 1;
     }
 
+    // Held still this tick (a freeze zone): the previous position catches up, so drawing between
+    // the two doesn't jitter.
+    public void HoldStill()
+    {
+        PreviousX = X;
+        PreviousY = Y;
+    }
+
     public void MoveTo(float x, float y)
     {
         X = x;

@@ -26,6 +26,7 @@ public sealed class GameplayManager
         ScreenState = new GameplayScreenStateController(context);
         PresentationState = new GameplayPresentationStateController(context);
         ImpactEffects = new GameplayImpactEffectsController(context);
+        PluginEffects = new GameplayPluginEffectsController(context);
         GoreEffects = new GameplayGoreEffectsController(context);
         SmokeEffects = new GameplaySmokeEffectsController(context);
         MaterialEffects = new GameplayMaterialEffectsController(context);
@@ -40,6 +41,8 @@ public sealed class GameplayManager
     }
 
     public FrameController Frame { get; }
+
+    public GameplayPluginEffectsController PluginEffects { get; }
 
     public GameplayRuntimeSettings RuntimeSettings { get; }
 

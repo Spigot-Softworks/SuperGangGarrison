@@ -330,6 +330,7 @@ public static partial class ProtocolCodec
                 MessageType.AudioRelay => ReadAudioRelay(reader),
                 MessageType.ServerAudioState => new ServerAudioStateMessage(reader.ReadUInt32(), reader.ReadBoolean(), reader.ReadBoolean(), reader.ReadUInt32(), reader.ReadBoolean(), reader.ReadBoolean(), ReadString(reader, AudioWireFormat.MaxTrackBytes), reader.ReadBoolean(), reader.ReadBoolean(), reader.ReadUInt32()),
                 MessageType.VoiceChannelMembership => new VoiceChannelMembershipMessage(reader.ReadUInt32(), reader.ReadBoolean()),
+                MessageType.GameplayContentSync => ReadGameplayContentSync(reader),
                 MessageType.LastToDieCommand => ReadLastToDieCommand(reader),
                 MessageType.LastToDieCommandResult => ReadLastToDieCommandResult(reader),
                 MessageType.LastToDieRunSnapshot => ReadLastToDieRunSnapshot(reader),
@@ -742,6 +743,15 @@ public static partial class ProtocolCodec
                 writer.Write(membership.Revision);
                 writer.Write(membership.Joined);
                 break;
+            case GameplayContentSyncMessage contentSync:
+                if (contentSync.ContentUtf8Json.Length > GameplayContentSyncMessage.MaxContentBytes)
+                {
+                    throw new InvalidOperationException($"Gameplay content exceeds protocol limit of {GameplayContentSyncMessage.MaxContentBytes} bytes.");
+                }
+
+                writer.Write(contentSync.ContentUtf8Json.Length);
+                writer.Write(contentSync.ContentUtf8Json);
+                break;
             case LastToDieCommandMessage lastToDieCommand:
                 WriteLastToDieCommand(writer, lastToDieCommand);
                 break;
@@ -760,6 +770,23 @@ public static partial class ProtocolCodec
             default:
                 throw new InvalidOperationException($"Unsupported protocol message type: {message.GetType().Name}");
         }
+    }
+
+    private static GameplayContentSyncMessage ReadGameplayContentSync(BinaryReader reader)
+    {
+        var length = reader.ReadInt32();
+        if (length < 0 || length > GameplayContentSyncMessage.MaxContentBytes)
+        {
+            throw new IOException($"Gameplay content exceeds protocol limit of {GameplayContentSyncMessage.MaxContentBytes} bytes.");
+        }
+
+        var content = reader.ReadBytes(length);
+        if (content.Length != length)
+        {
+            throw new EndOfStreamException();
+        }
+
+        return new GameplayContentSyncMessage(content);
     }
 
     private static VoteStateMessage ReadVoteState(BinaryReader reader)

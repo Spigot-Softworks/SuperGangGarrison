@@ -202,6 +202,7 @@ public partial class Game1
     private void OpenGarrisonBuilderRecovery()
     {
         Directory.CreateDirectory(BuilderRecoveryDirectory);
+        PruneEmptyGarrisonBuilderRecoveryDrafts();
         BeginChooseGarrisonBuilderFile("Recover a Builder draft", "Builder drafts|*.ogmap", BuilderRecoveryDirectory + Path.DirectorySeparatorChar, OpenGarrisonBuilderMap);
     }
 
@@ -214,7 +215,7 @@ public partial class Game1
             CommitGarrisonBuilderActiveEdits();
             // Shutdown cannot depend on a future frame to finish this last recovery write.
             _builderRecoveryTask?.GetAwaiter().GetResult();
-            BuilderProjectStore.Save(_builderDocument with { Entities = _builderEntities.ToArray() }, Path.Combine(BuilderRecoveryDirectory, _builderRecoveryId + BuilderProjectStore.Extension));
+            WriteGarrisonBuilderRecoveryDraftNow(_builderDocument with { Entities = _builderEntities.ToArray() });
         }
         catch (Exception ex) { AddConsoleLine("Builder recovery failed: " + ex.Message); }
     }

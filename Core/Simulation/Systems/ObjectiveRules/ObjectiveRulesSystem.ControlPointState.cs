@@ -481,5 +481,6 @@ internal sealed partial class ObjectiveRulesSystem
         _host.WorldEffects.RegisterWorldSoundEvent("CPCapturedSnd", point.Marker.CenterX, point.Marker.CenterY);
         _host.WorldEffects.RegisterWorldSoundEvent("IntelPutSnd", point.Marker.CenterX, point.Marker.CenterY);
         _host.MapLogic.EvaluateMapLogicGraph(resetStatefulNodes: false);
+        _host.MapLogic.NotifyMapScriptCapture(point, team);
     }
 }

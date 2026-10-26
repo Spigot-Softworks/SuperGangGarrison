@@ -90,6 +90,8 @@ public enum MessageType : byte
     ServerAudioState = 56,
     /// <summary>The voice channel membership message.</summary>
     VoiceChannelMembership = 57,
+    /// <summary>Plugin-registered gameplay content sent to a client after the welcome.</summary>
+    GameplayContentSync = 58,
 }
 
 /// <summary>The connection intent.</summary>
@@ -853,6 +855,21 @@ public sealed record ServerPluginMessage(
 {
     /// <summary>Gets the message type.</summary>
     public MessageType Type => MessageType.ServerPluginMessage;
+}
+
+/// <summary>
+/// Plugin-registered gameplay content (classes, items, loadouts) the server sends after
+/// <see cref="WelcomeMessage"/>. The payload is a UTF-8 JSON document owned by the Core
+/// gameplay registry; the protocol treats it as opaque bytes.
+/// </summary>
+/// <param name="ContentUtf8Json">The UTF-8 JSON content document.</param>
+public sealed record GameplayContentSyncMessage(byte[] ContentUtf8Json) : IProtocolMessage
+{
+    /// <summary>The maximum content size in bytes (1 MiB).</summary>
+    public const int MaxContentBytes = 1024 * 1024;
+
+    /// <summary>Gets the message type.</summary>
+    public MessageType Type => MessageType.GameplayContentSync;
 }
 
 /// <summary>The snapshot player state.</summary>
@@ -1656,7 +1673,7 @@ public sealed record SnapshotMineState(
 /// <param name="IsLocked">Whether locked.</param>
 /// <param name="HasHealingAura">Whether healing aura.</param>
 public sealed record SnapshotControlPointState(
-    byte Index,
+    int Index,
     byte Team,
     byte CappingTeam,
     ushort CappingTicks,
@@ -2067,6 +2084,9 @@ public enum SnapshotEntityCollectionCompletenessFlags : ushort
 /// <summary>Logic state of one placed light (index into the map's lights; bit 0 power, bits 1-2 colour state, bits 3-4 colour cycle step).</summary>
 public readonly record struct SnapshotMapLightState(ushort Index, byte State);
 
+public readonly record struct SnapshotMapRoundEndState(int Index, int RemainingTicks);
+public readonly record struct SnapshotMapScriptObjectState(int Index, bool Active);
+
 /// <summary>The snapshot message.</summary>
 /// <param name="Frame">The frame.</param>
 /// <param name="TickRate">The tick rate.</param>
@@ -2184,6 +2204,9 @@ public sealed record SnapshotMessage(
     public int CapLimit { get; init; }
     /// <summary>Gets the logic state of the map's logic-driven lights (always the full list).</summary>
     public IReadOnlyList<SnapshotMapLightState> MapLightStates { get; init; } = Array.Empty<SnapshotMapLightState>();
+    public IReadOnlyList<SnapshotMapRoundEndState> MapRoundEndStates { get; init; } = Array.Empty<SnapshotMapRoundEndState>();
+    public IReadOnlyList<SnapshotMapScriptObjectState> MapScriptObjectStates { get; init; } = Array.Empty<SnapshotMapScriptObjectState>();
+    public string MapScriptError { get; init; } = string.Empty;
     public IReadOnlyList<SnapshotDamageableZoneState> DamageableZoneStates { get; init; } = Array.Empty<SnapshotDamageableZoneState>();
 
     /// <summary>Gets the baseline frame.</summary>

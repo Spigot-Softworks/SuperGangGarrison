@@ -52,7 +52,7 @@ internal sealed partial class ObjectiveRulesSystem
             return;
         }
 
-        if (IsKothMode((GameModeKind)snapshot.GameMode))
+        if (IsKothMode((GameModeKind)snapshot.GameMode) || (GameModeKind)snapshot.GameMode == GameModeKind.Conquest)
         {
             _host.Objectives.ControlPoints.SetupMode = false;
             _host.Objectives.ControlPoints.SetupTicksRemaining = 0;

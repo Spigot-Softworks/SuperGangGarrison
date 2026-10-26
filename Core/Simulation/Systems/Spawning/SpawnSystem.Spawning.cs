@@ -272,10 +272,20 @@ internal sealed partial class SpawnSystem
 
         if (playRespawnSound)
         {
-            _host.WorldEffects.RegisterWorldSoundEvent("RespawnSnd", player.X, player.Y);
+            _host.WorldEffects.RegisterWorldSoundEvent(GetRespawnSoundName(player), player.X, player.Y);
         }
 
         return true;
+    }
+
+    // A class can announce itself on spawn (presentation SpawnSound); others play RespawnSnd.
+    private static string GetRespawnSoundName(PlayerEntity player)
+    {
+        var registry = CharacterClassCatalog.RuntimeRegistry;
+        return registry.TryGetClassBinding(player.GameplayClassId, out _)
+            && registry.GetClassDefinition(player.GameplayClassId).Presentation?.SpawnSound is { Length: > 0 } spawnSound
+                ? spawnSound
+                : "RespawnSnd";
     }
 
     internal bool SpawnPlayerResolved(
@@ -285,6 +295,8 @@ internal sealed partial class SpawnSystem
         bool clearMedicHealingTarget = true,
         bool playRespawnSound = false)
     {
+        if (_host.Level.MapScriptSpawnOverrides.TryGetValue(spawn.MapEntityId ?? "", out var enabled) && !enabled)
+            return false;
         return SpawnPlayerResolved(player, team, spawn.X, spawn.Y, clearMedicHealingTarget, playRespawnSound);
     }
 
@@ -369,6 +381,9 @@ internal sealed partial class SpawnSystem
         }
 
         var spawnPool = BuildTeamSpawnSelectionPool(spawns, team);
+        // Every spawn may be disabled intentionally. The spawn admission above
+        // defers respawning until the script enables a valid location again.
+        if (spawnPool.Count == 0) return spawns[0];
         var spawnRooms = _host.Level.GetRoomObjects(RoomObjectType.SpawnRoom);
         var requireSpawnRoom = spawnRooms.Count > 0;
         var startIndex = team == PlayerTeam.Blue ? _host.Lifecycle.NextBlueSpawnIndex : _host.Lifecycle.NextRedSpawnIndex;
@@ -415,6 +430,7 @@ internal sealed partial class SpawnSystem
         for (var index = 0; index < spawns.Count; index += 1)
         {
             var spawn = spawns[index];
+            if (_host.Level.MapScriptSpawnOverrides.TryGetValue(spawn.MapEntityId ?? "", out var enabled) && !enabled) continue;
             if (spawn.IsStandardSpawn)
             {
                 standardSpawns.Add(spawn);
@@ -438,8 +454,10 @@ internal sealed partial class SpawnSystem
 
         // Legacy maps sometimes supply numbered spawns only, including neutral
         // starts. In that case use the home tier, never an arbitrary forward tier.
-        var homePriority = spawns.Min(spawn => spawn.LegacySpawnSlot > 0 ? spawn.LegacySpawnSlot : spawn.Priority);
-        return OrderSpawnTier(spawns.Where(spawn =>
+        var available = spawns.Where(spawn => !_host.Level.MapScriptSpawnOverrides.TryGetValue(spawn.MapEntityId ?? "", out var active) || active).ToArray();
+        if (available.Length == 0) return [];
+        var homePriority = available.Min(spawn => spawn.LegacySpawnSlot > 0 ? spawn.LegacySpawnSlot : spawn.Priority);
+        return OrderSpawnTier(available.Where(spawn =>
             (spawn.LegacySpawnSlot > 0 ? spawn.LegacySpawnSlot : spawn.Priority) == homePriority));
     }
 
@@ -452,6 +470,8 @@ internal sealed partial class SpawnSystem
         {
             return false;
         }
+
+        if (_host.Level.MapScriptSpawnOverrides.TryGetValue(spawn.MapEntityId ?? "", out var enabled)) return enabled;
 
         if (spawn.UsesLogicSignal)
         {

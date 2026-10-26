@@ -153,7 +153,7 @@ internal sealed partial class PickupSystem
             || !CanUseExperimentalDroppedWeapons(killer)
             || ReferenceEquals(killer, victim)
             || killer.Team == victim.Team
-            || !CharacterClassCatalog.SupportsExperimentalAcquiredWeapon(victim.ClassId)
+            || !CharacterClassCatalog.RuntimeRegistry.SupportsExperimentalAcquiredWeapon(victim.ClassDefinition)
             || _host.Randoms.Gameplay.NextSingle() > global::OpenGarrison.Core.ExperimentalGameplaySettings.EnemyDroppedWeaponChance)
         {
             return;

@@ -146,13 +146,17 @@ public partial class Game1
 
         var origin = resolved.Origin;
         var scale = resolved.Layout.Scale;
+        ConquestPointHudLayout? conquestLayout = _world.MatchRules.Mode == GameModeKind.Conquest
+            ? ConquestPointHudLayout.Create(icons.Count, origin, ViewportWidth, ViewportHeight, scale) : null;
+        if (conquestLayout.HasValue) scale = conquestLayout.Value.Scale;
         var spriteScale = new Vector2(3f * scale, 3f * scale);
         var drawX = origin.X - ((icons.Count - 1) / 2f * 60f * scale);
         var firstX = drawX;
         var unlockFiveSeconds = Math.Max(1, _config.TicksPerSecond) * 5;
-        foreach (var icon in icons)
+        for (var index = 0; index < icons.Count; index++)
         {
-            var position = new Vector2(drawX, origin.Y);
+            var icon = icons[index];
+            var position = conquestLayout?.GetPosition(index) ?? new Vector2(drawX, origin.Y);
             TryDrawScreenSprite("ControlPointStatusS", icon.Frame, position, Color.White, spriteScale);
             if (icon.Locked)
             {
@@ -175,6 +179,11 @@ public partial class Game1
             drawX += 60f * scale;
         }
 
+        if (conquestLayout.HasValue)
+        {
+            UpdateHudElementBounds(HudElementId.MatchObjectiveStatus, conquestLayout.Value.Bounds);
+            return;
+        }
         UpdateHudElementBounds(
             HudElementId.MatchObjectiveStatus,
             new Rectangle(
@@ -218,12 +227,14 @@ public partial class Game1
         }
 
         var isConquest = _world.MatchRules.Mode == GameModeKind.Conquest;
+        if (isConquest)
+            SetConquestScoreHudDefaults();
         DrawGg2KothTeamTimer(HudElementId.MatchKothRedTimer, PlayerTeam.Red, isConquest ? _world.RedCaps : _world.ObjectiveRules.KothRedTimerTicksRemaining);
         DrawGg2KothTeamTimer(HudElementId.MatchKothBlueTimer, PlayerTeam.Blue, isConquest ? _world.BlueCaps : _world.ObjectiveRules.KothBlueTimerTicksRemaining);
         if (isConquest)
         {
-            DrawHudTextCentered($"First to {ConquestRules.ScoreLimit}", new Vector2(ViewportWidth / 2f, 64f), Color.White, 1f);
-            DrawGg2RoundTimer(ViewportWidth / 2f, centerY: 100f);
+            DrawHudTextCentered($"First to {_world.MatchRules.CapLimit}", new Vector2(ViewportWidth / 2f, 64f), Color.White, 1f);
+            DrawGg2RoundTimer(ViewportWidth / 2f);
         }
     }
 
