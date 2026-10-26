@@ -69,6 +69,8 @@ Tests/BrowserSmoke/node_modules/
 /*-sheet.png
 /*-logo.png
 /ltd-update.txt
+/cursor.png
+/newsounds/
 # Keep local notes private; shared guides are explicitly included below.
 /docs/*
 !/docs/README.md

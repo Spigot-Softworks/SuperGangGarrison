@@ -20,6 +20,7 @@ foreach ($name in @(
     ".git",
     ".editorconfig",
     ".gitattributes",
+    ".git-blame-ignore-revs",
     ".gitignore",
     "Directory.Build.props",
     "Directory.Build.targets",
